@@ -86,3 +86,20 @@ One line per decision: **what** — *why* — source if verified. Newest at the 
 - **An "I've paid" claim holds suspension for at most 48 h; reminders to Asser every 12 h; "Not received" removes the hold** — *a false claim can't buy more than 2 days.*
 - **Telegram confirm buttons use a callback with a single-use signed token, checked against `TELEGRAM_CHAT_ID`** — *only Asser's chat can confirm a payment.*
 - **Card-on-file auto-charge (later phase) goes through Kashier `CONTAUTH`** — *InstaPay has no recurring.*
+
+## Phase 1 build
+
+- **Tests run in the real Workers runtime with `@cloudflare/vitest-plugin` 1.4.11** — *`@cloudflare/vitest-pool-workers` is deprecated and renamed; the plugin needs Vitest 4.1+, so the repo moved to Vitest 4.1.12.*
+- **Dependencies pinned to versions at least two weeks old** (hono 4.13.14, wrangler 4.156.0, zod 4.6.7, esbuild 0.28.2, workers-types 5.20261030.1, @playwright/test 1.63.0 to match the pre-installed browser) — *avoid fresh, unproven releases.*
+- **Providers live in `apps/api/src/providers` for now, not a separate package** — *one consumer; split when the admin needs them.*
+- **Genlook `person.keepHeadCovering: true` unless the product is sold with headwear (`products.includes_headwear`)** — *hijab-wearing shoppers keep their own head covering; placement in the body is per the docs and is checked by the manual verify script.*
+- **One-time Genlook id is stored only if the delete fails (`pending_deletes`), retried every 15 min, alert raised** — *a failed delete can't be forgotten; the id is random and never linked to a person.*
+- **Preview allowance is reserved with one conditional UPDATE (`used < included + extra`) before the AI call and released on failure** — *no overshoot under concurrent requests; failures never count.*
+- **Per-account daily cap → status `paused` + alert; global spend cap → `global_kill` + alert** — *the brief's "auto-pauses and alerts"; restore is a deliberate act.*
+- **`/v1/config` sends CORS even on refusals (body is just `{enabled:false}`)** — *otherwise the browser prints a CORS error on the brand's page ("no console noise"); a refusal leaks nothing.*
+- **Widget re-checks config every 30 s while the tab is visible** — *the kill switch removes the button from pages left open; measured about 30 s in e2e.*
+- **Widget skips home-decor products until Phase 4 (room preview)** — *the API returns `not_supported` for decor until then.*
+- **Widget does not load the Cairo font on brand pages; the iframe does** — *keeps w.js at about 4 KB and looks native to each shop; the font file is only fetched when the dialog opens.*
+- **Frame focuses the heading on each screen, not the main button** — *screen readers announce the step; no heavy focus ring on open; Tab reaches the button next.*
+- **Hosted pages may not be framed (`frame-ancestors 'none'`); `/frame` may be framed by any site** — *the widget needs to embed `/frame` on every brand domain; the domain lock is enforced by the API token, not by framing rules.*
+- **Ctx token passed in the URL fragment and removed from history on load** — *never sent to servers, never left in the address bar.*

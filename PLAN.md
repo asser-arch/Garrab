@@ -1,6 +1,6 @@
 # Garrab: build plan
 
-Status: **approved 13 Nov 2026**, with one change: **InstaPay replaces Paymob** (section 3a). Phase 1 in progress.
+Status: **approved 13 Nov 2026**, with one change: **InstaPay replaces Paymob** (section 3a). Phase 1 **done with mocks** (13 Nov 2026): see `demo/phase-1.md`. Its "done when" needs your Genlook key and a staging shop.
 Date of research: 13 November 2026. Every external fact below was checked in the provider's current docs that day; sources are in `DECISIONS.md`.
 
 ---

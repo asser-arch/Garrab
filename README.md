@@ -3,12 +3,16 @@
 AI virtual try-on for small Egyptian brands, run as a done-for-you monthly service.
 *See it on you. Before you buy.*
 
-**Status: Phase 0 (foundation).** Waiting for approval of [`PLAN.md`](PLAN.md). Decisions and verified provider facts are in [`DECISIONS.md`](DECISIONS.md).
+**Status: Phase 1 (try-on core) built and tested with mock AI.** Plan: [`PLAN.md`](PLAN.md). Demo: [`demo/phase-1.md`](demo/phase-1.md). Decisions and verified provider facts are in [`DECISIONS.md`](DECISIONS.md).
 
 ## Layout
 
 ```
-apps/            (from Phase 1) api, widget, frame, portal, admin, site
+apps/api         Cloudflare Worker: /v1/config, /v1/tryon, /v1/hosted, /v1/events, cron, D1 migrations
+apps/widget      w.js (Shadow-DOM button, about 4 KB gzipped)
+apps/frame       the try-on flow, used by the widget iframe and the hosted link
+apps/site        Worker serving w.js, /frame and /t/<brand>/<product>
+e2e/             Playwright tests against a fake shop
 packages/shared  plans.ts (all prices and limits), design tokens, strings (EN and AR), Zod schemas
 fixtures/        consented stock test photos (to be provided)
 docs/            Pitch Kit, Pilot Proposal, Brand Guidelines (to be added)
@@ -19,8 +23,10 @@ docs/            Pitch Kit, Pilot Proposal, Brand Guidelines (to be added)
 ```bash
 corepack enable          # once; gives you pnpm 10
 pnpm install
+pnpm build
 pnpm typecheck
-pnpm test
+pnpm test     # unit, API and privacy tests in the Workers runtime
+pnpm e2e      # browser tests (starts local API, site and a fake shop)
 ```
 
 ## Rules
