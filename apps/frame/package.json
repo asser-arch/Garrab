@@ -1,0 +1,13 @@
+{
+  "name": "@garrab/frame",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "echo 'frame: covered by e2e'"
+  },
+  "dependencies": { "@garrab/shared": "workspace:*" },
+  "devDependencies": { "esbuild": "0.28.2" }
+}

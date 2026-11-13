@@ -1,0 +1,18 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "garrab-site",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-30",
+  "assets": { "directory": "./public", "binding": "ASSETS", "run_worker_first": true },
+  "vars": { "API_ORIGIN": "http://localhost:8787", "TURNSTILE_SITE_KEY": "mock", "ENVIRONMENT": "dev" },
+  "env": {
+    "staging": {
+      "name": "garrab-site-staging",
+      "vars": { "API_ORIGIN": "https://api.staging.REPLACE_DOMAIN", "TURNSTILE_SITE_KEY": "REPLACE_ME", "ENVIRONMENT": "staging" }
+    },
+    "prod": {
+      "name": "garrab-site",
+      "vars": { "API_ORIGIN": "https://api.REPLACE_DOMAIN", "TURNSTILE_SITE_KEY": "REPLACE_ME", "ENVIRONMENT": "prod" }
+    }
+  }
+}
