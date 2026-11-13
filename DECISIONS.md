@@ -75,3 +75,14 @@ One line per decision: **what** — *why* — source if verified. Newest at the 
 - **Arabic strings are marked DRAFT until the Pitch Kit arrives; a test blocks a production build that contains DRAFT strings** — *the brief requires the Pitch Kit wording.*
 - **Product limits on paid plans default to Starter 30 and Growth 100 (question 1 in PLAN)** — *the brief doesn't say; the values live in `plans.ts`.*
 - **VAT rate is a setting, default 0, shown only if above 0** — *per the brief.*
+
+## Change: InstaPay replaces Paymob (approved 13 Nov 2026)
+
+- **Paymob is dropped; brands pay over InstaPay** — *Asser's decision when approving the plan.* The Paymob facts above stay as research history only.
+- **InstaPay has no merchant API or webhook of its own** — instapay.eg (an app with an Instant Payment Address, IPA); checked 13 Nov 2026.
+- **Kashier can collect InstaPay:** `POST /v3/orders` with `paymentMethod.type: "instapay"` and `apiOperation` `GENERATE_QR` or `INITIATE_R2P` (`payerAddress`, required `validity`), signed with `Kashier-Hash`; success comes on the standard webhook as `status: SUCCESS`, code `00`; no tokenization or recurring on this rail — developers.kashier.io/docs/accept-payments/instapay.
+- **Two InstaPay providers behind `BillingProvider`: `instapay_direct` (Asser's IPA + "I've paid" + one-tap Telegram confirm) and `kashier_instapay` (QR or request-to-pay, confirmed by webhook)** — *direct works on day one with no fees; Kashier removes the tap once Kashier enables the rail.*
+- **Default provider: `instapay_direct`; switch with the `billing_provider` setting** — *no rebuild to move to the automatic path.*
+- **An "I've paid" claim holds suspension for at most 48 h; reminders to Asser every 12 h; "Not received" removes the hold** — *a false claim can't buy more than 2 days.*
+- **Telegram confirm buttons use a callback with a single-use signed token, checked against `TELEGRAM_CHAT_ID`** — *only Asser's chat can confirm a payment.*
+- **Card-on-file auto-charge (later phase) goes through Kashier `CONTAUTH`** — *InstaPay has no recurring.*

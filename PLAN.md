@@ -1,6 +1,6 @@
 # Garrab: build plan
 
-Status: **draft for approval** (Phase 0). Nothing in Phase 1 starts until Asser approves this file.
+Status: **approved 13 Nov 2026**, with one change: **InstaPay replaces Paymob** (section 3a). Phase 1 in progress.
 Date of research: 13 November 2026. Every external fact below was checked in the provider's current docs that day; sources are in `DECISIONS.md`.
 
 ---
@@ -13,7 +13,7 @@ Date of research: 13 November 2026. Every external fact below was checked in the
 - **Biggest design changes:**
   1. The photo upload step runs in an **iframe on our own domain**, opened by the Shadow-DOM button. Turnstile only allows 10 hostnames per site key, so it cannot run on 150 brand domains. The iframe also means the brand's page scripts can never read the shopper's photo.
   2. The kill-switch status is **not cached in KV**. KV takes up to 60 seconds to spread worldwide and cannot be "purged instantly". Status comes from D1 with a 15-second in-memory cache. Worst case for the button to disappear is about 45 seconds.
-  3. **Payment links point to our own `/pay/{token}` page**, which creates a fresh Paymob payment when clicked. The link never expires and always shows the current amount.
+  3. **Payment links point to our own `/pay/{token}` page**, which starts the InstaPay payment when clicked. The link never expires and always shows the current amount.
 
 ---
 
@@ -23,7 +23,7 @@ Date of research: 13 November 2026. Every external fact below was checked in the
 |---|---|---|
 | 1 | **Genlook Try-On API** | Base `https://api.genlook.app/tryon/v1`, header `x-api-key`. `POST /try-on/sync` returns the result in one call (about 10 s, waits up to 90 s). Photo can go in the same multipart request (`fileKey`), so nothing is stored on our side. **Delete:** `DELETE /customers/{externalUserId}` removes every photo and result for that ID (returns 204). We send a random single-use `externalUserId` per try-on and delete it right after. **Retention:** `keepForDays` 1, 3 or 7 (we use 1, plus the delete call). **Failed try-ons are refunded** (confirmed). **Limits:** 429 on too many requests or more than 20 try-ons running at once; 10 MB per image; JPEG, PNG, WebP, HEIC. **Training:** "We do not use uploaded photos or generated results to train AI models." **Price:** 0.04 USD pay-as-you-go, from 0.015 USD on a plan. `mock: true` gives free test calls. **Reseller:** see section 1. |
 | 2 | **Gemini** | Room preview: `gemini-3.1-flash-image`, 0.067 USD per 1K output image (input 0.50 USD per 1M tokens). A cheaper option exists: `gemini-nano-banana-2.1` at 0.034 USD; I'll compare both in Phase 4 (model name is config). Size finder and product reading: **`gemini-3.5-flash-lite`**, 0.30 USD in / 2.50 USD out per 1M tokens, about **0.001 USD per size answer**. (`gemini-3.1-flash-lite` is a little cheaper but older.) **Data use, paid tier:** "Google doesn't use your prompts … or responses to improve our products." But Google **logs prompts and responses for a limited time** to detect abuse. The privacy page must say this honestly for room photos. |
-| 3 | **Paymob** | Create payment: `POST /v1/intention/` (header `Authorization: Token <secret key>`), amount in piastres, `special_reference` = our invoice ID, `notification_url`, `redirection_url`. Customer pays at `https://eg.checkout.paymob.com/?publicKey=…&clientSecret=…`. Callbacks only fire on **success or decline**. **HMAC:** SHA-512 over 20 fixed fields from `obj`, concatenated with no separator, keyed with the HMAC secret, compared with the `?hmac=` query parameter. QuickLink payment links exist too (`POST /api/ecommerce/payment-links`). **Reconciliation:** transaction inquiry by `merchant_order_id`. **Subscriptions:** cancel and webhook-registration endpoints *are* now documented (the brief said they were not), but plans still need the account manager. Not worth it for v1. |
+| 3 | **Paymob** *(researched, then dropped for InstaPay, see 3a)* | Create payment: `POST /v1/intention/` (header `Authorization: Token <secret key>`), amount in piastres, `special_reference` = our invoice ID, `notification_url`, `redirection_url`. Customer pays at `https://eg.checkout.paymob.com/?publicKey=…&clientSecret=…`. Callbacks only fire on **success or decline**. **HMAC:** SHA-512 over 20 fixed fields from `obj`, concatenated with no separator, keyed with the HMAC secret, compared with the `?hmac=` query parameter. QuickLink payment links exist too (`POST /api/ecommerce/payment-links`). **Reconciliation:** transaction inquiry by `merchant_order_id`. **Subscriptions:** cancel and webhook-registration endpoints *are* now documented (the brief said they were not), but plans still need the account manager. Not worth it for v1. |
 | 4 | **Kashier** | Create payment: `POST /v3/payment/sessions` returns a `sessionUrl`. **Webhook:** HMAC-SHA256 over `data.signatureKeys` sorted alphabetically, values URL-encoded, pairs joined with `&`, keyed with the **Payment API Key**, compared with `x-kashier-signature`. Branch on `data.status` (SUCCESS / FAILURE / PENDING), never on `event`. Kashier treats 200 **and 409** as acknowledged and retries up to 10 times. **No subscriptions API** (confirmed). Card-on-file: save the token with `interactionSource: RECURRING`, then charge it with `CONTAUTH` through Pay with Token. `GET` list-payment-sessions exists, which makes reconciliation easy. |
 | 5 | **Product import on real Egyptian stores** | Tested 11 live stores (read-only, 1 product each). **Shopify `products.json`: 8 of 8 worked.** **WooCommerce Store API: 3 of 3 worked.** Some stores use local platforms (e.g. ososs), so the sitemap and JSON-LD fallback is still needed. |
 | 6 | **Cloudflare at 150 brands** | Workers Paid: 128 MB memory, CPU up to 5 min (default 30 s), unlimited wall-clock for HTTP, 15 min for cron, 10,000 subrequests per request, 250 cron triggers per account, 100 MB request bodies. D1: 10 GB per database, 1,000 queries per invocation, **Time Travel 30 days**. **Turnstile: 10 hostnames per site key** (forces the iframe design). **KV: changes take up to 60 s to spread worldwide** (forces the D1 status design). Rough load at 150 brands: about 300k config calls per day and about 3k AI calls per day. That is far below every limit. |
@@ -34,7 +34,7 @@ Date of research: 13 November 2026. Every external fact below was checked in the
 
 1. **Iframe for the try-on flow.** `w.js` (Shadow DOM, under 30 KB) detects the product, draws the button and opens a modal holding an iframe from `app.<domain>/frame`. The iframe runs the consent → upload → result flow, Turnstile and the size finder. The hosted link `/t/{brand}/{product}` uses **the same flow code**. One implementation, Turnstile works everywhere, the photo never touches the host page, and host CSP problems shrink to one `frame-src` line. Cost: a few KB more and an extra page load when the shopper clicks (we preload it on hover or touch).
 2. **Kill-switch status from D1, not KV.** D1 is the source; each Worker instance caches status for 15 s; the widget keeps config in memory for 30 s. Every AI call reads status from D1 with no cache. KV is still used for the config payload (products list, button text), but never for status.
-3. **Our own payment-link page.** `pay.<domain>/i/{invoiceToken}` shows the invoice and a Pay button. The button creates the provider's payment (Paymob intention or Kashier session) at that moment. Both the emailed link and the portal "Pay now" use the same page, so both paths feed the same ledger.
+3. **Our own payment-link page.** `pay.<domain>/i/{invoiceToken}` shows the invoice and a Pay button. The button starts the payment at that moment (InstaPay details, or a Kashier InstaPay QR or card session). Both the emailed link and the portal "Pay now" use the same page, so both paths feed the same ledger.
 4. **R2 is added**, only for **stock-model test results** (the approval gallery) and invoice PDFs. Never for shopper photos. The privacy test checks this.
 5. **HEIC and EXIF are handled in the browser.** The iframe decodes the photo (iOS Safari decodes HEIC), resizes it to at most 1600 px and re-encodes it as JPEG through a canvas. That strips EXIF. The server also removes JPEG metadata segments and rejects files over 8 MB or with the wrong type (magic-byte check, not just the header).
 6. **Cron runs every 15 minutes in UTC** and dispatches jobs by **Cairo local time** (`Intl`, `Africa/Cairo`). Egypt uses summer time again since 2023 (UTC+3), so fixed UTC crons would drift by an hour.
@@ -42,6 +42,21 @@ Date of research: 13 November 2026. Every external fact below was checked in the
 8. **`paid_through` rule:** a payment extends one month from the previous `paid_through`, as the brief says. **Exception:** when reactivating an `expired`, `suspended` past 30 days, or `archived` account, the month starts on the payment date. Otherwise a brand coming back after 3 months would pay and still be 2 months behind.
 9. **Invoices are English only.** Arabic shaping in a Worker-generated PDF is fragile. The invoice email can be bilingual.
 10. **Admin login:** Cloudflare Access (email one-time PIN, free for up to 50 users). The Worker also checks the Access JWT. Passkey can come in Phase 5.
+
+### 3a. InstaPay instead of Paymob (your change, 13 Nov)
+
+Brands pay you over **InstaPay**. InstaPay itself has no merchant API or webhook, so the ledger can only learn about a transfer in one of two ways. Both are built behind the same `BillingProvider` interface:
+
+| | **A. InstaPay direct (default, day one)** | **B. InstaPay through Kashier (automatic)** |
+|---|---|---|
+| How the brand pays | The pay page shows the amount, your InstaPay address (IPA) and the invoice number to put in the note. The brand pays in their InstaPay app, then taps **"I've paid"** and enters the transfer reference. | The pay page shows an InstaPay QR (`GENERATE_QR`), or pushes a pay request to the brand's own IPA (`INITIATE_R2P`). The brand approves in their app. |
+| How we know | You get a Telegram message with **Confirm** / **Not received** buttons. One tap writes the payment. | Kashier's signed webhook (`status: SUCCESS`, code `00`) writes the payment. **Zero taps.** |
+| Your work | One tap per payment (about 150 a month at 150 brands) | None |
+| Needs | Your IPA | A Kashier merchant account with InstaPay collection switched on (Kashier sets the acquirer); a Kashier fee per transaction |
+
+**Recommendation:** start with A (works today, no fees), and ask Kashier to enable InstaPay collection. Switching to B is a setting, not a rebuild. The Manual provider stays for bank transfers.
+
+**Rule for unconfirmed claims (A):** when a brand taps "I've paid", suspension is held for at most **48 hours** while you confirm. Telegram reminds you every 12 hours, and the claim shows in the digest. "Not received" removes the hold and emails the brand. This stops a false claim from buying more than 2 days.
 
 ---
 
@@ -53,7 +68,7 @@ Date of research: 13 November 2026. Every external fact below was checked in the
  │ <script w.js>        │─GET /v1/config?key──▶ api.<d>  Worker "api" (Hono)
  │  Shadow-DOM button   │◀─enabled, products,─┤   /v1/config  /v1/tryon  /v1/room
  │  modal ┌──────────┐  │   signed ctx token  │   /v1/size  /v1/events  /healthz
- │        │ iframe   │──┼─POST /v1/tryon─────▶│   /webhooks/paymob|kashier
+ │        │ iframe   │──┼─POST /v1/tryon─────▶│   /webhooks/kashier + telegram
  │        │ app.<d>/ │  │  (ctx + Turnstile   │   /portal-api/*  /admin-api/*
  │        │ frame    │◀─┼── + photo) image ───┤   cron (*/15) → job dispatcher
  │        └──────────┘  │                     │   queue consumer (imports, tests, email)
@@ -64,13 +79,13 @@ Date of research: 13 November 2026. Every external fact below was checked in the
                                               ├─▶ Queues (import, product tests, emails)
  Brand: app.<d>/portal  (React, magic link)   ├─▶ Genlook (clothing, accessories)
  Asser: admin.<d> (React, Cloudflare Access)  ├─▶ Gemini (room preview, size, scoring)
- Public: www.<d> /start /privacy /terms       ├─▶ Paymob / Kashier (payments)
+ Public: www.<d> /start /privacy /terms       ├─▶ InstaPay / Kashier (payments)
  Pay page: app.<d>/pay/i/{token}              └─▶ Resend (email), Telegram (alerts)
 ```
 
-**Monorepo:** `apps/{api,widget,frame,portal,admin,site}`, `packages/shared` (plans, Zod schemas, strings, tokens), `packages/providers` (interfaces plus Genlook, Gemini, Paymob, Kashier, Manual, Resend and Telegram, each with a mock). `apps/frame` is new: it holds the try-on flow shared by the widget iframe and the hosted link.
+**Monorepo:** `apps/{api,widget,frame,portal,admin,site}`, `packages/shared` (plans, Zod schemas, strings, tokens), `packages/providers` (interfaces plus Genlook, Gemini, InstaPay, Kashier, Manual, Resend and Telegram, each with a mock). `apps/frame` is new: it holds the try-on flow shared by the widget iframe and the hosted link.
 
-**Deployables (3 Workers per environment):** `api` (all `/v1/*`, webhooks, cron, queues); `site` (one Worker with static assets serving www, `app.<d>` for the frame, hosted links, portal and pay page, and `cdn.<d>/w.js`); `admin` (static assets behind Cloudflare Access). Environments: `dev` (local wrangler with mock providers), `staging` (own D1, KV, R2; Paymob test keys; Genlook real with a low cap), `prod`.
+**Deployables (3 Workers per environment):** `api` (all `/v1/*`, webhooks, cron, queues); `site` (one Worker with static assets serving www, `app.<d>` for the frame, hosted links, portal and pay page, and `cdn.<d>/w.js`); `admin` (static assets behind Cloudflare Access). Environments: `dev` (local wrangler with mock providers), `staging` (own D1, KV, R2; Kashier test keys; Genlook real with a low cap), `prod`.
 
 ### 4.1 One try-on, step by step
 
@@ -137,7 +152,7 @@ Indexes on `account_id` everywhere, and on `(account_id, day)`, `(status)`, `(du
 | every 15 min | onboarding `advance` sweep, retry failed provider deletes, alert checks |
 | 02:00 | product re-sync (prices, images, new products), fit-profile refresh |
 | 03:00 | install crawler (looks for the script tag on one product page per domain) |
-| 04:00 | payment reconciliation (Paymob inquiry for open invoices, Kashier session list) |
+| 04:00 | payment reconciliation (Kashier order lookup for open invoices; unconfirmed InstaPay claims re-sent to Asser) |
 | 05:00 | billing run: T-7 invoices, T and T+1/3/5 reminders, `past_due`, `suspended`, `archived`, pilot clock emails (day 1, 7, 12, 14), pilot expiry |
 | 06:00 | stuck detector (more than 48 h in an onboarding step) |
 | 08:30 | daily digest (email and Telegram) |
@@ -158,7 +173,7 @@ D1 schema and migrations; `/v1/config`, `/v1/tryon`, `/healthz`; ctx tokens; dom
 `/start` form and admin "Invite brand"; accounts, users, magic links; Resend; importers (Shopify, Woo, sitemap and JSON-LD with `robots.txt`, CSV and form); auto-ranking; product tests with 2 fixtures and Gemini scoring (≥4 on, 3 review, below 3 off) under a budget cap; approval gallery; install steps and copy snippet; install checker and crawler; pilot clock emails; stuck detector; funnel. *Demo:* invite a test brand → it reaches `pilot_live` with no admin clicks.
 
 **Phase 3: Billing and kill switch**
-Ledger; invoices and PDFs; pay page; Paymob provider (intention and HMAC); Manual provider; webhooks (store first, then process idempotently, replay button); the status machine; every kill-switch layer; reconciliation; admin console (dashboard, client page, Kill / Restore / Pause, manual payment, resend email, read-only portal view); Telegram alerts; 08:30 digest; Kashier provider. *Demo:* a test brand goes unpaid → suspended → the widget disappears in under 60 s (Playwright measures it) → pay through the link → restored; repeat with portal Pay now.
+Ledger; invoices and PDFs; pay page; InstaPay direct provider (pay page with your InstaPay address, brand taps "I've paid", you confirm with one tap in Telegram); Manual provider; Kashier provider (InstaPay QR and request-to-pay, card) as the automatic path; webhooks (store first, then process idempotently, replay button); the status machine; every kill-switch layer; reconciliation; admin console (dashboard, client page, Kill / Restore / Pause, manual payment, resend email, read-only portal view); Telegram alerts; 08:30 digest. *Demo:* a test brand goes unpaid → suspended → the widget disappears in under 60 s (Playwright measures it) → pay through the link → restored; repeat with portal Pay now.
 
 **Phase 4: Growth features**
 Size finder (fit profile, one call, code rules, fallback, Growth only, English only); 30-case evaluation harness and pilot checklist; room preview with Gemini (and the model comparison); aggregate analytics and the pilot results report. *Demo:* the harness passes; a Starter account never shows "Find my size".
@@ -189,6 +204,7 @@ On a Genlook plan, try-ons can drop to 0.015 USD. Cloudflare is about 5 USD per 
 | Quality varies by garment | Automatic tests with scoring; brand approval; "AI preview" chip and disclaimer always shown |
 | Host page breaks or blocks us | Fail silent; iframe isolation; no globals; size budget in CI; CSP note in install docs |
 | Payment webhooks missed | Store-first webhooks, daily reconciliation, Manual provider, pay page re-checks with the provider |
+| InstaPay direct needs your tap | One-tap Telegram confirm; 48 h hold cap on claims; move to Kashier InstaPay (zero taps) when enabled |
 | Abuse or cost spike | Turnstile, rate limits, per-account and global daily caps → auto-pause and alert |
 | Egypt PDPL (Law 151/2020) | Collect no shopper data; plain privacy page; **lawyer review before launch** (your action) |
 | Gemini abuse-monitoring retention | Disclosed on `/privacy`; room photos go to Google only |
@@ -205,8 +221,8 @@ On a Genlook plan, try-ons can drop to 0.015 USD. Cloudflare is about 5 USD per 
 | Turnstile site key (hostname `app.<domain>`) | dash → Turnstile | bot check | `TURNSTILE_SECRET` |
 | Genlook account and API key, **plus the resale email** | platform.genlook.app | try-on | `GENLOOK_API_KEY` |
 | Google AI Studio, **billing enabled** (paid tier) | aistudio.google.com | room, size, scoring | `GEMINI_API_KEY` |
-| Paymob merchant (test and live): secret key, public key, HMAC secret, integration IDs (card, wallet) | accept.paymob.com | payments | `PAYMOB_SECRET_KEY`, `PAYMOB_PUBLIC_KEY`, `PAYMOB_HMAC_SECRET`, `PAYMOB_INTEGRATION_IDS` |
-| Kashier (later): MID, secret key, Payment API key | merchant.kashier.io | payments | `KASHIER_MID`, `KASHIER_SECRET_KEY`, `KASHIER_PAYMENT_API_KEY` |
+| Your InstaPay address (IPA, e.g. `name@instapay`) on a business bank account | InstaPay app | brands pay you | `INSTAPAY_IPA` (not secret) |
+| Kashier merchant **with InstaPay collection enabled** (ask Kashier; needed for automatic confirmation): MID, secret key, Payment API key | merchant.kashier.io | automatic InstaPay and cards | `KASHIER_MID`, `KASHIER_SECRET_KEY`, `KASHIER_PAYMENT_API_KEY` |
 | Resend: verify your sending domain (SPF, DKIM) | resend.com | email | `RESEND_API_KEY` |
 | Telegram bot (@BotFather) and your chat ID | Telegram | alerts | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` |
 | Free uptime monitor (e.g. UptimeRobot) on `/healthz` | — | uptime | — |
