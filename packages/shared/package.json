@@ -1,0 +1,19 @@
+{
+  "name": "@garrab/shared",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./plans": "./src/plans.ts",
+    "./tokens": "./src/tokens.ts",
+    "./strings": "./src/strings/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "4.6.7"
+  }
+}
