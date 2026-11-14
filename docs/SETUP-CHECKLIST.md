@@ -14,7 +14,7 @@ Never paste keys in chat. When a key is ready, tell Claude and it sends a secure
 
 ### Cloudflare (needed to deploy anything)
 - [ ] **B1.** Add your domain to Cloudflare (change nameservers at your registrar) and subscribe to **Workers Paid** (5 USD/month).
-- [ ] **B2.** Create an **API token** with the "Edit Cloudflare Workers" template, plus permissions for D1, R2 and Queues. Note your **Account ID** (dashboard sidebar). Both go into GitHub → repo Settings → Secrets → Actions as `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
+- [x] **B2.** Create an **API token** with the "Edit Cloudflare Workers" template, plus permissions for D1, R2 and Queues. Note your **Account ID** (dashboard sidebar). Both go into GitHub → repo Settings → Secrets → Actions as `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
 - [ ] **B3. Turnstile:** add a widget for hostname `app.<your-domain>` → copy the **site key** and **secret key**.
 - [ ] **B4. Admin login (Zero Trust → Access):** create a free team, add a self-hosted application for `admin.<your-domain>`, allow only your email (one-time PIN). Send the **team domain** (`<team>.cloudflareaccess.com`) and the application's **AUD tag**.
 
