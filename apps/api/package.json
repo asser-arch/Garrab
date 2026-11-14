@@ -9,7 +9,8 @@
     "db:seed:local": "wrangler d1 execute DB --local --file scripts/seed-dev.sql",
     "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json",
     "test": "vitest run",
-    "verify:genlook-delete": "node --experimental-strip-types scripts/verify-genlook-delete.ts"
+    "verify:genlook-delete": "node --experimental-transform-types --no-warnings scripts/verify-genlook-delete.ts",
+    "bakeoff": "node --experimental-transform-types --no-warnings scripts/bakeoff.ts"
   },
   "dependencies": {
     "@garrab/shared": "workspace:*",

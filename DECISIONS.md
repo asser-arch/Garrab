@@ -103,3 +103,12 @@ One line per decision: **what** — *why* — source if verified. Newest at the 
 - **Frame focuses the heading on each screen, not the main button** — *screen readers announce the step; no heavy focus ring on open; Tab reaches the button next.*
 - **Hosted pages may not be framed (`frame-ancestors 'none'`); `/frame` may be framed by any site** — *the widget needs to embed `/frame` on every brand domain; the domain lock is enforced by the API token, not by framing rules.*
 - **Ctx token passed in the URL fragment and removed from history on load** — *never sent to servers, never left in the address bar.*
+
+## Provider choice and bake-off (14 Nov 2026)
+
+- **Google has a dedicated try-on model, `virtual-try-on-001` on Vertex AI, 0.06 USD per image** — cloud.google.com/model-garden/pricing; request `instances[].personImage` + `productImages`, response `predictions[].bytesBase64Encoded`.
+- **Gemini image models now use the Interactions API (`POST /v1beta/interactions`, header `Api-Revision: 2026-05-20`) and store requests by default; `store: false` opts out** — ai.google.dev/gemini-api/docs/interactions. *Every Gemini call that carries a shopper or room photo sends `store: false`; a unit test pins it.*
+- **Genlook stays the default for clothing and accessories; Gemini for home decor; Vertex as fallback** — *Genlook is cheapest, refunds failures, has a delete call and a hijab setting; quality is to be confirmed by the bake-off.*
+- **Gemini and Vertex try-on providers built behind `TryOnProvider`** — *the bake-off uses the production code paths, and a switch is a config change.*
+- **Bake-off script (`pnpm bakeoff`) with a dry-run cost estimate and a hard USD cap; output git-ignored** — *Asser judges quality on real target-brand products before the first pilot.*
+- **Scripts run with `node --experimental-transform-types`** — *strip-only mode can't parse constructor parameter properties used by the providers.*
