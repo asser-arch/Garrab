@@ -25,7 +25,10 @@ async function cf(method, path, body) {
   const j = await r.json().catch(() => ({}));
   if (!r.ok || j.success === false) {
     const msg = (j.errors ?? []).map((e) => `${e.code}: ${e.message}`).join("; ") || `HTTP ${r.status}`;
-    const err = new Error(`${method} ${path} → ${msg}`);
+    const hint = (j.errors ?? []).some((e) => e.code === 10042)
+      ? "\nR2 is not switched on for this account: Cloudflare dashboard → R2 Object Storage → Get started / Purchase R2 (free tier), then re-run."
+      : "";
+    const err = new Error(`${method} ${path} → ${msg}${hint}`);
     err.status = r.status;
     throw err;
   }
