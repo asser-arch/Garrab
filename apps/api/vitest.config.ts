@@ -9,6 +9,8 @@ export default defineConfig(async () => {
       cloudflareTest({
         wrangler: { configPath: "./wrangler.jsonc" },
         miniflare: {
+          // Tests call each job directly; a background consumer would outlive its test file's storage.
+          queueConsumers: {},
           bindings: {
             TEST_MIGRATIONS: migrations,
             ENVIRONMENT: "test",

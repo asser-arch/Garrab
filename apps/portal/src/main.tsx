@@ -78,6 +78,11 @@ function App() {
           <Link to="/portal/billing">Billing</Link>
         </nav>
       </header>
+      {me.readonly && (
+        <p className="warn" role="status">
+          Read-only view for Garrab support. Nothing can be changed from here.
+        </p>
+      )}
       <main className="fade" key={route}>
         {route === "/portal" && <Home me={me} refresh={refresh} />}
         {route === "/portal/products" && <Products me={me} refresh={refresh} />}

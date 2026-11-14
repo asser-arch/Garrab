@@ -31,7 +31,7 @@ interface Stage {
 }
 
 function Invite({ onDone }: { onDone: () => void }) {
-  const [f, setF] = useState({ brandName: "", email: "", plan: "starter", website: "" });
+  const [f, setF] = useState({ brandName: "", email: "", plan: "starter", website: "", setupFee: "default" });
   const [link, setLink] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   return (
@@ -42,7 +42,13 @@ function Invite({ onDone }: { onDone: () => void }) {
           e.preventDefault();
           setErr(null);
           try {
-            const r = await api<{ link: string }>("/invite", { brandName: f.brandName, email: f.email, plan: f.plan, website: f.website || undefined });
+            const r = await api<{ link: string }>("/invite", {
+              brandName: f.brandName,
+              email: f.email,
+              plan: f.plan,
+              website: f.website || undefined,
+              setupFee: f.setupFee === "default" ? undefined : f.setupFee === "yes",
+            });
             setLink(r.link);
             onDone();
           } catch (x) {
@@ -64,6 +70,14 @@ function Invite({ onDone }: { onDone: () => void }) {
             <select id="pl" value={f.plan} onChange={(e) => setF({ ...f, plan: e.target.value })}>
               <option value="starter">Starter</option>
               <option value="growth">Growth</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="sf">Setup fee</label>
+            <select id="sf" value={f.setupFee} onChange={(e) => setF({ ...f, setupFee: e.target.value })}>
+              <option value="default">Default (founding pilots: none)</option>
+              <option value="yes">Charge the one-off setup fee</option>
+              <option value="no">No setup fee</option>
             </select>
           </div>
           <div>
@@ -200,6 +214,89 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
 
 const egp = (p: number): string => `${(p / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })} EGP`;
 
+function Access({ id }: { id: string }) {
+  const [domains, setDomains] = useState<{ id: string; host: string; install_status: string }[]>([]);
+  const [host, setHost] = useState("");
+  const [snippet, setSnippet] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const load = useCallback(async () => setDomains((await api<{ domains: typeof domains }>(`/accounts/${id}/domains`)).domains), [id]);
+  useEffect(() => void load(), [load]);
+  return (
+    <>
+      <h2 style={{ marginTop: 16 }}>Portal, key and domains</h2>
+      <div className="row">
+        <button
+          className="btn small ghost"
+          onClick={async () => {
+            const r = await api<{ link: string }>(`/accounts/${id}/view-portal`, {});
+            window.open(r.link, "_blank", "noopener");
+          }}
+        >
+          Open portal (read-only)
+        </button>
+        <button
+          className="btn small ghost"
+          onClick={async () => {
+            const reason = prompt("Why rotate the widget key? The old key stops working immediately.");
+            if (!reason || reason.trim().length < 3) return;
+            setSnippet((await api<{ snippet: string }>(`/accounts/${id}/rotate-key`, { reason })).snippet);
+          }}
+        >
+          Rotate widget key
+        </button>
+      </div>
+      {snippet && <pre className="code">{snippet}</pre>}
+      <ul className="small">
+        {domains.map((d) => (
+          <li key={d.id}>
+            {d.host} <span className="chip">{d.install_status}</span>{" "}
+            <a href="#" onClick={async (e) => (e.preventDefault(), await api(`/accounts/${id}/domains/${d.id}/remove`, {}), load())}>remove</a>
+          </li>
+        ))}
+      </ul>
+      <form
+        className="row"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          try {
+            await api(`/accounts/${id}/domains`, { host });
+            setHost("");
+            setMsg(null);
+            await load();
+          } catch (x) {
+            setMsg(x instanceof Error && x.message === "domain_taken" ? "That domain belongs to another brand." : "Not a valid domain.");
+          }
+        }}
+      >
+        <input aria-label="Add domain" placeholder="shop.example.com" value={host} onChange={(e) => setHost(e.target.value)} style={{ width: 240 }} />
+        <button className="btn small ghost" type="submit">Add domain</button>
+      </form>
+      {msg && <p className="warn small">{msg}</p>}
+    </>
+  );
+}
+
+function Costs({ id }: { id: string }) {
+  const [d, setD] = useState<{ egpPerUsd: number | null; days: { day: string; calls: number; usd: number; egp: number | null }[] } | null>(null);
+  useEffect(() => void api<NonNullable<typeof d>>(`/accounts/${id}/costs`).then(setD), [id]);
+  if (!d || d.days.length === 0) return null;
+  return (
+    <>
+      <h2 style={{ marginTop: 16 }}>AI cost per day</h2>
+      <table>
+        <thead>
+          <tr><th>Day</th><th>Calls</th><th>USD</th><th>EGP</th></tr>
+        </thead>
+        <tbody>
+          {d.days.slice(0, 14).map((x) => (
+            <tr key={x.day}><td>{x.day}</td><td>{x.calls}</td><td>{x.usd.toFixed(2)}</td><td>{x.egp === null ? "–" : x.egp.toFixed(2)}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
 function Money({ id, status, hold, notes, onChange }: { id: string; status: string; hold: boolean; notes: string; onChange: () => Promise<void> }) {
   type B = {
     invoices: { id: string; number: string; kind: string; total: number; status: string; due_date: string; payUrl: string; pdfUrl: string; whatsapp: string | null }[];
@@ -244,6 +341,8 @@ function Money({ id, status, hold, notes, onChange }: { id: string; status: stri
       </div>
       {msg && <p className="note small" role="status">{msg}</p>}
 
+      <Access id={id} />
+      <Costs id={id} />
       <h2 style={{ marginTop: 16 }}>Invoices</h2>
       <div className="row">
         <button className="btn small ghost" onClick={() => act(`/accounts/${id}/invoice`, {}, "Invoice ready.")}>

@@ -61,6 +61,15 @@ async function providerErrorBurst(env: Env, provider: string): Promise<void> {
   if (claim.meta.changes === 1) await alert(env, "provider_errors", null, `${provider}: ${r?.n} failed AI calls in the last hour.`);
 }
 
+/**
+ * Run work after the response. In tests it runs inline instead, so it can't outlive the test
+ * file's storage (production behaviour is unchanged).
+ */
+async function afterResponse(c: C, work: Promise<unknown>): Promise<void> {
+  if (c.env.ENVIRONMENT === "test") await work;
+  else c.executionCtx.waitUntil(work);
+}
+
 export const tryon = new Hono<{ Bindings: Env }>();
 
 /**
@@ -141,7 +150,7 @@ tryon.post("/tryon", async (c) => {
     });
   } finally {
     // Always delete at the provider, whatever happened.
-    c.executionCtx.waitUntil(deleteAtProvider(c.env, provider, oneTimeUserId));
+    await afterResponse(c, deleteAtProvider(c.env, provider, oneTimeUserId));
   }
 
   if (!result.ok) {
@@ -149,7 +158,7 @@ tryon.post("/tryon", async (c) => {
     await recordUsage(c.env, account.id, "tryon", provider.name, false, 0, result.code);
     log("tryon_failed", { route: "tryon", account: account.id, provider: provider.name, code: result.code, ms: Date.now() - started });
     if (result.code === "provider_credits") await alert(c.env, "provider_credits", null, `${provider.name}: out of credits.`);
-    c.executionCtx.waitUntil(providerErrorBurst(c.env, provider.name));
+    await afterResponse(c, providerErrorBurst(c.env, provider.name));
     if (result.code === "content_policy") return fail(c, 422, "content_policy");
     if (result.code === "bad_photo") return fail(c, 422, "bad_photo");
     if (result.code === "provider_busy") return fail(c, 503, "busy");
@@ -157,7 +166,7 @@ tryon.post("/tryon", async (c) => {
   }
 
   await recordUsage(c.env, account.id, "tryon", provider.name, true, result.costMicroUsd);
-  c.executionCtx.waitUntil(usageWarnings(c.env, account, `${c.env.APP_ORIGIN}/portal/billing`));
+  await afterResponse(c, usageWarnings(c.env, account, `${c.env.APP_ORIGIN}/portal/billing`));
   if (!product.provider_synced_at) {
     await c.env.DB.prepare("UPDATE products SET provider_synced_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?")
       .bind(product.id)

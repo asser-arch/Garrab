@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAccount } from "../src/lib/accounts.js";
 import { invalidateStatus } from "../src/lib/db.js";
 import { cairoDay } from "../src/lib/time.js";
-import { autoSelect, guessKind, importJsonLd, importShopify, importWoo, parseRobots, rankScore } from "../src/onboarding/import.js";
+import { guessKind, importJsonLd, importShopify, importWoo, parseRobots, rankScore } from "../src/onboarding/import.js";
 import { advance, decideProduct, confirmApproval } from "../src/onboarding/machine.js";
 import { testProduct } from "../src/onboarding/tests.js";
 import { pilotClock, runScheduled, stuckDetector } from "../src/jobs.js";

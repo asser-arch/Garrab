@@ -1,6 +1,6 @@
 import type { Env } from "../env.js";
 import { randomToken, sha256Hex, ulid } from "./crypto.js";
-import { originHost } from "./db.js";
+import { getSetting, originHost } from "./db.js";
 
 export interface NewAccount {
   brandName: string;
@@ -12,6 +12,8 @@ export interface NewAccount {
   instagram?: string | undefined;
   platform?: "shopify" | "woocommerce" | "other_website" | "social_only" | undefined;
   niche?: string | undefined;
+  /** Charge the one-off setup fee. Defaults to the `founding_pilots_open` setting (open → no fee). */
+  setupFee?: boolean | undefined;
 }
 
 export function slugify(name: string): string {
@@ -49,12 +51,13 @@ export async function createAccount(env: Env, a: NewAccount): Promise<{ accountI
   const siteOrigin = siteUrl && host ? new URL(siteUrl).origin : null;
   const platform = a.platform ?? (host ? "other_website" : "social_only");
   const now = new Date().toISOString();
+  const setupFeeDue = a.setupFee ?? !(await getSetting<boolean>(env, "founding_pilots_open", true));
 
   const stmts = [
     env.DB.prepare(
       `INSERT INTO accounts (id, slug, name, plan_id, target_plan_id, status, platform, contact_name, email, whatsapp, website, instagram, niche,
-                             onboarding_step, onboarding_step_at, buy_url)
-       VALUES (?, ?, ?, 'pilot', ?, 'onboarding', ?, ?, ?, ?, ?, ?, ?, 'invited', ?, ?)`,
+                             onboarding_step, onboarding_step_at, buy_url, setup_fee_due)
+       VALUES (?, ?, ?, 'pilot', ?, 'onboarding', ?, ?, ?, ?, ?, ?, ?, 'invited', ?, ?, ?)`,
     ).bind(
       accountId,
       slug,
@@ -69,6 +72,7 @@ export async function createAccount(env: Env, a: NewAccount): Promise<{ accountI
       a.niche ?? null,
       now,
       siteOrigin ?? (a.whatsapp ? `https://wa.me/${a.whatsapp.replace(/\D/g, "")}` : null),
+      setupFeeDue ? 1 : 0,
     ),
     env.DB.prepare("INSERT INTO users (id, account_id, email, name) VALUES (?, ?, ?, ?)").bind(userId, accountId, email, a.contactName ?? null),
     env.DB.prepare("INSERT INTO api_keys (id, account_id, prefix, key_hash, key_public) VALUES (?, ?, ?, ?, ?)").bind(

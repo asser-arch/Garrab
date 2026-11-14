@@ -8,13 +8,13 @@ import { PLANS, type PlanId } from "@garrab/shared/plans";
 import { Hono } from "hono";
 import { z } from "zod";
 import { emails } from "../emails.js";
-import type { Env } from "../env.js";
-import { createAccount } from "../lib/accounts.js";
+import { cdnOrigin, type Env } from "../env.js";
+import { createAccount, newWidgetKey } from "../lib/accounts.js";
 import { adminIdentity, createMagicLink } from "../lib/auth.js";
-import { ulid } from "../lib/crypto.js";
+import { sha256Hex, ulid } from "../lib/crypto.js";
 import { sendOnce } from "../lib/email.js";
 import { cairoDay } from "../lib/time.js";
-import { getSetting, setSetting } from "../lib/db.js";
+import { getSetting, originHost, setSetting } from "../lib/db.js";
 import { alert, transitionStatus } from "../lib/ops.js";
 import { cycleStartOf } from "../lib/metering.js";
 import { addDays } from "../billing/dates.js";
@@ -47,6 +47,7 @@ admin.post("/invite", async (c) => {
     website: z.string().trim().url().max(300).optional(),
     whatsapp: z.string().trim().max(20).optional(),
     platform: z.enum(["shopify", "woocommerce", "other_website", "social_only"]).optional(),
+    setupFee: z.boolean().optional(),
   }).safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json({ error: "invalid", fields: body.error.issues.map((i) => i.path.join(".")) }, 400);
   const { accountId, userId, created } = await createAccount(c.env, body.data);
@@ -411,4 +412,83 @@ admin.post("/jobs/:name/run", async (c) => {
 admin.get("/digest/preview", async (c) => {
   const d = await buildDigest(c.env, new Date());
   return c.json(d);
+});
+
+// ---------------------------------------------------------------- gaps closed before Phase 4
+
+/** "Open the brand portal read-only" (brief §8): a one-time link to a 1-hour, read-only session. */
+admin.post("/accounts/:id/view-portal", async (c) => {
+  const u = await c.env.DB.prepare("SELECT id, email FROM users WHERE account_id = ? ORDER BY created_at LIMIT 1").bind(c.req.param("id")).first<{ id: string; email: string }>();
+  if (!u) return c.json({ error: "no_user" }, 404);
+  const link = await createMagicLink(c.env, u.id, u.email, true);
+  await audit(c.env, c.req.param("id"), c.get("admin"), "view_portal", "read-only");
+  return c.json({ ok: true, link });
+});
+
+/** Rotate the widget key (brief §7.6). The old key stops at once; the brand gets the new line. */
+admin.post("/accounts/:id/rotate-key", async (c) => {
+  const body = z.object({ reason: Reason }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "reason_required" }, 400);
+  const id = c.req.param("id");
+  const key = newWidgetKey(c.env);
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE api_keys SET revoked_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE account_id = ? AND revoked_at IS NULL").bind(id),
+    c.env.DB.prepare("INSERT INTO api_keys (id, account_id, prefix, key_hash, key_public) VALUES (?, ?, ?, ?, ?)").bind(ulid(), id, key.slice(0, 12), await sha256Hex(key), key),
+  ]);
+  await audit(c.env, id, c.get("admin"), "rotate_key", body.data.reason);
+  return c.json({ ok: true, snippet: `<script src="${cdnOrigin(c.env)}/w.js" data-key="${key}" async></script>` });
+});
+
+/** A brand's domains (the widget only works from these). */
+admin.get("/accounts/:id/domains", async (c) => {
+  const r = await c.env.DB.prepare("SELECT id, host, install_status, last_checked_at FROM domains WHERE account_id = ? ORDER BY host").bind(c.req.param("id")).all();
+  return c.json({ domains: r.results });
+});
+
+admin.post("/accounts/:id/domains", async (c) => {
+  const body = z.object({ host: z.string().trim().min(3).max(253) }).safeParse(await c.req.json().catch(() => null));
+  const host = body.success ? originHost(body.data.host.includes("://") ? body.data.host : `https://${body.data.host}`) : null;
+  if (!host) return c.json({ error: "invalid_host" }, 400);
+  const r = await c.env.DB.prepare("INSERT OR IGNORE INTO domains (id, account_id, host) VALUES (?, ?, ?)").bind(ulid(), c.req.param("id"), host).run();
+  if (r.meta.changes !== 1) return c.json({ error: "domain_taken" }, 409);
+  await audit(c.env, c.req.param("id"), c.get("admin"), "domain_add", host);
+  return c.json({ ok: true, host });
+});
+
+admin.post("/accounts/:id/domains/:domainId/remove", async (c) => {
+  const d = await c.env.DB.prepare("SELECT host FROM domains WHERE id = ? AND account_id = ?").bind(c.req.param("domainId"), c.req.param("id")).first<{ host: string }>();
+  if (!d) return c.json({ error: "not_found" }, 404);
+  await c.env.DB.prepare("DELETE FROM domains WHERE id = ?").bind(c.req.param("domainId")).run();
+  await audit(c.env, c.req.param("id"), c.get("admin"), "domain_remove", d.host);
+  return c.json({ ok: true });
+});
+
+/** Cost view (brief §12): AI spend per Cairo day for one brand, in USD and EGP, last 30 days. */
+admin.get("/accounts/:id/costs", async (c) => {
+  const fx = await getSetting<number | null>(c.env, "egp_per_usd", null);
+  const from = addDays(cairoDay(), -29);
+  const r = await c.env.DB.prepare(
+    "SELECT day, metric, count FROM daily_counters WHERE account_id = ? AND day >= ? AND metric IN ('spend_micro_usd','ai_calls') ORDER BY day DESC",
+  )
+    .bind(c.req.param("id"), from)
+    .all<{ day: string; metric: string; count: number }>();
+  const byDay = new Map<string, { day: string; calls: number; usd: number; egp: number | null }>();
+  for (const row of r.results) {
+    const d = byDay.get(row.day) ?? { day: row.day, calls: 0, usd: 0, egp: null };
+    if (row.metric === "ai_calls") d.calls = row.count;
+    else {
+      d.usd = Math.round(row.count / 10_000) / 100;
+      d.egp = fx ? Math.round((row.count / 1e6) * fx * 100) / 100 : null;
+    }
+    byDay.set(row.day, d);
+  }
+  return c.json({ egpPerUsd: fx, days: [...byDay.values()] });
+});
+
+admin.post("/founding-pilots", async (c) => {
+  const body = z.object({ open: z.boolean() }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  await setSetting(c.env, "founding_pilots_open", body.data.open);
+  await audit(c.env, null, c.get("admin"), "founding_pilots", body.data.open ? "open (no setup fee)" : "closed (setup fee charged)");
+  return c.json({ ok: true, open: body.data.open });
 });

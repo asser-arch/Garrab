@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import type { Env } from "./env.js";
 import { log } from "./lib/log.js";
 import { handleQueue, runScheduled } from "./jobs.js";
@@ -18,6 +19,12 @@ app.use("*", async (c, next) => {
   c.header("X-Content-Type-Options", "nosniff");
   c.header("Referrer-Policy", "no-referrer");
 });
+
+// Request size limits (brief §10). /v1/tryon checks its own (8 MB photo) before parsing.
+const tooLarge = { onError: (c: import("hono").Context) => c.json({ error: "too_large" }, 413) };
+for (const path of ["/portal-api/*", "/admin-api/*", "/webhooks/*", "/v1/start", "/v1/events", "/v1/pay/*"]) {
+  app.use(path, bodyLimit({ maxSize: path === "/portal-api/*" ? 256 * 1024 : 64 * 1024, ...tooLarge }));
+}
 
 app.get("/healthz", async (c) => {
   try {

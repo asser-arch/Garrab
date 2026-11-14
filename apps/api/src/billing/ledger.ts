@@ -3,7 +3,7 @@
  * Providers (direct InstaPay confirmed in Telegram, Manual, later Kashier) only CONFIRM payments,
  * through `applyPayment()`, which is idempotent per (provider, provider_txn_id).
  */
-import { BILLING, EXTRA_PACK, PLANS, type PlanId } from "@garrab/shared/plans";
+import { BILLING, EXTRA_PACK, PLANS, SETUP_FEE, type PlanId } from "@garrab/shared/plans";
 import type { AccountStatus } from "@garrab/shared";
 import { emails } from "../emails.js";
 import type { Env } from "../env.js";
@@ -90,6 +90,8 @@ export async function createInvoice(
   if (opts.kind === "plan") {
     const period = opts.periodStart ? periodFrom(opts.periodStart) : null;
     lines.push({ label: `${PLANS[plan].name} plan, one month${period ? ` (${period.start} to ${period.end})` : ""}`, amount: PLANS[plan].monthlyPrice });
+    // One-off setup fee on the first paid invoice of a non-founding brand (founding pilots pay none).
+    if (a.setup_fee_due && !a.paid_through) lines.push({ label: "One-off setup", amount: SETUP_FEE });
   } else {
     lines.push({ label: `Extra previews (${EXTRA_PACK.previews})`, amount: EXTRA_PACK.price });
   }

@@ -55,10 +55,10 @@ portal.post("/auth/request", async (c) => {
 portal.post("/auth/verify", async (c) => {
   const body = z.object({ token: z.string().max(100) }).safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json({ error: "invalid" }, 400);
-  const userId = await consumeMagicLink(c.env, body.data.token);
-  if (!userId) return c.json({ error: "link_invalid" }, 401);
-  const token = await createSession(c.env, userId);
-  c.header("Set-Cookie", sessionCookie(token));
+  const link = await consumeMagicLink(c.env, body.data.token);
+  if (!link) return c.json({ error: "link_invalid" }, 401);
+  const token = await createSession(c.env, link.userId, link.readonly);
+  c.header("Set-Cookie", sessionCookie(token, link.readonly ? 3600 : undefined));
   return c.json({ ok: true });
 });
 
@@ -74,6 +74,8 @@ portal.post("/auth/logout", async (c) => {
 portal.use("*", async (c, next) => {
   const u = await sessionUser(c.env, c.req.header("cookie"));
   if (!u) return c.json({ error: "signed_out" }, 401);
+  // Admin read-only view: reads only.
+  if (u.readonly && c.req.method !== "GET" && c.req.method !== "HEAD") return c.json({ error: "read_only" }, 403);
   c.set("user", u);
   await next();
 });
@@ -116,6 +118,7 @@ portal.get("/me", async (c) => {
     : null;
   const install = await c.env.DB.prepare("SELECT install_status, last_checked_at FROM domains WHERE account_id = ? LIMIT 1").bind(id).first();
   return c.json({
+    readonly: c.get("user").readonly,
     account: {
       name: a.name,
       status: a.status,

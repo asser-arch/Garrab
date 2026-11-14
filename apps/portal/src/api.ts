@@ -27,6 +27,7 @@ export type Step =
   | "expired";
 
 export interface Me {
+  readonly?: boolean;
   account: { name: string; status: string; platform: string | null; website: string | null; plan: string; pilotStartedAt: string | null; pilotEndsAt: string | null };
   step: Step;
   steps: { step: Step; label: string; state: "done" | "active" | "overridden" | "pending" }[];

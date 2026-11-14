@@ -155,3 +155,15 @@ One line per decision: **what** — *why* — source if verified. Newest at the 
 - **Local dev: the site and admin Workers reach the API over HTTP (`API_DEV_URL`, dev only); staging/prod use service bindings** — *service bindings between separate local `wrangler dev` processes were intermittently "Network connection lost".*
 - **Magic-link page also reacts to `hashchange`** — *found by the e2e test: a link opened in a tab already on the sign-in page did nothing.*
 - **Known test noise: a full `vitest` run can print one "uncaught exception" from a queued background job that outlives its test file's storage; every file is clean on its own and no result changes** — *harness artifact, not a product bug.*
+
+## Gaps closed before Phase 4 (14 Nov 2026)
+
+- **Setup fee (1,500 EGP, plans.ts) is charged on a brand's first invoice when `setup_fee_due`; new brands get it when the `founding_pilots_open` setting is off (default on), or per brand at invite** — *the brief's setup fee existed only on paper; founding pilots still pay none.* Open question for Asser: should non-founding brands still get the free 14-day pilot?
+- **Admin "open portal read-only" = a one-time link to a 1-hour session flagged read-only; every non-GET is refused; it doesn't count as a brand login** — *brief §8; the operator sees exactly what the brand sees and can't change anything by accident.*
+- **Widget keys can be rotated from the admin (old key revoked immediately, new install line returned); domains can be added and removed; a domain belongs to one brand** — *brief §7.6 "keys are rotatable", "bind to the brand's domain(s)".*
+- **Cost view per brand per Cairo day in USD and EGP (from daily counters, EGP via the admin-set rate)** — *brief §12.*
+- **Request size limits: 64 KB on JSON endpoints, 256 KB on the portal (CSV upload), 8 MB photo on /v1/tryon** — *brief §10.*
+- **ESLint (flat config, typescript-eslint) in CI, with `no-console` enforced in the widget, the frame and the API (only `lib/log.ts` may log)** — *planned in Phase 0, added now; enforces "no console noise" and "no PII in logs" mechanically.*
+- **KV is not used for the config payload; D1 serves it directly** — *the plan allowed a KV cache, but D1 reads are cheap at this scale and one less cache means one less thing that can serve a stale kill switch.*
+- **In tests, post-response work (provider delete, usage warnings) runs inline, and the queue consumer is off** — *tests stay deterministic; production unchanged. A rare "uncaught exception" line in a full `vitest` run remains (needs three particular files together, every file is clean alone, all results pass): test-runner noise, recorded and left.*
+- **`RUNBOOK.md` written** — *brief §0.4 quality bar.*
