@@ -18,7 +18,7 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 
 ## Part 2: Domain and Cloudflare (30 minutes, then up to 24 h waiting)
 
-6. ✅ **Get a domain**: `garrabb.com`. ~~ if you don't have one (e.g. `garrab.app`). You can buy it inside Cloudflare: dashboard → **Domain Registration → Register Domains**. If you bought it elsewhere, continue with step 7.~~
+6. ✅ **Get a domain**: `garrabb.com`.
 7. ✅ **Add it to Cloudflare** (skip if bought in Cloudflare):
    1. Dashboard → **Add a domain** → type the domain → choose the **Free** plan.
    2. Cloudflare shows **two nameservers**. Log in to where you bought the domain → DNS / Nameservers → replace theirs with Cloudflare's two → save.
