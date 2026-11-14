@@ -2,7 +2,7 @@
  * Brand portal API (served same-origin under app.<domain>/portal-api via the site Worker).
  * Every query is scoped to the session's account: a brand only ever sees its own data.
  */
-import { EXTRA_PACK, PLANS, type PlanId } from "@garrab/shared/plans";
+import { EXTRA_PACK, PLANS, productLimit, type PlanId } from "@garrab/shared/plans";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { emails } from "../emails.js";
@@ -170,9 +170,9 @@ portal.get("/products", async (c) => {
   const tests = await c.env.DB.prepare("SELECT id, product_id FROM product_tests WHERE account_id = ? AND r2_key IS NOT NULL ORDER BY created_at")
     .bind(id)
     .all<{ id: string; product_id: string }>();
-  const a = await c.env.DB.prepare("SELECT plan_id FROM accounts WHERE id = ?").bind(id).first<{ plan_id: PlanId }>();
+  const a = await c.env.DB.prepare("SELECT plan_id, max_products FROM accounts WHERE id = ?").bind(id).first<{ plan_id: PlanId; max_products: number | null }>();
   return c.json({
-    maxProducts: PLANS[a?.plan_id ?? "pilot"].maxProducts,
+    maxProducts: productLimit(a?.plan_id ?? "pilot", a?.max_products),
     products: rows.results.map((p) => ({
       id: p.id,
       title: p.title,
@@ -201,16 +201,16 @@ portal.post("/products/select", async (c) => {
   const id = acct(c);
   const body = z.object({ ids: z.array(z.string().max(40)).max(200) }).safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json({ error: "invalid" }, 400);
-  const a = await c.env.DB.prepare("SELECT plan_id, onboarding_step FROM accounts WHERE id = ?").bind(id).first<{ plan_id: PlanId; onboarding_step: Step }>();
-  const max = PLANS[a?.plan_id ?? "pilot"].maxProducts;
-  const ids = [...new Set(body.data.ids)].slice(0, max);
+  const a = await c.env.DB.prepare("SELECT plan_id, max_products FROM accounts WHERE id = ?").bind(id).first<{ plan_id: PlanId; max_products: number | null }>();
+  const max = productLimit(a?.plan_id ?? "pilot", a?.max_products);
+  const ids = [...new Set(body.data.ids)].slice(0, max ?? undefined);
   // Tested products keep their place; untested ones not chosen are unselected.
   await c.env.DB.batch([
     c.env.DB.prepare("UPDATE products SET selected = 0 WHERE account_id = ? AND test_score IS NULL").bind(id),
     ...ids.map((pid) => c.env.DB.prepare("UPDATE products SET selected = 1 WHERE account_id = ? AND id = ?").bind(id, pid)),
   ]);
   const total = await c.env.DB.prepare("SELECT COUNT(*) AS c FROM products WHERE account_id = ? AND selected = 1").bind(id).first<{ c: number }>();
-  if ((total?.c ?? 0) > max) return c.json({ error: "too_many", max }, 400);
+  if (max !== null && (total?.c ?? 0) > max) return c.json({ error: "too_many", max }, 400);
   await c.env.JOBS.send({ t: "advance", a: id });
   return c.json({ ok: true, selected: total?.c ?? 0 });
 });
@@ -223,10 +223,10 @@ const ManualProduct = z.object({
 });
 
 async function addManual(env: Env, accountId: string, items: z.infer<typeof ManualProduct>[]): Promise<number> {
-  const a = await env.DB.prepare("SELECT plan_id FROM accounts WHERE id = ?").bind(accountId).first<{ plan_id: PlanId }>();
-  const max = PLANS[a?.plan_id ?? "pilot"].maxProducts;
+  const a = await env.DB.prepare("SELECT plan_id, max_products FROM accounts WHERE id = ?").bind(accountId).first<{ plan_id: PlanId; max_products: number | null }>();
+  const max = productLimit(a?.plan_id ?? "pilot", a?.max_products);
   const have = (await env.DB.prepare("SELECT COUNT(*) AS c FROM products WHERE account_id = ? AND selected = 1").bind(accountId).first<{ c: number }>())?.c ?? 0;
-  const room = Math.max(0, max - have);
+  const room = max === null ? items.length : Math.max(0, max - have);
   const take = items.slice(0, room);
   const refs = take.map(() => `manual:${ulid()}`);
   await saveProducts(

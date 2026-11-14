@@ -22,8 +22,12 @@ export async function listFixtures(env: Env): Promise<string[]> {
 }
 
 async function testSpendMicroUsd(env: Env, accountId: string): Promise<number> {
-  const r = await env.DB.prepare("SELECT COALESCE(SUM(cost_micro_usd), 0) AS s FROM usage_events WHERE account_id = ? AND kind IN ('test','score')")
-    .bind(accountId)
+  // Rolling 30 days: brands with no product limit can keep adding products month after month.
+  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const r = await env.DB.prepare(
+    "SELECT COALESCE(SUM(cost_micro_usd), 0) AS s FROM usage_events WHERE account_id = ? AND kind IN ('test','score') AND created_at >= ?",
+  )
+    .bind(accountId, since)
     .first<{ s: number }>();
   return r?.s ?? 0;
 }

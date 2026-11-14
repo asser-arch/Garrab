@@ -20,8 +20,8 @@ export interface Plan {
   readonly monthlyPrice: number;
   /** Previews included per cycle (per month, or per pilot for the pilot). */
   readonly includedPreviews: number;
-  /** Maximum products that can be live at once. */
-  readonly maxProducts: number;
+  /** Maximum products that can be live at once. null = no limit (a per-brand limit can still be set in the admin). */
+  readonly maxProducts: number | null;
   /** AI size finder (English only). */
   readonly sizeFinder: boolean;
   /** Can buy extra preview packs. */
@@ -43,8 +43,8 @@ export const PLANS: Readonly<Record<PlanId, Plan>> = {
     name: "Starter",
     monthlyPrice: egp(3000),
     includedPreviews: 250,
-    // Not specified in the brief. Default pending Asser's answer (PLAN.md §12 Q1).
-    maxProducts: 30,
+    // Asser, 14 Nov: no product limit on paid plans; previews are the limit.
+    maxProducts: null,
     sizeFinder: false,
     extraPacks: true,
   },
@@ -53,8 +53,8 @@ export const PLANS: Readonly<Record<PlanId, Plan>> = {
     name: "Growth",
     monthlyPrice: egp(6000),
     includedPreviews: 600,
-    // Not specified in the brief. Default pending Asser's answer (PLAN.md §12 Q1).
-    maxProducts: 100,
+    // Asser, 14 Nov: no product limit on paid plans; previews are the limit.
+    maxProducts: null,
     sizeFinder: true,
     extraPacks: true,
   },
@@ -73,7 +73,7 @@ export const EXTRA_PACK = {
 
 export const PILOT = {
   days: 14,
-  maxProducts: PLANS.pilot.maxProducts,
+  maxProducts: PLANS.pilot.maxProducts ?? 10,
   previews: PLANS.pilot.includedPreviews,
   setupFee: 0,
   cardRequired: false,
@@ -107,9 +107,11 @@ export const USAGE = {
 export const CAPS = {
   /** Per-account daily cap = this multiple of the account's average daily allowance. */
   perAccountDailyMultiple: 3,
+  /** How many products the automatic first pick selects for testing (also the pilot limit). */
+  autoSelectProducts: 10,
   /** Global daily AI spend cap in USD. Overridable in settings. */
   globalDailyUsd: 50,
-  /** Budget for automatic onboarding quality tests, per account, in USD. */
+  /** Budget for automatic product quality tests, per account per rolling 30 days, in USD. */
   onboardingTestBudgetUsd: 3,
 } as const;
 
@@ -145,4 +147,9 @@ export function getPlan(id: PlanId): Plan {
 export function dailyCap(plan: Plan): number {
   const days = plan.id === "pilot" ? PILOT.days : 30;
   return Math.ceil((plan.includedPreviews / days) * CAPS.perAccountDailyMultiple);
+}
+
+/** A brand's product limit: its own limit if Asser set one, else the plan's. null = no limit. */
+export function productLimit(planId: PlanId, override: number | null | undefined): number | null {
+  return override ?? PLANS[planId].maxProducts;
 }

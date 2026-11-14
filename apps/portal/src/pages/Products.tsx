@@ -3,14 +3,14 @@ import { api, atOrAfter, type Me, type Product } from "../api.js";
 
 export function Products({ me, refresh }: { me: Me; refresh: () => Promise<void> }) {
   const [list, setList] = useState<Product[] | null>(null);
-  const [max, setMax] = useState(10);
+  const [max, setMax] = useState<number | null>(10);
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [msg, setMsg] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", imageUrl: "", productUrl: "" });
   const locked = atOrAfter(me.step, "products_approved");
 
   const load = async () => {
-    const r = await api<{ products: Product[]; maxProducts: number }>("/products");
+    const r = await api<{ products: Product[]; maxProducts: number | null }>("/products");
     setList(r.products);
     setMax(r.maxProducts);
     setChosen(new Set(r.products.filter((p) => p.selected).map((p) => p.id)));
@@ -21,7 +21,7 @@ export function Products({ me, refresh }: { me: Me; refresh: () => Promise<void>
   const toggle = (id: string) => {
     const next = new Set(chosen);
     if (next.has(id)) next.delete(id);
-    else if (next.size < max) next.add(id);
+    else if (max === null || next.size < max) next.add(id);
     setChosen(next);
   };
 
@@ -39,7 +39,8 @@ export function Products({ me, refresh }: { me: Me; refresh: () => Promise<void>
         <div className="card">
           <div className="row" style={{ justifyContent: "space-between" }}>
             <h2>
-              Chosen {chosen.size} of {max}
+              Chosen {chosen.size}
+              {max !== null ? ` of ${max}` : ""}
             </h2>
             {!locked && (
               <button
@@ -84,7 +85,7 @@ export function Products({ me, refresh }: { me: Me; refresh: () => Promise<void>
                 await load();
                 await refresh();
               } catch (err) {
-                setMsg(err instanceof Error && err.message === "limit_reached" ? `You can test up to ${max} products in the pilot.` : "Please check the fields and try again.");
+                setMsg(err instanceof Error && err.message === "limit_reached" ? `You can have up to ${max ?? "unlimited"} products right now.` : "Please check the fields and try again.");
               }
             }}
           >

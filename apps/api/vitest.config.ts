@@ -23,6 +23,7 @@ export default defineConfig(async () => {
             TELEGRAM_CHAT_ID: "424242",
             TELEGRAM_BOT_TOKEN: "",
             INSTAPAY_IPA: "asserrostom@instapay",
+            INSTAPAY_ACCOUNT_NAME: "Asser Rostom",
             OPERATOR_EMAIL: "ops@garrab.example",
           },
         },

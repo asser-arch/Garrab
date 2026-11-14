@@ -6,7 +6,7 @@
  *  - Instagram/WhatsApp-only: the brand adds products in the portal (form or CSV)
  * Every fetch respects robots.txt and identifies itself.
  */
-import { PLANS, type PlanId } from "@garrab/shared/plans";
+import { CAPS, productLimit, type PlanId } from "@garrab/shared/plans";
 import type { Env } from "../env.js";
 import { sha256Hex, ulid } from "../lib/crypto.js";
 import { log } from "../lib/log.js";
@@ -321,11 +321,12 @@ export interface ImportResult {
 }
 
 export async function importForAccount(env: Env, accountId: string, fetcher: Fetcher = fetch): Promise<ImportResult> {
-  const acc = await env.DB.prepare("SELECT id, website, platform, plan_id FROM accounts WHERE id = ?").bind(accountId).first<{
+  const acc = await env.DB.prepare("SELECT id, website, platform, plan_id, max_products FROM accounts WHERE id = ?").bind(accountId).first<{
     id: string;
     website: string | null;
     platform: string | null;
     plan_id: PlanId;
+    max_products: number | null;
   }>();
   if (!acc?.website || acc.platform === "social_only") return { source: "none", imported: 0, selected: 0 };
   const origin = new URL(acc.website).origin;
@@ -350,7 +351,9 @@ export async function importForAccount(env: Env, accountId: string, fetcher: Fet
     return { source: "none", imported: 0, selected: 0 };
   }
   const imported = await saveProducts(env, accountId, products);
-  const selected = await autoSelect(env, accountId, PLANS[acc.plan_id].maxProducts);
+  // The first automatic pick is capped (testing a whole catalogue on day one would burn the test budget).
+  const limit = productLimit(acc.plan_id, acc.max_products);
+  const selected = await autoSelect(env, accountId, Math.min(limit ?? CAPS.autoSelectProducts, CAPS.autoSelectProducts));
   log("import", { account: accountId, count: imported, kind: source });
   return { source, imported, selected };
 }

@@ -167,3 +167,11 @@ One line per decision: **what** — *why* — source if verified. Newest at the 
 - **KV is not used for the config payload; D1 serves it directly** — *the plan allowed a KV cache, but D1 reads are cheap at this scale and one less cache means one less thing that can serve a stale kill switch.*
 - **In tests, post-response work (provider delete, usage warnings) runs inline, and the queue consumer is off** — *tests stay deterministic; production unchanged. A rare "uncaught exception" line in a full `vitest` run remains (needs three particular files together, every file is clean alone, all results pass): test-runner noise, recorded and left.*
 - **`RUNBOOK.md` written** — *brief §0.4 quality bar.*
+
+## Asser's answers (14 Nov 2026)
+
+- **InstaPay account name: "Asser Rostom"** (shown on the pay page with asserrostom@instapay).
+- **No product limit on paid plans; previews are the limit. A per-brand limit can be set in the admin (`accounts.max_products`). The pilot keeps 10 (brief §1).** — *Asser.* The first automatic pick still selects at most 10 products to test, so a large catalogue doesn't burn the test budget on day one.
+- **Product test budget is now 3 USD per brand per rolling 30 days** (was 3 USD per brand, ever) — *with no product limit, brands keep adding products over months.*
+- **No VAT for now** — *Asser; stays a config value (0, hidden).*
+- **Free 14-day pilot for every brand** — *Asser.* The setup fee rule is unchanged: none while "founding pilots" is on.

@@ -10,10 +10,10 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 
 ## Part 1: Decisions (reply in the chat, 5 minutes)
 
-1. **InstaPay account name**: the name brands see in their app when they send you money (usually your name as it appears at your bank).
-2. **Product limits**: Starter 30 and Growth 100 live products? Yes, or give other numbers.
-3. **VAT**: ask your accountant whether you must charge VAT and at what rate. Until then it's 0 and not shown.
-4. **Free pilot for later (non-founding) brands?** Today every brand gets the free 14-day pilot, and non-founding brands also pay the 1,500 EGP setup fee on their first invoice. Keep that, or no pilot for them?
+1. ✅ **InstaPay account name**: Asser Rostom.
+2. ✅ **Product limits**: none on paid plans (previews are the limit); a per-brand limit can be set in the admin. Pilot: 10.
+3. ✅ **VAT**: none for now (0, not shown on invoices).
+4. ✅ **Free 14-day pilot**: for every brand.
 5. ✅ **`main` branch**: created and set as the default (14 Nov). Deploys will run from `main`.
 
 ## Part 2: Domain and Cloudflare (30 minutes, then up to 24 h waiting)

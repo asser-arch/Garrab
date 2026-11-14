@@ -16,6 +16,7 @@ import {
   assertStringsReadyForProduction,
   dailyCap,
   egp,
+  productLimit,
   en,
   langFromPage,
   tokens,
@@ -32,6 +33,12 @@ describe("plans.ts matches the brief (§1)", () => {
     expect(PLANS.starter.sizeFinder).toBe(false);
     expect(PLANS.growth.sizeFinder).toBe(true);
     expect(EXTRA_PACK).toEqual({ previews: 100, price: egp(800) });
+    // Asser, 14 Nov: no product limit on paid plans; per-brand limit possible.
+    expect(PLANS.starter.maxProducts).toBeNull();
+    expect(PLANS.growth.maxProducts).toBeNull();
+    expect(productLimit("growth", null)).toBeNull();
+    expect(productLimit("growth", 40)).toBe(40);
+    expect(productLimit("pilot", null)).toBe(10);
   });
 
   it("pilot and billing rules", () => {

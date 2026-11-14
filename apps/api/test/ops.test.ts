@@ -111,3 +111,62 @@ describe("request size limits", () => {
     expect(r.status).toBe(413);
   });
 });
+
+describe("Asser's answers (14 Nov): product limits, account name, test budget", () => {
+  async function portalCookie(email: string): Promise<string> {
+    const { sha256Hex, ulid } = await import("../src/lib/crypto.js");
+    const u = (await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(email).first<{ id: string }>())!;
+    const token = ("T" + uniq()).padEnd(40, "x").slice(0, 40).replace(/[^A-Za-z0-9]/g, "x");
+    await env.DB.prepare("INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, '2099-01-01T00:00:00Z')").bind(ulid(), u.id, await sha256Hex(token)).run();
+    return `__Host-garrab_s=${token}`;
+  }
+  const add = (cookie: string, i: number) =>
+    exports.default.fetch("https://api.test/portal-api/products", {
+      method: "POST",
+      headers: { cookie, origin: APP, "content-type": "application/json" },
+      body: JSON.stringify({ title: `Product ${i}`, imageUrl: `https://cdn.example/${i}.jpg` }),
+    });
+
+  it("paid plans have no product limit; the pilot keeps 10; a per-brand limit applies", async () => {
+    const b = await liveBrand(); // starter, active
+    const cookie = await portalCookie(b.email);
+    for (let i = 0; i < 14; i++) expect((await add(cookie, i)).status).toBe(200);
+    const list = (await (await exports.default.fetch("https://api.test/portal-api/products", { headers: { cookie } })).json()) as { maxProducts: number | null };
+    expect(list.maxProducts).toBeNull();
+
+    // 1 seeded + 14 added = 15 products. A per-brand limit of 15 stops the next one.
+    await post(`/accounts/${b.id}/product-limit`, { limit: 15 });
+    expect((await add(cookie, 100)).status).toBe(400);
+    const selected = await env.DB.prepare("SELECT COUNT(*) AS n FROM products WHERE account_id = ? AND selected = 1").bind(b.id).first<{ n: number }>();
+    expect(selected!.n).toBe(15);
+    await post(`/accounts/${b.id}/product-limit`, { limit: null }); // back to the plan default: unlimited
+    expect((await add(cookie, 101)).status).toBe(200);
+
+    const pilot = await createAccount(env, { brandName: "Pilot", email: `p-${uniq()}@x.example`, plan: "starter" });
+    const pc = await portalCookie((await env.DB.prepare("SELECT email FROM users WHERE account_id = ?").bind(pilot.accountId).first<{ email: string }>())!.email);
+    for (let i = 0; i < 10; i++) await add(pc, i);
+    expect((await add(pc, 10)).status).toBe(400);
+  });
+
+  it("the pay page shows the InstaPay account name", async () => {
+    const b = await liveBrand();
+    await env.DB.prepare("UPDATE accounts SET paid_through = ? WHERE id = ?").bind(cairoDay(), b.id).run();
+    const inv = await ensurePlanInvoice(env, (await accountFacts(env, b.id))!, new Date());
+    const page = (await (await exports.default.fetch(`https://api.test/v1/pay/${inv.pay_token}`)).json()) as { instapay: { address: string; accountName: string } };
+    expect(page.instapay).toMatchObject({ address: "asserrostom@instapay", accountName: "Asser Rostom" });
+  });
+
+  it("the product test budget is per rolling 30 days, so old tests don't block new products", async () => {
+    const { testProduct } = await import("../src/onboarding/tests.js");
+    const { ulid } = await import("../src/lib/crypto.js");
+    const b = await liveBrand();
+    await env.FILES.put("fixtures/model-a.jpg", new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xd9]));
+    const pid = `p${uniq()}`;
+    await env.DB.prepare(`INSERT INTO products (id, account_id, external_ref, title, images_json, selected) VALUES (?, ?, ?, 'Dress', '["https://x.example/a.jpg"]', 1)`).bind(pid, b.id, `r${uniq()}`).run();
+    // 5 USD spent 40 days ago: outside the window.
+    await env.DB.prepare("INSERT INTO usage_events (id, account_id, kind, provider, ok, cost_micro_usd, created_at) VALUES (?, ?, 'test', 'mock', 1, 5000000, ?)")
+      .bind(ulid(), b.id, new Date(Date.now() - 40 * 86_400_000).toISOString())
+      .run();
+    expect(await testProduct(env, b.id, pid)).not.toBe("skipped_budget");
+  });
+});

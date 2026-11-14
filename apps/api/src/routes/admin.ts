@@ -492,3 +492,12 @@ admin.post("/founding-pilots", async (c) => {
   await audit(c.env, null, c.get("admin"), "founding_pilots", body.data.open ? "open (no setup fee)" : "closed (setup fee charged)");
   return c.json({ ok: true, open: body.data.open });
 });
+
+/** Per-brand product limit (Asser, 14 Nov: no plan-wide limit; set one per brand if needed). null = plan default. */
+admin.post("/accounts/:id/product-limit", async (c) => {
+  const body = z.object({ limit: z.number().int().min(1).max(10_000).nullable() }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  await c.env.DB.prepare("UPDATE accounts SET max_products = ? WHERE id = ?").bind(body.data.limit, c.req.param("id")).run();
+  await audit(c.env, c.req.param("id"), c.get("admin"), "product_limit", body.data.limit === null ? "plan default" : String(body.data.limit));
+  return c.json({ ok: true, limit: body.data.limit });
+});

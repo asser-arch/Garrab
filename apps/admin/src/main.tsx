@@ -246,6 +246,21 @@ function Access({ id }: { id: string }) {
         </button>
       </div>
       {snippet && <pre className="code">{snippet}</pre>}
+      <div className="row" style={{ marginTop: 8 }}>
+        <button
+          className="btn small ghost"
+          onClick={async () => {
+            const v = prompt("Product limit for this brand (empty = plan default: pilot 10, paid plans unlimited):");
+            if (v === null) return;
+            const limit = v.trim() === "" ? null : Number(v);
+            if (limit !== null && !(limit >= 1)) return;
+            await api(`/accounts/${id}/product-limit`, { limit });
+            alert(limit === null ? "Using the plan default." : `Limit set to ${limit}.`);
+          }}
+        >
+          Set product limit
+        </button>
+      </div>
       <ul className="small">
         {domains.map((d) => (
           <li key={d.id}>

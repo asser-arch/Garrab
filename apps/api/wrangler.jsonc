@@ -12,6 +12,7 @@
     "MOCK_TURNSTILE": "pass",
     "ADMIN_DEV_TOKEN": "dev-admin-token-local-only",
     "INSTAPAY_IPA": "asserrostom@instapay",
+    "INSTAPAY_ACCOUNT_NAME": "Asser Rostom",
     "TELEGRAM_WEBHOOK_SECRET": "dev-telegram-secret-local-only",
     "TELEGRAM_CHAT_ID": "424242",
     "OPERATOR_EMAIL": "ops@garrab.local",
@@ -38,6 +39,7 @@
       "vars": {
         "ENVIRONMENT": "staging",
         "INSTAPAY_IPA": "asserrostom@instapay",
+        "INSTAPAY_ACCOUNT_NAME": "Asser Rostom",
         "ADMIN_ORIGIN": "https://admin.staging.REPLACE_DOMAIN",
         "APP_ORIGIN": "https://app.staging.REPLACE_DOMAIN",
         "GENLOOK_MOCK": "false",
@@ -62,6 +64,7 @@
       "vars": {
         "ENVIRONMENT": "prod",
         "INSTAPAY_IPA": "asserrostom@instapay",
+        "INSTAPAY_ACCOUNT_NAME": "Asser Rostom",
         "ADMIN_ORIGIN": "https://admin.REPLACE_DOMAIN",
         "APP_ORIGIN": "https://app.REPLACE_DOMAIN",
         "GENLOOK_MOCK": "false",
