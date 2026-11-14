@@ -1,50 +1,108 @@
-# What Asser needs to do (setup checklist)
+# Setup checklist for Asser (step by step)
 
-Only **A1** blocks Phase 3. Everything else can run in parallel; it's needed for staging and launch.
-Never paste keys in chat. When a key is ready, tell Claude and it sends a secure form (or you set it with `wrangler secret put`).
+Do them in this order: each part unblocks the next. Dashboard menus move around; if a name differs slightly, look for the closest match or send Claude a screenshot.
 
-## A. Decisions (10 minutes)
+**Never paste a key or token into the chat.** When one is ready, tell Claude "<name> key ready" and Claude sends a secure form; or set it yourself with `wrangler secret put NAME`.
 
-- [x] **A1. InstaPay, direct or through Kashier?** → **Direct, to asserrostom@instapay** (decided 14 Nov). Still needed: the **account name** brands see. Direct: brands pay your InstaPay address, tap "I've paid", you confirm with one tap in Telegram. Through Kashier: confirmed automatically, small fee per payment. Default: start direct, switch later. Send: your **InstaPay address** (e.g. `name@instapay`) and the **account name** brands will see.
-- [ ] **A2. Product limits on paid plans.** Default Starter 30, Growth 100. Confirm or change.
-- [ ] **A3. VAT.** Ask your accountant. Default 0 (not shown on invoices).
-- [ ] **A4. Domain name** you want to use (e.g. `garrab.app`).
+Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Cloudflare deploy token and Account ID in GitHub.
 
-## B. Accounts and keys
+---
 
-### Cloudflare (needed to deploy anything)
-- [ ] **B1.** Add your domain to Cloudflare (change nameservers at your registrar) and subscribe to **Workers Paid** (5 USD/month).
-- [x] **B2.** Create an **API token** with the "Edit Cloudflare Workers" template, plus permissions for D1, R2 and Queues. Note your **Account ID** (dashboard sidebar). Both go into GitHub → repo Settings → Secrets → Actions as `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`.
-- [ ] **B3. Turnstile:** add a widget for hostname `app.<your-domain>` → copy the **site key** and **secret key**.
-- [ ] **B4. Admin login (Zero Trust → Access):** create a free team, add a self-hosted application for `admin.<your-domain>`, allow only your email (one-time PIN). Send the **team domain** (`<team>.cloudflareaccess.com`) and the application's **AUD tag**.
+## Part 1: Decisions (reply in the chat, 5 minutes)
 
-### AI providers
-- [ ] **B5. Genlook:** sign up at platform.genlook.app, create an **API key**, top up a few dollars. In account settings set **customer image retention to 1 day**.
-- [ ] **B6. Genlook email (important):** write to the address on their startup-program page (`thibault@genlook.app`): you're building a done-for-you try-on service for Egyptian brands on their API; ask them to confirm in writing that this is allowed under their terms (§6), and ask about the startup program. Forward me the reply.
-- [ ] **B7. Google AI Studio:** create a project, **enable billing** (paid tier: data not used to improve their products), create an **API key**.
-- [ ] **B8. (Optional, for the bake-off) Google Cloud:** a project with the **Vertex AI API** enabled and billing on. Send the **project ID**.
+1. **InstaPay account name**: the name brands see in their app when they send you money (usually your name as it appears at your bank).
+2. **Product limits**: Starter 30 and Growth 100 live products? Yes, or give other numbers.
+3. **VAT**: ask your accountant whether you must charge VAT and at what rate. Until then it's 0 and not shown.
+4. **Free pilot for later (non-founding) brands?** Today every brand gets the free 14-day pilot, and non-founding brands also pay the 1,500 EGP setup fee on their first invoice. Keep that, or no pilot for them?
+5. **`main` branch**: may Claude create `main` from the current work and make it the default branch? (Deploys will run from `main`.)
 
-### Email, alerts, payments
-- [ ] **B9. Resend:** sign up, add a sending domain such as `mail.<your-domain>`, add the DNS records it shows (in Cloudflare DNS), wait for **Verified**, create an **API key**. Decide the sender, e.g. `Garrab <hello@mail.your-domain>`.
-- [ ] **B10. Telegram (now required: payment confirmations arrive here):** in Telegram open **@BotFather** → `/newbot` → copy the **bot token**. Send your new bot any message, then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `"chat":{"id":…}` → your **chat ID**.
-- [ ] **B11. Kashier (only if A1 = Kashier, or later):** merchant account at merchant.kashier.io; ask Kashier support to **enable InstaPay collection (QR / request-to-pay)**. Send: **MID**, **Secret key**, **Payment API key** (test first, then live).
+## Part 2: Domain and Cloudflare (30 minutes, then up to 24 h waiting)
 
-## C. Files
+6. **Get a domain** if you don't have one (e.g. `garrab.app`). You can buy it inside Cloudflare: dashboard → **Domain Registration → Register Domains**. If you bought it elsewhere, continue with step 7.
+7. **Add it to Cloudflare** (skip if bought in Cloudflare):
+   1. Dashboard → **Add a domain** → type the domain → choose the **Free** plan.
+   2. Cloudflare shows **two nameservers**. Log in to where you bought the domain → DNS / Nameservers → replace theirs with Cloudflare's two → save.
+   3. Wait until Cloudflare emails you that the domain is **Active** (usually under an hour, up to 24 h).
+8. **Workers Paid (5 USD/month)**: dashboard → **Workers & Pages** → **Plans** (or "Upgrade") → **Workers Paid** → pay. Needed for queues, cron and higher limits.
+9. Tell Claude: **"Domain is active: <domain>"**. Claude then wires up staging (creates the database, storage and queue, and deploys).
 
-- [ ] **C1.** `Garrab_Pitch-Kit.docx` (the Arabic strings in section 05 replace my drafts), `Garrab_Pilot-Proposal.docx`, `Garrab_Brand-Guidelines.pptx`. Upload them here or commit to `docs/`.
-- [ ] **C2. Two consented stock photos** for automatic product tests (and the bake-off):
-  - real adults who signed a consent allowing AI try-on testing (keep the signed forms);
-  - full body, facing the camera, arms slightly away from the body, plain background, good light;
-  - JPEG, at least 1600 px on the long side, no filters;
-  - ideally one model wearing a hijab and one not, matching your customers.
-- [ ] **C3. Logo** as SVG (mark and wordmark), if you have it. Otherwise I draw it from the guideline.
+## Part 3: Telegram bot (10 minutes)
 
-## D. Checks to run once keys exist (I can run them for you)
+10. In Telegram, search **@BotFather** (blue tick) → **Start** → send `/newbot`.
+11. Name: `Garrab Ops` → username: something ending in `bot`, e.g. `garrab_ops_asser_bot`.
+12. BotFather replies with a **token** like `123456789:AA…`. Keep it private.
+13. Open your new bot (link in BotFather's message) → **Start** → send it any message, e.g. `hi`.
+14. In a browser open `https://api.telegram.org/bot<TOKEN>/getUpdates` (put your token in place of `<TOKEN>`). Find `"chat":{"id":123456789` → that number is your **chat ID**.
+15. Tell Claude **"Telegram ready"**: you'll enter the token and chat ID in the secure form.
 
-- [ ] **D1. Provider bake-off:** pick one target brand's Shopify store → `pnpm --filter @garrab/api bakeoff -- --photos ../../fixtures --shop https://<brand> --count 10` (about 4 USD). Score the grid, send me the CSV. Decides Genlook vs Google.
-- [ ] **D2. Genlook delete check:** `GENLOOK_API_KEY=… pnpm --filter @garrab/api verify:genlook-delete -- ../../fixtures/<photo>.jpg` must say **PASS**. Only then does "We don't save it" appear to shoppers.
+## Part 4: Genlook (15 minutes + their reply)
 
-## E. Before the first real brand (not before Phase 3)
+16. Go to **platform.genlook.app** → sign up (use a business email if you have one).
+17. **API keys** → **Create key** → copy it (starts with `gk_`).
+18. **Billing / Credits** → add about 10 USD (pay as you go is 0.04 USD per preview; failures are refunded).
+19. **Settings** → **customer image retention** → **1 day**.
+20. Send this email to **thibault@genlook.app** (edit freely):
 
-- [ ] **E1.** A lawyer reviews `/privacy` and `/terms` against Egypt's PDPL (Law 151 of 2020).
-- [ ] **E2.** A free uptime monitor (e.g. UptimeRobot) on `https://api.<your-domain>/healthz`, alerting your phone.
+    > Subject: Reselling Genlook try-on as part of a done-for-you service in Egypt
+    >
+    > Hi Thibault,
+    >
+    > I'm building Garrab, a done-for-you AI try-on service for small Egyptian fashion and accessory brands. We build on the Genlook Try-On API: our widget and hosted links call the API from our own backend, under our Genlook account, and we bill the brands a monthly fee for the managed service.
+    >
+    > Your terms (§6) allow building on the API within our plan. Could you confirm in writing that this use, offering a managed try-on service to many brands under one Genlook account, is allowed? We delete every shopper photo right after each preview using DELETE /customers/{externalUserId} and set retention to 1 day.
+    >
+    > I'd also love to hear about your startup program, and whether a plan suits ~150 brands at a few hundred previews each per month.
+    >
+    > Thanks,
+    > Asser
+
+21. Forward Genlook's reply to Claude (paste the text). Then tell Claude **"Genlook key ready"**.
+
+## Part 5: Google AI (15 minutes)
+
+22. Go to **aistudio.google.com** → sign in → **Get API key** → **Create API key** → in a new project named `garrab`.
+23. Turn on billing for that project: in AI Studio, open the key's project → **Set up billing** (or console.cloud.google.com → **Billing** → link a billing account with your card).
+24. Check AI Studio shows the project on the **paid tier**. This matters: on the paid tier Google doesn't use your data to improve its products.
+25. Tell Claude **"Gemini key ready"**.
+26. *(Optional, for the provider comparison only)* console.cloud.google.com → same project → **APIs & Services → Enable APIs** → enable **Vertex AI API**. Send Claude the **project ID**.
+
+## Part 6: Resend email (20 minutes, after Part 2)
+
+27. Sign up at **resend.com**.
+28. **Domains → Add domain** → `mail.<your-domain>` → region **Ireland (eu-west-1)** (closest to Egypt).
+29. Resend shows DNS records (MX, TXT/SPF, DKIM). If it offers **"Sign in to Cloudflare"**, use it (adds them automatically). Otherwise: Cloudflare → your domain → **DNS → Add record** → copy each one exactly (set Proxy to **DNS only** / grey cloud).
+30. Back in Resend → **Verify**. Wait until it says **Verified** (minutes to an hour).
+31. **API Keys → Create** → permission **Sending access** → domain `mail.<your-domain>`.
+32. Tell Claude **"Resend key ready"** and the sender you want, e.g. `Garrab <hello@mail.your-domain>`.
+
+## Part 7: Bot check and admin login (20 minutes, after Part 2)
+
+33. **Turnstile**: Cloudflare dashboard → **Turnstile** → **Add widget** → name `Garrab app` → hostname `app.<your-domain>` → mode **Managed** → create. Copy the **site key** and **secret key**. Tell Claude **"Turnstile ready"**.
+34. **Admin login (Cloudflare Access)**:
+    1. Dashboard → **Zero Trust** → pick a team name (e.g. `garrab`) → **Free** plan (it may ask for a card; free up to 50 users).
+    2. **Access → Applications → Add an application → Self-hosted**.
+    3. Name `Garrab admin`, domain `admin.<your-domain>`.
+    4. Policy: name `Asser only`, action **Allow**, include **Emails** → your email.
+    5. Login methods: **One-time PIN**. Save.
+    6. Open the application → copy the **Application Audience (AUD) tag**. Your **team domain** is `<team>.cloudflareaccess.com`. Send both to Claude (they aren't secret).
+
+## Part 8: Files (send in the chat or commit to `docs/`)
+
+35. **Pitch Kit** (`Garrab_Pitch-Kit.docx`: section 05 has the Arabic UI wording), **Pilot Proposal**, **Brand Guidelines (.pptx)**.
+36. **Two stock photos for automatic product tests**:
+    - adults who signed consent (template below); one wearing a hijab, one not, if possible;
+    - full body, facing the camera, standing straight, arms slightly away from the body;
+    - plain light background, daylight or soft light, fitted plain clothes (no logos);
+    - JPEG, at least 1600 px on the long side, no filters or beauty mode.
+    - Consent template: *"I agree that Garrab may use these photos of me, privately, to test AI try-on of clothing products, and to show the test results to brands deciding whether to use Garrab. They won't be used in advertising without asking me again. I can withdraw this at any time by telling Garrab. Name, date, signature."*
+37. **Logo** as SVG (mark and wordmark), if you have it.
+
+## Part 9: Checks (Claude runs them once keys are in)
+
+38. **Provider comparison**: tell Claude one target brand's Shopify website. About 4 USD. You get a grid of results to score 1–5.
+39. **Genlook delete check**: must say PASS. Then Claude switches on "We don't save it" for shoppers.
+
+## Part 10: Before the first real brand
+
+40. **Lawyer**: send them `/privacy` and `/terms` (Claude can export them) and ask for a review against Egypt's Personal Data Protection Law (Law 151 of 2020), plus whether you need to register with the Data Protection Center.
+41. **Uptime monitor** (after staging is live): uptimerobot.com → free account → **New monitor** → HTTP(s) → `https://api.<your-domain>/healthz` → every 5 minutes → alerts to your phone (app or email).
