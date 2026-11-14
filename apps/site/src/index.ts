@@ -13,6 +13,8 @@ interface Env {
   API_ORIGIN: string;
   TURNSTILE_SITE_KEY: string;
   ENVIRONMENT: string;
+  /** Canonical host (app.<domain>). The apex and www redirect here; cdn.<domain> serves only the widget. */
+  APP_HOST?: string;
   /** Local dev only: reach the API over HTTP (local service bindings between wrangler processes are flaky). */
   API_DEV_URL?: string;
 }
@@ -86,6 +88,11 @@ export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     const p = url.pathname;
+
+    if (env.APP_HOST && env.ENVIRONMENT !== "dev" && url.hostname !== env.APP_HOST) {
+      const cdnWidget = url.hostname.startsWith("cdn.") && p === "/w.js";
+      if (!cdnWidget) return Response.redirect(`https://${env.APP_HOST}${p}${url.search}`, 301);
+    }
 
     if (p.startsWith("/portal-api/")) return forward(req, env, p);
     const payApi = /^\/pay-api\/([A-Za-z0-9]{32})(\/claim)?$/.exec(p);

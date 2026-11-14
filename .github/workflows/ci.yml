@@ -44,3 +44,27 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @garrab/e2e exec playwright install --with-deps chromium
       - run: pnpm e2e
+
+  # Every push to main that passes all checks goes to staging. Prod is a manual run of the Deploy workflow.
+  deploy-staging:
+    needs: [check, e2e]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: staging
+    concurrency:
+      group: deploy-staging
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: scripts/deploy.sh staging
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

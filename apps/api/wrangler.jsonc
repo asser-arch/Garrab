@@ -3,7 +3,9 @@
   "name": "garrab-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-10-30",
-  "observability": { "enabled": true },
+  "observability": {
+    "enabled": true
+  },
   "vars": {
     "ENVIRONMENT": "dev",
     "APP_ORIGIN": "http://localhost:8788",
@@ -19,19 +21,71 @@
     "ADMIN_ORIGIN": "http://localhost:8789"
   },
   "d1_databases": [
-    { "binding": "DB", "database_name": "garrab-dev", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
+    {
+      "binding": "DB",
+      "database_name": "garrab-dev",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
   ],
-  "kv_namespaces": [{ "binding": "CONFIG_KV", "id": "00000000000000000000000000000000" }],
+  "kv_namespaces": [
+    {
+      "binding": "CONFIG_KV",
+      "id": "00000000000000000000000000000000"
+    }
+  ],
   "ratelimits": [
-    { "name": "RL_TRYON_IP", "namespace_id": "1001", "simple": { "limit": 6, "period": 60 } },
-    { "name": "RL_TRYON_KEY", "namespace_id": "1002", "simple": { "limit": 120, "period": 60 } },
-    { "name": "RL_CONFIG_IP", "namespace_id": "1003", "simple": { "limit": 120, "period": 60 } }
+    {
+      "name": "RL_TRYON_IP",
+      "namespace_id": "1001",
+      "simple": {
+        "limit": 6,
+        "period": 60
+      }
+    },
+    {
+      "name": "RL_TRYON_KEY",
+      "namespace_id": "1002",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    },
+    {
+      "name": "RL_CONFIG_IP",
+      "namespace_id": "1003",
+      "simple": {
+        "limit": 120,
+        "period": 60
+      }
+    }
   ],
-  "triggers": { "crons": ["*/15 * * * *"] },
-  "r2_buckets": [{ "binding": "FILES", "bucket_name": "garrab-files-dev" }],
+  "triggers": {
+    "crons": [
+      "*/15 * * * *"
+    ]
+  },
+  "r2_buckets": [
+    {
+      "binding": "FILES",
+      "bucket_name": "garrab-files-dev"
+    }
+  ],
   "queues": {
-    "producers": [{ "binding": "JOBS", "queue": "garrab-jobs-dev" }],
-    "consumers": [{ "queue": "garrab-jobs-dev", "max_batch_size": 5, "max_retries": 5, "max_batch_timeout": 5 }]
+    "producers": [
+      {
+        "binding": "JOBS",
+        "queue": "garrab-jobs-dev"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "garrab-jobs-dev",
+        "max_batch_size": 5,
+        "max_retries": 5,
+        "max_batch_timeout": 5
+      }
+    ]
   },
   "env": {
     "staging": {
@@ -40,24 +94,84 @@
         "ENVIRONMENT": "staging",
         "INSTAPAY_IPA": "asserrostom@instapay",
         "INSTAPAY_ACCOUNT_NAME": "Asser Rostom",
-        "ADMIN_ORIGIN": "https://admin.staging.REPLACE_DOMAIN",
-        "APP_ORIGIN": "https://app.staging.REPLACE_DOMAIN",
-        "GENLOOK_MOCK": "false",
+        "ADMIN_ORIGIN": "https://admin-staging.garrabb.com",
+        "APP_ORIGIN": "https://app-staging.garrabb.com",
+        "GENLOOK_MOCK": "true",
         "GENLOOK_USD_PER_CREDIT": "0.04"
       },
-      "d1_databases": [{ "binding": "DB", "database_name": "garrab-staging", "database_id": "REPLACE_ME", "migrations_dir": "migrations" }],
-      "kv_namespaces": [{ "binding": "CONFIG_KV", "id": "REPLACE_ME" }],
-      "ratelimits": [
-        { "name": "RL_TRYON_IP", "namespace_id": "2001", "simple": { "limit": 6, "period": 60 } },
-        { "name": "RL_TRYON_KEY", "namespace_id": "2002", "simple": { "limit": 120, "period": 60 } },
-        { "name": "RL_CONFIG_IP", "namespace_id": "2003", "simple": { "limit": 120, "period": 60 } }
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "garrab-staging",
+          "database_id": "REPLACE_ME",
+          "migrations_dir": "migrations"
+        }
       ],
-      "triggers": { "crons": ["*/15 * * * *"] },
-      "r2_buckets": [{ "binding": "FILES", "bucket_name": "garrab-files-staging" }],
+      "kv_namespaces": [
+        {
+          "binding": "CONFIG_KV",
+          "id": "REPLACE_ME"
+        }
+      ],
+      "ratelimits": [
+        {
+          "name": "RL_TRYON_IP",
+          "namespace_id": "2001",
+          "simple": {
+            "limit": 6,
+            "period": 60
+          }
+        },
+        {
+          "name": "RL_TRYON_KEY",
+          "namespace_id": "2002",
+          "simple": {
+            "limit": 120,
+            "period": 60
+          }
+        },
+        {
+          "name": "RL_CONFIG_IP",
+          "namespace_id": "2003",
+          "simple": {
+            "limit": 120,
+            "period": 60
+          }
+        }
+      ],
+      "triggers": {
+        "crons": [
+          "*/15 * * * *"
+        ]
+      },
+      "r2_buckets": [
+        {
+          "binding": "FILES",
+          "bucket_name": "garrab-files-staging"
+        }
+      ],
       "queues": {
-        "producers": [{ "binding": "JOBS", "queue": "garrab-jobs-staging" }],
-        "consumers": [{ "queue": "garrab-jobs-staging", "max_batch_size": 5, "max_retries": 5, "max_batch_timeout": 5 }]
-      }
+        "producers": [
+          {
+            "binding": "JOBS",
+            "queue": "garrab-jobs-staging"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "garrab-jobs-staging",
+            "max_batch_size": 5,
+            "max_retries": 5,
+            "max_batch_timeout": 5
+          }
+        ]
+      },
+      "routes": [
+        {
+          "pattern": "api-staging.garrabb.com",
+          "custom_domain": true
+        }
+      ]
     },
     "prod": {
       "name": "garrab-api",
@@ -65,24 +179,85 @@
         "ENVIRONMENT": "prod",
         "INSTAPAY_IPA": "asserrostom@instapay",
         "INSTAPAY_ACCOUNT_NAME": "Asser Rostom",
-        "ADMIN_ORIGIN": "https://admin.REPLACE_DOMAIN",
-        "APP_ORIGIN": "https://app.REPLACE_DOMAIN",
+        "ADMIN_ORIGIN": "https://admin.garrabb.com",
+        "APP_ORIGIN": "https://app.garrabb.com",
         "GENLOOK_MOCK": "false",
-        "GENLOOK_USD_PER_CREDIT": "0.04"
+        "GENLOOK_USD_PER_CREDIT": "0.04",
+        "CDN_ORIGIN": "https://cdn.garrabb.com"
       },
-      "d1_databases": [{ "binding": "DB", "database_name": "garrab-prod", "database_id": "REPLACE_ME", "migrations_dir": "migrations" }],
-      "kv_namespaces": [{ "binding": "CONFIG_KV", "id": "REPLACE_ME" }],
-      "ratelimits": [
-        { "name": "RL_TRYON_IP", "namespace_id": "3001", "simple": { "limit": 6, "period": 60 } },
-        { "name": "RL_TRYON_KEY", "namespace_id": "3002", "simple": { "limit": 120, "period": 60 } },
-        { "name": "RL_CONFIG_IP", "namespace_id": "3003", "simple": { "limit": 120, "period": 60 } }
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "garrab-prod",
+          "database_id": "REPLACE_ME",
+          "migrations_dir": "migrations"
+        }
       ],
-      "triggers": { "crons": ["*/15 * * * *"] },
-      "r2_buckets": [{ "binding": "FILES", "bucket_name": "garrab-files-prod" }],
+      "kv_namespaces": [
+        {
+          "binding": "CONFIG_KV",
+          "id": "REPLACE_ME"
+        }
+      ],
+      "ratelimits": [
+        {
+          "name": "RL_TRYON_IP",
+          "namespace_id": "3001",
+          "simple": {
+            "limit": 6,
+            "period": 60
+          }
+        },
+        {
+          "name": "RL_TRYON_KEY",
+          "namespace_id": "3002",
+          "simple": {
+            "limit": 120,
+            "period": 60
+          }
+        },
+        {
+          "name": "RL_CONFIG_IP",
+          "namespace_id": "3003",
+          "simple": {
+            "limit": 120,
+            "period": 60
+          }
+        }
+      ],
+      "triggers": {
+        "crons": [
+          "*/15 * * * *"
+        ]
+      },
+      "r2_buckets": [
+        {
+          "binding": "FILES",
+          "bucket_name": "garrab-files-prod"
+        }
+      ],
       "queues": {
-        "producers": [{ "binding": "JOBS", "queue": "garrab-jobs-prod" }],
-        "consumers": [{ "queue": "garrab-jobs-prod", "max_batch_size": 5, "max_retries": 5, "max_batch_timeout": 5 }]
-      }
+        "producers": [
+          {
+            "binding": "JOBS",
+            "queue": "garrab-jobs-prod"
+          }
+        ],
+        "consumers": [
+          {
+            "queue": "garrab-jobs-prod",
+            "max_batch_size": 5,
+            "max_retries": 5,
+            "max_batch_timeout": 5
+          }
+        ]
+      },
+      "routes": [
+        {
+          "pattern": "api.garrabb.com",
+          "custom_domain": true
+        }
+      ]
     }
   }
 }

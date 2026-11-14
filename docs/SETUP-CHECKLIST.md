@@ -18,13 +18,13 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 
 ## Part 2: Domain and Cloudflare (30 minutes, then up to 24 h waiting)
 
-6. **Get a domain** if you don't have one (e.g. `garrab.app`). You can buy it inside Cloudflare: dashboard → **Domain Registration → Register Domains**. If you bought it elsewhere, continue with step 7.
-7. **Add it to Cloudflare** (skip if bought in Cloudflare):
+6. ✅ **Get a domain**: `garrabb.com`. ~~ if you don't have one (e.g. `garrab.app`). You can buy it inside Cloudflare: dashboard → **Domain Registration → Register Domains**. If you bought it elsewhere, continue with step 7.~~
+7. ✅ **Add it to Cloudflare** (skip if bought in Cloudflare):
    1. Dashboard → **Add a domain** → type the domain → choose the **Free** plan.
    2. Cloudflare shows **two nameservers**. Log in to where you bought the domain → DNS / Nameservers → replace theirs with Cloudflare's two → save.
    3. Wait until Cloudflare emails you that the domain is **Active** (usually under an hour, up to 24 h).
-8. **Workers Paid (5 USD/month)**: dashboard → **Workers & Pages** → **Plans** (or "Upgrade") → **Workers Paid** → pay. Needed for queues, cron and higher limits.
-9. Tell Claude: **"Domain is active: <domain>"**. Claude then wires up staging (creates the database, storage and queue, and deploys).
+8. ✅ **Workers Paid (5 USD/month)**: dashboard → **Workers & Pages** → **Plans** (or "Upgrade") → **Workers Paid** → pay. Needed for queues, cron and higher limits.
+9. ✅ Tell Claude: **"Domain is active: <domain>"**. Claude then wires up staging (creates the database, storage and queue, and deploys).
 
 ## Part 3: Telegram bot (10 minutes)
 
@@ -77,7 +77,7 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 
 ## Part 7: Bot check and admin login (20 minutes, after Part 2)
 
-33. **Turnstile**: Cloudflare dashboard → **Turnstile** → **Add widget** → name `Garrab app` → hostname `app.<your-domain>` → mode **Managed** → create. Copy the **site key** and **secret key**. Tell Claude **"Turnstile ready"**.
+33. **Turnstile**: Cloudflare dashboard → **Turnstile** → **Add widget** → name `Garrab app` → hostnames `app.garrabb.com` and `app-staging.garrabb.com` → mode **Managed** → create. Copy the **site key** and **secret key**. Tell Claude **"Turnstile ready"**.
 34. **Admin login (Cloudflare Access)**:
     1. Dashboard → **Zero Trust** → pick a team name (e.g. `garrab`) → **Free** plan (it may ask for a card; free up to 50 users).
     2. **Access → Applications → Add an application → Self-hosted**.

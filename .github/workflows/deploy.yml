@@ -1,0 +1,37 @@
+name: Deploy
+
+# Manual deploy (Actions → Deploy → Run workflow). Staging also deploys automatically from CI on main.
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Where to deploy
+        type: choice
+        options: [staging, prod]
+        default: staging
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: deploy-${{ inputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm lint && pnpm typecheck && pnpm test
+      - run: scripts/deploy.sh ${{ inputs.environment }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

@@ -175,3 +175,13 @@ One line per decision: **what** — *why* — source if verified. Newest at the 
 - **Product test budget is now 3 USD per brand per rolling 30 days** (was 3 USD per brand, ever) — *with no product limit, brands keep adding products over months.*
 - **No VAT for now** — *Asser; stays a config value (0, hidden).*
 - **Free 14-day pilot for every brand** — *Asser.* The setup fee rule is unchanged: none while "founding pilots" is on.
+
+## Domain and deploys (14 Nov 2026)
+
+- **Domain: garrabb.com.** Prod: `app.` (frame, portal, start, pay), `api.`, `admin.`, `cdn.` (w.js only); the apex and `www.` redirect to `app.`. Staging: `app-staging.`, `api-staging.`, `admin-staging.`.
+- **Staging hosts are one level deep (`app-staging`, not `app.staging`)** — *Cloudflare's free certificate covers `*.garrabb.com` only, not `*.staging.garrabb.com`.*
+- **Cloudflare resources are created by `scripts/cf-provision.mjs`, found by name every deploy, and their IDs are filled into the config in the CI workspace only** — *idempotent; no IDs to copy by hand.* Storage location hint: Eastern Europe (closest to Egypt).
+- **Every push to main that passes CI deploys to staging; prod is a manual "Deploy" run** — *nothing reaches brands by accident.*
+- **Signing keys (ctx tokens, Telegram webhook and buttons) are generated in CI on first deploy and never overwritten** — *no one ever sees them; rotating would break live sessions.*
+- **Until the real Turnstile widget and Genlook key arrive, staging uses Cloudflare's public always-pass Turnstile test keys and Genlook's free mock.** Prod is not deployed until both are real.
+- Removed unused `SESSION_SIGNING_KEY` and `PAY_TOKEN_KEY` from `.env.example`.
