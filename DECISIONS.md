@@ -112,3 +112,25 @@ One line per decision: **what** — *why* — source if verified. Newest at the 
 - **Gemini and Vertex try-on providers built behind `TryOnProvider`** — *the bake-off uses the production code paths, and a switch is a config change.*
 - **Bake-off script (`pnpm bakeoff`) with a dry-run cost estimate and a hard USD cap; output git-ignored** — *Asser judges quality on real target-brand products before the first pilot.*
 - **Scripts run with `node --experimental-transform-types`** — *strip-only mode can't parse constructor parameter properties used by the providers.*
+
+## Phase 2 build (14 Nov 2026)
+
+- **`/start` creates the account immediately (status `onboarding`, plan `pilot`, `target_plan_id` = chosen plan)** — *zero manual steps; the target plan is what the pilot converts to.*
+- **Same answer for a new or existing email on `/start` and on sign-in requests** — *no account probing.*
+- **Magic link token in the URL fragment (`/portal/login#t=…`), redeemed by a POST** — *email security scanners pre-fetch links; a GET token would be burned before the brand clicks.*
+- **Session cookie `__Host-garrab_s` (HttpOnly, Secure, SameSite=Lax, 14 days); writes require `Origin` = app origin** — *standard CSRF defence for cookie auth.*
+- **Portal and `/start` reach the API through the site Worker's service binding (same origin)** — *first-party cookies, no CORS preflights, no third-party cookie problems.*
+- **Widget keys are stored in plain text too (`key_public`)** — *they are publishable (in the brand's HTML) and the portal must show the install line; lookups still use the hash.*
+- **Products are auto-selected (top 10 by photos, sizes and price; decor excluded until Phase 4) and tested right away** — *"brand picks or we auto-rank" without ever waiting; the brand can swap products before approving, and new picks are re-tested.*
+- **A product's test score is its lowest score across the 2 stock models; scorer outage → 3 (manual review), never auto-enable** — *conservative quality gate.*
+- **Score 3 products go to Asser's review in admin; they don't block the brand** — *the brand approves the passing ones; a brand with nothing passing raises one alert.*
+- **The pilot starts at install (or at approval for Instagram/WhatsApp-only brands)** — *"first approved product live".*
+- **Expiry at pilot end + 5 grace days moves status to `expired` (kill switch on, data kept)** — *brief §6.8; payment and reactivation arrive in Phase 3.*
+- **Day 12 and 14 emails link to the portal billing page for now** — *the InstaPay pay page is Phase 3.*
+- **Emails are sent once per dedupe key (`notifications.dedupe_key` UNIQUE + Resend Idempotency-Key)** — *cron and queue retries never double-send.*
+- **Local dev/test emails go to a `dev_outbox` table; production refuses to start without Resend** — *clickable links locally, no silent loss in prod.*
+- **Importer respects robots.txt for every path it fetches, identifies itself as GarrabBot, and re-tries at most every 6 hours** — *polite crawling of brands that signed up.*
+- **Websites keep the scheme the brand gave (default https)** — *found by the e2e test: we had forced https.*
+- **Local e2e starts the Workers in order (API → site → admin) and without an outbound proxy** — *parallel `wrangler dev` processes race for the service-binding socket; workerd ignores NO_PROXY.*
+- **Admin console is a small React app behind Cloudflare Access with invite, funnel, brand list, stuck flags, reminders, overrides and product review; the full dashboard comes in Phase 3** — *enough to run onboarding alone.*
+- **Gemini Interactions API has no temperature; scoring uses a fixed seed** — *the size finder (Phase 4) needs temperature 0, to be solved then (classic API or deterministic post-checks).*

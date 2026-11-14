@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
+<title>Start your free pilot · Garrab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap">
+<link rel="stylesheet" href="/site.css">
+<script>window.__GARRAB__ = /*GARRAB_CONFIG*/{"api":"","turnstileSiteKey":"mock"}/*END*/;</script>
+<!--TURNSTILE-->
+</head>
+<body>
+<div class="shell" style="max-width:640px">
+  <header class="top"><a class="logo" href="/start"><span class="tile">G</span> Garrab</a></header>
+  <main>
+    <h1>See it on you. <span class="soft">Before you buy.</span></h1>
+    <p>AI try-on for your shop, set up and run for you. Start a free 14-day pilot: up to 10 products, no setup fee, no card.</p>
+    <form id="start" class="card" novalidate>
+      <label for="brandName">Brand name</label><input id="brandName" name="brandName" required autocomplete="organization">
+      <label for="contactName">Your name</label><input id="contactName" name="contactName" required autocomplete="name">
+      <label for="email">Email</label><input id="email" name="email" type="email" required autocomplete="email">
+      <label for="whatsapp">WhatsApp number</label><input id="whatsapp" name="whatsapp" type="tel" required placeholder="01xxxxxxxxx" autocomplete="tel">
+      <label for="platform">Where do you sell?</label>
+      <select id="platform" name="platform" required>
+        <option value="shopify">Shopify</option><option value="woocommerce">WooCommerce</option>
+        <option value="other_website">Another website</option><option value="social_only">Instagram / WhatsApp only</option>
+      </select>
+      <label for="website">Website</label><input id="website" name="website" type="url" placeholder="https://yourshop.com">
+      <label for="instagram">Instagram handle</label><input id="instagram" name="instagram" placeholder="@yourbrand">
+      <label for="niche">What do you sell?</label>
+      <select id="niche" name="niche" required><option value="clothing">Clothing</option><option value="accessories">Accessories</option><option value="home_decor">Home decor</option></select>
+      <label for="plan">Plan after the pilot</label>
+      <select id="plan" name="plan" required><option value="starter">Starter</option><option value="growth">Growth (adds the size finder)</option></select>
+      <div id="ts" style="margin-top:16px"></div>
+      <p id="msg" role="alert" class="small"></p>
+      <button class="btn" type="submit">Start my free pilot</button>
+      <p class="small muted">We'll email you a sign-in link. You approve every product before anything goes live.</p>
+    </form>
+    <div id="done" class="card note" hidden tabindex="-1"><h2>Check your email</h2><p>We've sent your sign-in link. We're already reading your products.</p></div>
+  </main>
+  <p class="small muted"><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
+</div>
+<script src="/start.js" defer></script>
+</body>
+</html>

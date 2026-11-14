@@ -1,0 +1,25 @@
+{
+  "name": "@garrab/admin",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "wrangler dev --port 8789",
+    "typecheck": "tsc -p tsconfig.json && tsc -p worker/tsconfig.json",
+    "test": "echo 'admin: covered by e2e'"
+  },
+  "dependencies": {
+    "@garrab/shared": "workspace:*",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261030.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "vite": "8.3.5",
+    "wrangler": "4.156.0"
+  }
+}

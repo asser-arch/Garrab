@@ -103,8 +103,13 @@ portal.get("/me", async (c) => {
   const live = await c.env.DB.prepare("SELECT id, title, images_json FROM products WHERE account_id = ? AND enabled = 1 AND approved = 1 ORDER BY title")
     .bind(id)
     .all<{ id: string; title: string; images_json: string }>();
+  // The meter row appears with the first preview; until then show 0 of the plan's allowance.
   const usage = a.cycle_start
-    ? await c.env.DB.prepare("SELECT used, included, extra FROM cycle_usage WHERE account_id = ? AND cycle_start = ?").bind(id, a.cycle_start).first()
+    ? ((await c.env.DB.prepare("SELECT used, included, extra FROM cycle_usage WHERE account_id = ? AND cycle_start = ?").bind(id, a.cycle_start).first()) ?? {
+        used: 0,
+        included: PLANS[a.plan_id].includedPreviews,
+        extra: 0,
+      })
     : null;
   const install = await c.env.DB.prepare("SELECT install_status, last_checked_at FROM domains WHERE account_id = ? LIMIT 1").bind(id).first();
   return c.json({

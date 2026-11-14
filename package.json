@@ -6,7 +6,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "pnpm --filter @garrab/widget --filter @garrab/frame build",
+    "build": "pnpm --filter @garrab/site --filter @garrab/admin build",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r --filter=!@garrab/e2e test",
     "e2e": "pnpm --filter @garrab/e2e e2e",

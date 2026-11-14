@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter @garrab/widget --filter @garrab/frame build",
+    "build": "pnpm --filter @garrab/widget --filter @garrab/frame --filter @garrab/portal build && node copy-pages.mjs",
     "dev": "wrangler dev --port 8788",
     "typecheck": "tsc -p tsconfig.json",
     "test": "echo 'site: covered by e2e'"

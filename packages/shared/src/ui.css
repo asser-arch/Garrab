@@ -1,0 +1,67 @@
+/* Garrab UI kit for the portal and admin. Tokens and rules from the brand guideline v1.0:
+   Forest pill primary button, one Peach accent per screen, no gradients, no shadows,
+   1px Sand borders on cards, two-tone headlines (Ink then Grey), Cairo everywhere. */
+:root {
+  --forest:#143822; --cream:#F4F2EB; --paper:#FCFBF8; --ink:#0F1A13;
+  --peach:#F3D6A8; --mint:#BFE8E0; --lavender:#D2C6F7; --sage:#9DB5A3;
+  --sand:#DDD6C9; --mist:#E9E9E3; --grey:#8A8B84;
+  --orange:#C9791A; --teal:#1F8A7C; --purple:#6B4BD6;
+  --radius-card:20px; --radius-pill:999px;
+  --font: Cairo, system-ui, sans-serif;
+  --muted:#5c5d57;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--cream); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.55; }
+a { color: var(--teal); }
+.shell { max-width: 960px; margin: 0 auto; padding: 16px; }
+.top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0 16px; flex-wrap: wrap; }
+.logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; color: var(--ink); text-decoration: none; }
+.logo .tile { position: relative; width: 32px; height: 32px; border-radius: 9px; background: var(--forest); color: var(--paper); display: grid; place-items: center; font-weight: 700; }
+.logo .tile::after { content: ""; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--peach); }
+nav.tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+nav.tabs a { text-decoration: none; color: var(--ink); padding: 8px 16px; border-radius: var(--radius-pill); border: 1px solid var(--sand); background: var(--paper); min-height: 40px; display: inline-flex; align-items: center; }
+nav.tabs a[aria-current="page"] { background: var(--forest); color: var(--paper); border-color: var(--forest); }
+h1 { font-weight: 400; font-size: 32px; line-height: 1.2; margin: 8px 0 16px; }
+h1 .soft, h2 .soft { color: var(--grey); }
+h2 { font-weight: 700; font-size: 19px; margin: 0 0 8px; }
+.card { background: var(--paper); border: 1px solid var(--sand); border-radius: var(--radius-card); padding: 24px; margin-bottom: 16px; }
+.dark { background: var(--forest); color: var(--paper); border-color: var(--forest); }
+.dark .soft { color: var(--sage); }
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 24px; border-radius: var(--radius-pill); font: 700 15px/1 var(--font);
+  text-decoration: none; cursor: pointer; border: 1px solid transparent; background: var(--forest); color: var(--paper); }
+.btn.accent { background: var(--peach); color: var(--forest); }
+.btn.ghost { background: var(--paper); color: var(--ink); border-color: var(--sand); }
+.btn.small { min-height: 36px; padding: 0 16px; font-size: 13px; }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+label { display: block; font-weight: 700; font-size: 13px; margin: 12px 0 4px; }
+input, select, textarea { width: 100%; font: 15px var(--font); padding: 10px 14px; border-radius: 14px; border: 1px solid var(--sand); background: #fff; color: var(--ink); min-height: 44px; }
+textarea { min-height: 96px; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+.chip { display: inline-block; border-radius: var(--radius-pill); padding: 2px 12px; font: 700 11px/1.8 var(--font); letter-spacing: .1em; text-transform: uppercase; background: var(--mist); color: var(--ink); }
+.chip.peach { background: var(--peach); color: var(--forest); }
+.chip.mint { background: var(--mint); }
+.chip.lavender { background: var(--lavender); }
+.chip.bad { background: #fbe9e2; color: #8a2f12; }
+.steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.steps li { display: flex; gap: 12px; align-items: center; }
+.dot { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-size: 13px; font-weight: 700; flex: none; border: 1px solid var(--sand); background: var(--paper); }
+.dot.done { background: var(--mint); border-color: var(--mint); color: var(--teal); }
+.dot.active { background: var(--peach); border-color: var(--peach); color: var(--forest); }
+.preview { position: relative; border-radius: 16px; overflow: hidden; border: 1px solid var(--sand); background: var(--mist); }
+.preview img { display: block; width: 100%; aspect-ratio: 4/5; object-fit: cover; }
+.preview .chip { position: absolute; top: 8px; left: 8px; background: var(--peach); color: var(--forest); }
+.thumbs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+pre.code { background: var(--ink); color: var(--paper); border-radius: 16px; padding: 16px; overflow-x: auto; font-size: 13px; white-space: pre-wrap; word-break: break-all; }
+.note { background: var(--mint); border-radius: 16px; padding: 12px 16px; }
+.warn { background: #fbe9e2; color: #8a2f12; border-radius: 16px; padding: 12px 16px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--mist); font-size: 14px; vertical-align: top; }
+th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.stat { font-size: 28px; font-weight: 700; }
+@media (max-width: 600px) { h1 { font-size: 26px; } .card { padding: 16px; } }
+@media (prefers-reduced-motion: no-preference) { .fade { animation: fade 200ms ease; } @keyframes fade { from { opacity: 0 } to { opacity: 1 } } }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

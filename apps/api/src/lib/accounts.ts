@@ -43,7 +43,10 @@ export async function createAccount(env: Env, a: NewAccount): Promise<{ accountI
   let slug = slugify(a.brandName);
   if (await env.DB.prepare("SELECT 1 FROM accounts WHERE slug = ?").bind(slug).first()) slug = `${slug}-${accountId.slice(-4).toLowerCase()}`;
   const key = newWidgetKey(env);
-  const host = a.website ? originHost(a.website.startsWith("http") ? a.website : `https://${a.website}`) : null;
+  const siteUrl = a.website ? (/^https?:\/\//i.test(a.website) ? a.website : `https://${a.website}`) : null;
+  const host = siteUrl ? originHost(siteUrl) : null;
+  // Keep the scheme the brand gave us (https unless they typed http://).
+  const siteOrigin = siteUrl && host ? new URL(siteUrl).origin : null;
   const platform = a.platform ?? (host ? "other_website" : "social_only");
   const now = new Date().toISOString();
 
@@ -61,11 +64,11 @@ export async function createAccount(env: Env, a: NewAccount): Promise<{ accountI
       a.contactName ?? null,
       email,
       a.whatsapp ?? null,
-      host ? `https://${host}` : null,
+      siteOrigin,
       a.instagram ?? null,
       a.niche ?? null,
       now,
-      host ? `https://${host}` : a.whatsapp ? `https://wa.me/${a.whatsapp.replace(/\D/g, "")}` : null,
+      siteOrigin ?? (a.whatsapp ? `https://wa.me/${a.whatsapp.replace(/\D/g, "")}` : null),
     ),
     env.DB.prepare("INSERT INTO users (id, account_id, email, name) VALUES (?, ?, ?, ?)").bind(userId, accountId, email, a.contactName ?? null),
     env.DB.prepare("INSERT INTO api_keys (id, account_id, prefix, key_hash, key_public) VALUES (?, ?, ?, ?, ?)").bind(

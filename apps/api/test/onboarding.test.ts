@@ -130,6 +130,20 @@ describe("import", () => {
   });
 });
 
+describe("createAccount", () => {
+  it("keeps the website scheme the brand gave, defaults to https, and locks the domain", async () => {
+    const a = await createAccount(env, { brandName: "Scheme A", email: `sa-${uniq()}@x.example`, plan: "starter", website: "scheme-a.example/shop" });
+    const b = await createAccount(env, { brandName: "Scheme B", email: `sb-${uniq()}@x.example`, plan: "starter", website: "http://scheme-b.example:8080" });
+    const rows = await env.DB.prepare("SELECT a.website, d.host FROM accounts a JOIN domains d ON d.account_id = a.id WHERE a.id IN (?, ?) ORDER BY a.name")
+      .bind(a.accountId, b.accountId)
+      .all();
+    expect(rows.results).toEqual([
+      { website: "https://scheme-a.example", host: "scheme-a.example" },
+      { website: "http://scheme-b.example:8080", host: "scheme-b.example:8080" },
+    ]);
+  });
+});
+
 // ---------------------------------------------------------------- the whole journey
 
 describe("onboarding: invite → pilot_live with no admin action", () => {
@@ -199,6 +213,11 @@ describe("onboarding: invite → pilot_live with no admin action", () => {
     const body = (await cfg.json()) as { enabled: boolean; products: { id: string }[] };
     expect(body.enabled).toBe(true);
     expect(body.products.map((p) => p.id)).toEqual([enabled.results[0]!.id]);
+
+    // The portal shows the pilot allowance from day one (0 of 300), before any preview.
+    const cookie = await login(email);
+    const me = (await (await portalGet("/me", cookie)).json()) as { usage: { used: number; included: number } };
+    expect(me.usage).toEqual({ used: 0, included: 300, extra: 0 });
   });
 
   it("Instagram-only brand: waits for products, then hosted links count as installed", async () => {
