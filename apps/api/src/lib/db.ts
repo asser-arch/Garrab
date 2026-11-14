@@ -13,6 +13,7 @@ export interface AccountRow {
   cycle_start: string | null;
   button_selector: string | null;
   buy_url: string | null;
+  paid_through: string | null;
 }
 
 export interface ProductRow {
@@ -28,7 +29,7 @@ export interface ProductRow {
   provider_synced_at: string | null;
 }
 
-const ACCOUNT_COLS = "id, slug, name, plan_id, status, status_version, cycle_start, button_selector, buy_url";
+const ACCOUNT_COLS = "id, slug, name, plan_id, status, status_version, cycle_start, button_selector, buy_url, paid_through";
 
 export function isServing(status: AccountStatus): boolean {
   return (SERVING_STATUSES as readonly string[]).includes(status);

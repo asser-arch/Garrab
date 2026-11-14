@@ -5,7 +5,7 @@ Never paste keys in chat. When a key is ready, tell Claude and it sends a secure
 
 ## A. Decisions (10 minutes)
 
-- [ ] **A1. InstaPay, direct or through Kashier?** Direct: brands pay your InstaPay address, tap "I've paid", you confirm with one tap in Telegram. Through Kashier: confirmed automatically, small fee per payment. Default: start direct, switch later. Send: your **InstaPay address** (e.g. `name@instapay`) and the **account name** brands will see.
+- [x] **A1. InstaPay, direct or through Kashier?** → **Direct, to asserrostom@instapay** (decided 14 Nov). Still needed: the **account name** brands see. Direct: brands pay your InstaPay address, tap "I've paid", you confirm with one tap in Telegram. Through Kashier: confirmed automatically, small fee per payment. Default: start direct, switch later. Send: your **InstaPay address** (e.g. `name@instapay`) and the **account name** brands will see.
 - [ ] **A2. Product limits on paid plans.** Default Starter 30, Growth 100. Confirm or change.
 - [ ] **A3. VAT.** Ask your accountant. Default 0 (not shown on invoices).
 - [ ] **A4. Domain name** you want to use (e.g. `garrab.app`).
@@ -26,7 +26,7 @@ Never paste keys in chat. When a key is ready, tell Claude and it sends a secure
 
 ### Email, alerts, payments
 - [ ] **B9. Resend:** sign up, add a sending domain such as `mail.<your-domain>`, add the DNS records it shows (in Cloudflare DNS), wait for **Verified**, create an **API key**. Decide the sender, e.g. `Garrab <hello@mail.your-domain>`.
-- [ ] **B10. Telegram:** in Telegram open **@BotFather** → `/newbot` → copy the **bot token**. Send your new bot any message, then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `"chat":{"id":…}` → your **chat ID**.
+- [ ] **B10. Telegram (now required: payment confirmations arrive here):** in Telegram open **@BotFather** → `/newbot` → copy the **bot token**. Send your new bot any message, then open `https://api.telegram.org/bot<TOKEN>/getUpdates` and copy `"chat":{"id":…}` → your **chat ID**.
 - [ ] **B11. Kashier (only if A1 = Kashier, or later):** merchant account at merchant.kashier.io; ask Kashier support to **enable InstaPay collection (QR / request-to-pay)**. Send: **MID**, **Secret key**, **Payment API key** (test first, then live).
 
 ## C. Files

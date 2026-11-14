@@ -4,11 +4,17 @@ DELETE FROM domains WHERE account_id = 'acc_demo';
 DELETE FROM api_keys WHERE account_id = 'acc_demo';
 DELETE FROM cycle_usage WHERE account_id = 'acc_demo';
 DELETE FROM daily_counters WHERE account_id IN ('acc_demo', '*');
+DELETE FROM payment_claims WHERE account_id = 'acc_demo';
+DELETE FROM payments WHERE account_id = 'acc_demo';
+DELETE FROM invoices WHERE account_id = 'acc_demo';
+DELETE FROM users WHERE account_id = 'acc_demo';
 DELETE FROM accounts WHERE id = 'acc_demo';
 UPDATE settings SET value_json = 'false' WHERE key = 'global_kill';
 
-INSERT INTO accounts (id, slug, name, plan_id, status, cycle_start, buy_url)
-VALUES ('acc_demo', 'demo-brand', 'Demo Brand', 'starter', 'active', '2026-11-01', 'http://localhost:8790');
+-- Paid well into the future so the Phase 1 tests are unaffected; the Phase 3 test moves it.
+INSERT INTO accounts (id, slug, name, plan_id, status, cycle_start, buy_url, paid_through, onboarding_step, email)
+VALUES ('acc_demo', 'demo-brand', 'Demo Brand', 'starter', 'active', '2026-11-01', 'http://localhost:8790', '2099-12-31', 'converted', 'owner@demo-brand.example');
+INSERT INTO users (id, account_id, email, name) VALUES ('usr_demo', 'acc_demo', 'owner@demo-brand.example', 'Demo Owner');
 
 -- Demo key: gk_test_DemoShopKey0000000000001  (test key, local only)
 INSERT INTO api_keys (id, account_id, prefix, key_hash)

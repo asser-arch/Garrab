@@ -16,6 +16,7 @@ test("invite → import → tests → approve → install → pilot live, with n
 
   // 1. Asser invites the brand from the admin (the only admin action).
   await page.goto(ADMIN);
+  await page.getByRole("link", { name: "Onboarding" }).click();
   await page.getByLabel("Brand name").fill("E2E Linen Co");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Plan after pilot").selectOption("growth");

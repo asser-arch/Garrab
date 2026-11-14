@@ -5,12 +5,23 @@ import type { AccountRow } from "./db.js";
 import { getSetting, setSetting } from "./db.js";
 import { alert, transitionStatus } from "./ops.js";
 import { cairoDay } from "./time.js";
+import { sendOnce } from "./email.js";
+import { emails } from "../emails.js";
+import { addDays, addMonths } from "../billing/dates.js";
 
 export type UsageKind = "tryon" | "room" | "size" | "fit_read" | "test" | "score";
 
-/** Cycle start for the preview meter. Billing (Phase 3) keeps accounts.cycle_start current. */
-export function cycleStartOf(account: AccountRow): string {
-  return account.cycle_start ?? cairoDay().slice(0, 8) + "01";
+/**
+ * Start of the current usage cycle. Paid accounts: the billing month that contains today
+ * (paid in advance, so it may be followed by later paid months). Pilot: the pilot start day.
+ */
+export function cycleStartOf(account: Pick<AccountRow, "cycle_start" | "paid_through">, today = cairoDay()): string {
+  if (account.paid_through) {
+    let start = addMonths(addDays(account.paid_through, 1), -1);
+    while (start > today) start = addMonths(start, -1);
+    return start;
+  }
+  return account.cycle_start ?? today.slice(0, 8) + "01";
 }
 
 /**
@@ -103,4 +114,24 @@ export async function recordUsage(
       ).bind(a, day, m, n),
     ),
   ]);
+}
+
+/** Usage warnings at 80% and 100% of the cycle's previews (brief §1). Each sent once per cycle. */
+export async function usageWarnings(env: Env, account: AccountRow, portalUrl: string): Promise<void> {
+  const cycle = cycleStartOf(account);
+  const u = await env.DB.prepare("SELECT used, included, extra, warned_80, warned_100 FROM cycle_usage WHERE account_id = ? AND cycle_start = ?")
+    .bind(account.id, cycle)
+    .first<{ used: number; included: number; extra: number; warned_80: number; warned_100: number }>();
+  if (!u) return;
+  const total = u.included + u.extra;
+  const to = (await env.DB.prepare("SELECT email FROM users WHERE account_id = ? ORDER BY created_at LIMIT 1").bind(account.id).first<{ email: string }>())?.email;
+  for (const pct of [100, 80] as const) {
+    const flag = pct === 100 ? "warned_100" : "warned_80";
+    if (u.used < Math.ceil((total * pct) / 100) || u[flag]) continue;
+    const claim = await env.DB.prepare(`UPDATE cycle_usage SET ${flag} = 1 WHERE account_id = ? AND cycle_start = ? AND ${flag} = 0`).bind(account.id, cycle).run();
+    if (claim.meta.changes === 1 && to) {
+      await sendOnce(env, { accountId: account.id, template: `usage_${pct}`, dedupeKey: `usage_${pct}:${account.id}:${cycle}:${total}`, msg: emails.usageWarning(to, pct, u.used, total, portalUrl) });
+    }
+    break; // at 100% don't also send the 80% email
+  }
 }

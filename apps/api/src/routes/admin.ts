@@ -4,6 +4,7 @@
  * one-click reminders, review "needs review" products.
  */
 import { InviteBrand, OnboardingStep } from "@garrab/shared";
+import { PLANS, type PlanId } from "@garrab/shared/plans";
 import { Hono } from "hono";
 import { z } from "zod";
 import { emails } from "../emails.js";
@@ -13,6 +14,14 @@ import { adminIdentity, createMagicLink } from "../lib/auth.js";
 import { ulid } from "../lib/crypto.js";
 import { sendOnce } from "../lib/email.js";
 import { cairoDay } from "../lib/time.js";
+import { getSetting, setSetting } from "../lib/db.js";
+import { alert, transitionStatus } from "../lib/ops.js";
+import { cycleStartOf } from "../lib/metering.js";
+import { addDays } from "../billing/dates.js";
+import { accountFacts, applyPayment, ensurePlanInvoice, openPlanInvoice, payUrl, pdfUrl, reconcileAccount } from "../billing/ledger.js";
+import { decideClaim } from "../billing/instapay.js";
+import { runJobNow } from "../jobs.js";
+import { buildDigest } from "../ops/digest.js";
 import { STEP_LABEL, advance, overrideStep, portalUrl, type Step } from "../onboarding/machine.js";
 
 type Vars = { admin: string };
@@ -156,4 +165,250 @@ admin.get("/status", async (c) => {
   ).all();
   const alerts = await c.env.DB.prepare("SELECT id, kind, account_id, message, created_at FROM alerts WHERE resolved_at IS NULL ORDER BY created_at DESC LIMIT 50").all();
   return c.json({ crons: crons.results, alerts: alerts.results });
+});
+
+// ---------------------------------------------------------------- Phase 3: money, kill switch, operations
+
+const Reason = z.string().trim().min(3).max(300);
+
+admin.get("/dashboard", async (c) => {
+  const env = c.env;
+  const since30 = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const fx = await getSetting<number | null>(env, "egp_per_usd", null);
+  const [counts, accounts, revenue, cost, alertsOpen, claims, due, crons, globalKill] = await Promise.all([
+    env.DB.prepare("SELECT status, COUNT(*) AS n FROM accounts GROUP BY status").all<{ status: string; n: number }>(),
+    env.DB.prepare(
+      "SELECT id, name, status, plan_id, target_plan_id, paid_through, cycle_start, manual_hold FROM accounts WHERE status IN ('pilot','active','past_due','suspended') ORDER BY name",
+    ).all<{ id: string; name: string; status: string; plan_id: PlanId; target_plan_id: PlanId | null; paid_through: string | null; cycle_start: string | null; manual_hold: number }>(),
+    env.DB.prepare("SELECT account_id, SUM(amount) AS s FROM payments WHERE created_at >= ? GROUP BY account_id").bind(since30).all<{ account_id: string; s: number }>(),
+    env.DB.prepare("SELECT account_id, SUM(cost_micro_usd) AS s FROM usage_events WHERE created_at >= ? GROUP BY account_id").bind(since30).all<{ account_id: string; s: number }>(),
+    env.DB.prepare("SELECT id, kind, account_id, message, created_at FROM alerts WHERE resolved_at IS NULL ORDER BY created_at DESC LIMIT 30").all(),
+    env.DB.prepare(
+      `SELECT c.id, a.name, i.number, i.total, c.reference, c.created_at FROM payment_claims c JOIN invoices i ON i.id = c.invoice_id JOIN accounts a ON a.id = c.account_id
+        WHERE c.status = 'pending' ORDER BY c.created_at`,
+    ).all(),
+    env.DB.prepare("SELECT COUNT(*) AS n FROM invoices WHERE status = 'open' AND due_date <= ?").bind(addDays(cairoDay(), 3)).first<{ n: number }>(),
+    env.DB.prepare("SELECT job, MAX(started_at) AS last_run, MIN(ok) AS ok FROM (SELECT job, started_at, ok FROM cron_runs ORDER BY started_at DESC LIMIT 200) GROUP BY job").all(),
+    getSetting<boolean>(env, "global_kill", false),
+  ]);
+  const rev = new Map(revenue.results.map((r) => [r.account_id, r.s]));
+  const cst = new Map(cost.results.map((r) => [r.account_id, r.s]));
+  const rows = [];
+  let mrr = 0;
+  for (const a of accounts.results) {
+    if (a.status === "active" || a.status === "past_due") mrr += PLANS[a.plan_id].monthlyPrice;
+    const usage = await env.DB.prepare("SELECT used, included, extra FROM cycle_usage WHERE account_id = ? AND cycle_start = ?")
+      .bind(a.id, cycleStartOf(a))
+      .first<{ used: number; included: number; extra: number }>();
+    const revenue30 = rev.get(a.id) ?? 0;
+    const costUsd = (cst.get(a.id) ?? 0) / 1e6;
+    rows.push({
+      id: a.id,
+      name: a.name,
+      status: a.status,
+      plan: PLANS[a.plan_id].name,
+      paidThrough: a.paid_through,
+      manualHold: a.manual_hold === 1,
+      previews: usage ? `${usage.used} / ${usage.included + usage.extra}` : `0 / ${PLANS[a.plan_id].includedPreviews}`,
+      revenue30,
+      costUsd30: Math.round(costUsd * 100) / 100,
+      margin30: fx ? revenue30 - Math.round(costUsd * fx * 100) : null,
+    });
+  }
+  return c.json({
+    statusCounts: Object.fromEntries(counts.results.map((r) => [r.status, r.n])),
+    mrr,
+    egpPerUsd: fx,
+    globalKill,
+    clients: rows,
+    alerts: alertsOpen.results,
+    pendingClaims: claims.results,
+    dueSoon: due?.n ?? 0,
+    crons: crons.results,
+  });
+});
+
+admin.get("/search", async (c) => {
+  const q = `%${(c.req.query("q") ?? "").trim().slice(0, 60)}%`;
+  const rows = await c.env.DB.prepare("SELECT id, name, status, email FROM accounts WHERE name LIKE ? OR email LIKE ? OR slug LIKE ? OR website LIKE ? LIMIT 20").bind(q, q, q, q).all();
+  return c.json({ results: rows.results });
+});
+
+admin.get("/accounts/:id/billing", async (c) => {
+  const id = c.req.param("id");
+  const [invoices, payments, claims] = await Promise.all([
+    c.env.DB.prepare("SELECT id, number, kind, total, status, due_date, period_start, period_end, pay_token, paid_at FROM invoices WHERE account_id = ? ORDER BY created_at DESC LIMIT 50").bind(id).all<{ pay_token: string } & Record<string, unknown>>(),
+    c.env.DB.prepare("SELECT provider, provider_txn_id, amount, method, reference, note, actor, created_at FROM payments WHERE account_id = ? ORDER BY created_at DESC LIMIT 50").bind(id).all(),
+    c.env.DB.prepare("SELECT id, invoice_id, reference, payer_name, status, created_at, decided_by FROM payment_claims WHERE account_id = ? ORDER BY created_at DESC LIMIT 20").bind(id).all(),
+  ]);
+  const wa = await c.env.DB.prepare("SELECT whatsapp FROM accounts WHERE id = ?").bind(id).first<{ whatsapp: string | null }>();
+  return c.json({
+    invoices: invoices.results.map((i) => ({
+      ...i,
+      payUrl: payUrl(c.env, i.pay_token),
+      pdfUrl: pdfUrl(c.env, i.pay_token),
+      // v1 WhatsApp: a ready message the operator sends from their own WhatsApp.
+      whatsapp: wa?.whatsapp && i.status === "open" ? `https://wa.me/${wa.whatsapp.replace(/\D/g, "")}?text=${encodeURIComponent(`Hi! Your Garrab invoice ${String(i.number)} (${Number(i.total) / 100} EGP, due ${String(i.due_date)}) is ready. Pay by InstaPay here: ${payUrl(c.env, i.pay_token)}`)}` : null,
+    })),
+    payments: payments.results,
+    claims: claims.results,
+  });
+});
+
+/** Kill: switch the account off now (reason required). Nothing automatic lifts it; only Restore. */
+admin.post("/accounts/:id/kill", async (c) => {
+  const body = z.object({ reason: Reason }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "reason_required" }, 400);
+  const a = await accountFacts(c.env, c.req.param("id"));
+  if (!a) return c.json({ error: "not_found" }, 404);
+  await c.env.DB.prepare("UPDATE accounts SET manual_hold = 1 WHERE id = ?").bind(a.id).run();
+  const to = ["pilot", "active", "past_due"].includes(a.status) ? "suspended" : "paused";
+  await transitionStatus(c.env, a, to, `admin:${c.get("admin")}`, `Kill: ${body.data.reason}`);
+  return c.json({ ok: true, status: to });
+});
+
+admin.post("/accounts/:id/pause", async (c) => {
+  const body = z.object({ reason: Reason }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "reason_required" }, 400);
+  const a = await accountFacts(c.env, c.req.param("id"));
+  if (!a) return c.json({ error: "not_found" }, 404);
+  await c.env.DB.prepare("UPDATE accounts SET manual_hold = 1 WHERE id = ?").bind(a.id).run();
+  const ok = await transitionStatus(c.env, a, "paused", `admin:${c.get("admin")}`, `Pause: ${body.data.reason}`);
+  return ok ? c.json({ ok: true, status: "paused" }) : c.json({ error: "not_allowed" }, 409);
+});
+
+/** Restore: lift the hold and put the account where the ledger says it should be. */
+admin.post("/accounts/:id/restore", async (c) => {
+  const body = z.object({ reason: Reason }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "reason_required" }, 400);
+  const id = c.req.param("id");
+  await c.env.DB.prepare("UPDATE accounts SET manual_hold = 0 WHERE id = ?").bind(id).run();
+  await audit(c.env, id, c.get("admin"), "restore", body.data.reason);
+  const a = await accountFacts(c.env, id);
+  // A paused onboarding account goes back to onboarding; everything else follows the ledger.
+  if (a?.status === "paused" && !a.paid_through && !a.pilot_started_at) await transitionStatus(c.env, a, "onboarding", `admin:${c.get("admin")}`, `Restore: ${body.data.reason}`);
+  const status = await reconcileAccount(c.env, id, new Date(), `admin:${c.get("admin")}`);
+  return c.json({ ok: true, status });
+});
+
+/** The global emergency switch: disables every preview everywhere within a minute. */
+admin.post("/global-kill", async (c) => {
+  const body = z.object({ on: z.boolean(), reason: Reason }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "reason_required" }, 400);
+  await setSetting(c.env, "global_kill", body.data.on);
+  await audit(c.env, null, c.get("admin"), body.data.on ? "global_kill_on" : "global_kill_off", body.data.reason);
+  await alert(c.env, "global_kill", null, `Global emergency switch ${body.data.on ? "ON: all previews disabled" : "OFF: previews back"}. ${body.data.reason}`);
+  return c.json({ ok: true, on: body.data.on });
+});
+
+/**
+ * "Not saved on our systems" may only appear after the provider delete check passes (brief §3).
+ * Turning it on requires the PASS report from scripts/verify-genlook-delete.ts, less than 90 days old.
+ */
+admin.post("/privacy-claim", async (c) => {
+  const body = z
+    .object({
+      on: z.boolean(),
+      report: z.object({ result: z.literal("PASS"), finishedAt: z.string(), deleteStatus: z.literal(204), urlsChecked: z.literal(2), after: z.array(z.number()) }).optional(),
+    })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid_report" }, 400);
+  if (body.data.on) {
+    const r = body.data.report;
+    if (!r || Date.now() - Date.parse(r.finishedAt) > 90 * 86_400_000 || !r.after.every((s) => s >= 400)) return c.json({ error: "needs_recent_pass_report" }, 400);
+    await setSetting(c.env, "privacy_delete_report", r);
+  }
+  await setSetting(c.env, "privacy_claim_verified", body.data.on);
+  await audit(c.env, null, c.get("admin"), "privacy_claim", body.data.on ? "on (delete check PASS)" : "off");
+  return c.json({ ok: true, on: body.data.on });
+});
+
+/** Manual provider: bank transfer, InstaPay seen in the app, cash. Idempotent per `key`. */
+admin.post("/invoices/:id/mark-paid", async (c) => {
+  const body = z
+    .object({ method: z.enum(["instapay", "bank_transfer", "cash", "other"]), reference: z.string().trim().max(80).optional(), note: z.string().trim().max(300).optional(), key: z.string().min(8).max(64) })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  const inv = await c.env.DB.prepare("SELECT id, total FROM invoices WHERE id = ?").bind(c.req.param("id")).first<{ id: string; total: number }>();
+  if (!inv) return c.json({ error: "not_found" }, 404);
+  const r = await applyPayment(c.env, {
+    invoiceId: inv.id,
+    provider: "manual",
+    txnId: `manual:${body.data.key}`,
+    amount: inv.total,
+    method: body.data.method,
+    reference: body.data.reference ?? null,
+    note: body.data.note ?? null,
+    actor: `admin:${c.get("admin")}`,
+  });
+  return r.applied || r.reason === "duplicate" ? c.json({ ok: true, ...r }) : c.json({ error: r.reason }, 409);
+});
+
+admin.post("/claims/:id/decide", async (c) => {
+  const body = z.object({ confirm: z.boolean() }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  const r = await decideClaim(c.env, c.req.param("id"), body.data.confirm ? "a" : "r", `admin:${c.get("admin")}`);
+  return c.json({ ok: r === "confirmed" || r === "rejected", result: r });
+});
+
+admin.post("/accounts/:id/invoice", async (c) => {
+  const a = await accountFacts(c.env, c.req.param("id"));
+  if (!a || a.status === "onboarding") return c.json({ error: "not_billable" }, 400);
+  const inv = await ensurePlanInvoice(c.env, a, new Date());
+  await audit(c.env, a.id, c.get("admin"), "invoice", inv.number);
+  return c.json({ ok: true, number: inv.number, payUrl: payUrl(c.env, inv.pay_token) });
+});
+
+admin.post("/accounts/:id/notes", async (c) => {
+  const body = z.object({ notes: z.string().max(5000) }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  await c.env.DB.prepare("UPDATE accounts SET notes = ? WHERE id = ?").bind(body.data.notes, c.req.param("id")).run();
+  return c.json({ ok: true });
+});
+
+/** Resend an email: a fresh sign-in link, or the open invoice. */
+admin.post("/accounts/:id/resend", async (c) => {
+  const body = z.object({ template: z.enum(["login", "invoice"]) }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  const id = c.req.param("id");
+  const u = await c.env.DB.prepare("SELECT id, email FROM users WHERE account_id = ? ORDER BY created_at LIMIT 1").bind(id).first<{ id: string; email: string }>();
+  if (!u) return c.json({ error: "no_user" }, 404);
+  let sent = false;
+  if (body.data.template === "login") {
+    sent = await sendOnce(c.env, { accountId: id, template: "login", dedupeKey: `login:${ulid()}`, msg: emails.login(u.email, await createMagicLink(c.env, u.id, u.email)) });
+  } else {
+    const inv = await openPlanInvoice(c.env, id);
+    if (!inv) return c.json({ error: "no_open_invoice" }, 404);
+    const label = (JSON.parse(inv.lines_json) as { label: string }[])[0]!.label;
+    sent = await sendOnce(c.env, { accountId: id, template: "invoice", dedupeKey: `invoice-resend:${ulid()}`, msg: emails.invoice(u.email, { ...inv, due: inv.due_date, label }, payUrl(c.env, inv.pay_token)) });
+  }
+  await audit(c.env, id, c.get("admin"), "resend", body.data.template);
+  return c.json({ ok: true, sent });
+});
+
+admin.post("/alerts/:id/resolve", async (c) => {
+  await c.env.DB.prepare("UPDATE alerts SET resolved_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?").bind(c.req.param("id")).run();
+  return c.json({ ok: true });
+});
+
+admin.post("/settings", async (c) => {
+  const body = z
+    .object({ egpPerUsd: z.number().positive().max(1000).nullable().optional(), globalDailyCapUsd: z.number().positive().max(10_000).optional() })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  if (body.data.egpPerUsd !== undefined) await setSetting(c.env, "egp_per_usd", body.data.egpPerUsd);
+  if (body.data.globalDailyCapUsd !== undefined) await setSetting(c.env, "global_daily_cap_usd", body.data.globalDailyCapUsd);
+  await audit(c.env, null, c.get("admin"), "settings", JSON.stringify(body.data));
+  return c.json({ ok: true });
+});
+
+admin.post("/jobs/:name/run", async (c) => {
+  const ok = await runJobNow(c.env, c.req.param("name"));
+  await audit(c.env, null, c.get("admin"), "run_job", c.req.param("name"));
+  return ok ? c.json({ ok: true }) : c.json({ error: "unknown_job" }, 404);
+});
+
+admin.get("/digest/preview", async (c) => {
+  const d = await buildDigest(c.env, new Date());
+  return c.json(d);
 });

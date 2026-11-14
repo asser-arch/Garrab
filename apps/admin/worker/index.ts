@@ -8,6 +8,8 @@ interface Env {
   API: Fetcher;
   ENVIRONMENT: string;
   ADMIN_DEV_TOKEN?: string;
+  /** Local dev only: reach the API over HTTP (local service bindings between wrangler processes are flaky). */
+  API_DEV_URL?: string;
 }
 
 export default {
@@ -17,6 +19,7 @@ export default {
       const headers = new Headers(req.headers);
       headers.delete("authorization");
       if (env.ENVIRONMENT === "dev" && env.ADMIN_DEV_TOKEN) headers.set("authorization", `Bearer ${env.ADMIN_DEV_TOKEN}`);
+      if (env.ENVIRONMENT === "dev" && env.API_DEV_URL) return fetch(new Request(`${env.API_DEV_URL}${url.pathname}${url.search}`, new Request(req, { headers })));
       return env.API.fetch(new Request(req, { headers }));
     }
     const res = await env.ASSETS.fetch(req);

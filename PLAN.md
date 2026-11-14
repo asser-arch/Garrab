@@ -1,6 +1,6 @@
 # Garrab: build plan
 
-Status: **approved 13 Nov 2026**, with one change: **InstaPay replaces Paymob** (section 3a). Phase 1 **done with mocks** (13 Nov): `demo/phase-1.md`. Phase 2 **done with mocks** (14 Nov): `demo/phase-2.md`; its "done when" passes in the browser test. Provider bake-off ready: `demo/bakeoff.md`. Next: Phase 3 (billing with InstaPay, kill switch, admin dashboard, digest).
+Status: **approved 13 Nov 2026**, with one change: **InstaPay replaces Paymob** (section 3a). Phase 1 **done with mocks** (13 Nov): `demo/phase-1.md`. Phase 2 **done with mocks** (14 Nov): `demo/phase-2.md`. Phase 3 **done with mocks** (14 Nov): `demo/phase-3.md`; billing by direct InstaPay to asserrostom@instapay with one-tap Telegram confirm. Provider bake-off ready: `demo/bakeoff.md`. Next: Phase 4 (size finder, room preview, analytics, pilot report).
 Date of research: 13 November 2026. Every external fact below was checked in the provider's current docs that day; sources are in `DECISIONS.md`.
 
 ---

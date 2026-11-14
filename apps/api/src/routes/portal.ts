@@ -2,7 +2,7 @@
  * Brand portal API (served same-origin under app.<domain>/portal-api via the site Worker).
  * Every query is scoped to the session's account: a brand only ever sees its own data.
  */
-import { PLANS, type PlanId } from "@garrab/shared/plans";
+import { EXTRA_PACK, PLANS, type PlanId } from "@garrab/shared/plans";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { emails } from "../emails.js";
@@ -21,6 +21,9 @@ import {
 import { ulid } from "../lib/crypto.js";
 import { sendOnce } from "../lib/email.js";
 import { saveProducts, guessKind } from "../onboarding/import.js";
+import { accountFacts, billingPlan, createInvoice, ensurePlanInvoice, payUrl, pdfUrl } from "../billing/ledger.js";
+import { cycleStartOf } from "../lib/metering.js";
+import { cairoDay } from "../lib/time.js";
 import { STEPS, STEP_LABEL, advance, checkInstall, confirmApproval, decideProduct, type Step } from "../onboarding/machine.js";
 
 type Vars = { user: SessionUser };
@@ -288,4 +291,87 @@ portal.post("/install/check", async (c) => {
   if (installed) await c.env.DB.prepare("UPDATE accounts SET installed_at = COALESCE(installed_at, strftime('%Y-%m-%dT%H:%M:%fZ','now')) WHERE id = ?").bind(acct(c)).run();
   const step = await advance(c.env, acct(c));
   return c.json({ installed, step });
+});
+
+// ---------------------------------------------------------------- billing (brief §7: the portal "Pay now" path)
+
+async function billingFacts(env: Env, id: string) {
+  const a = (await accountFacts(env, id))!;
+  return a;
+}
+
+portal.get("/billing", async (c) => {
+  const id = acct(c);
+  const a = await billingFacts(c.env, id);
+  const plan = PLANS[billingPlan(a)];
+  const invoices = await c.env.DB.prepare(
+    "SELECT number, kind, total, status, due_date, period_start, period_end, pay_token, created_at FROM invoices WHERE account_id = ? AND status != 'void' ORDER BY created_at DESC LIMIT 50",
+  )
+    .bind(id)
+    .all<{ number: string; kind: string; total: number; status: string; due_date: string; period_start: string | null; period_end: string | null; pay_token: string; created_at: string }>();
+  const claim = await c.env.DB.prepare("SELECT c.status, c.created_at, i.number FROM payment_claims c JOIN invoices i ON i.id = c.invoice_id WHERE c.account_id = ? AND c.status = 'pending' LIMIT 1")
+    .bind(id)
+    .first();
+  const cycle = cycleStartOf(a);
+  const usage = await c.env.DB.prepare("SELECT used, included, extra FROM cycle_usage WHERE account_id = ? AND cycle_start = ?").bind(id, cycle).first<{ used: number; included: number; extra: number }>();
+  return c.json({
+    status: a.status,
+    plan: { name: plan.name, price: plan.monthlyPrice, previews: plan.includedPreviews },
+    paidThrough: a.paid_through,
+    pilotEndsAt: a.pilot_ends_at,
+    cancelAtPeriodEnd: a.cancel_at_period_end === 1,
+    usage: usage ?? { used: 0, included: PLANS[a.plan_id].includedPreviews, extra: 0 },
+    canBuyPack: PLANS[a.plan_id].extraPacks && (a.status === "active" || a.status === "past_due"),
+    pack: { previews: EXTRA_PACK.previews, price: EXTRA_PACK.price },
+    pendingClaim: claim,
+    invoices: invoices.results.map((i) => ({
+      number: i.number,
+      kind: i.kind,
+      total: i.total,
+      status: i.status,
+      dueDate: i.due_date,
+      period: i.period_start ? `${i.period_start} to ${i.period_end}` : null,
+      payUrl: payUrl(c.env, i.pay_token),
+      pdfUrl: pdfUrl(c.env, i.pay_token),
+    })),
+  });
+});
+
+/** Pay now: the open plan invoice (creating it if needed): first month, renewal, or reactivation. */
+portal.post("/billing/pay-now", async (c) => {
+  const a = await billingFacts(c.env, acct(c));
+  if (a.status === "onboarding") return c.json({ error: "not_live_yet" }, 400);
+  const inv = await ensurePlanInvoice(c.env, a, new Date());
+  return c.json({ ok: true, payUrl: payUrl(c.env, inv.pay_token) });
+});
+
+/** Extra preview pack: prepaid, its own invoice; previews unlock when paid (never on credit). */
+portal.post("/billing/pack", async (c) => {
+  const a = await billingFacts(c.env, acct(c));
+  if (!PLANS[a.plan_id].extraPacks || (a.status !== "active" && a.status !== "past_due")) return c.json({ error: "not_available" }, 400);
+  const open = await c.env.DB.prepare("SELECT pay_token FROM invoices WHERE account_id = ? AND kind = 'pack' AND status = 'open' LIMIT 1").bind(a.id).first<{ pay_token: string }>();
+  const token = open?.pay_token ?? (await createInvoice(c.env, a, { kind: "pack", periodStart: null, dueDate: cairoDay() })).pay_token;
+  return c.json({ ok: true, payUrl: payUrl(c.env, token) });
+});
+
+/** Month to month: cancel takes effect at the end of the paid period. */
+portal.post("/billing/cancel", async (c) => {
+  const id = acct(c);
+  const a = await billingFacts(c.env, id);
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE accounts SET cancel_at_period_end = 1 WHERE id = ?").bind(id),
+    c.env.DB.prepare("UPDATE invoices SET status = 'void' WHERE account_id = ? AND kind = 'plan' AND status = 'open'").bind(id),
+    c.env.DB.prepare("INSERT INTO audit_log (id, account_id, actor, action, reason) VALUES (?, ?, 'brand', 'cancel', 'cancel at period end')").bind(ulid(), id),
+  ]);
+  await sendOnce(c.env, { accountId: id, template: "cancelled", dedupeKey: `cancel:${id}:${a.paid_through ?? "pilot"}`, msg: emails.cancelled(c.get("user").email, a.paid_through) });
+  return c.json({ ok: true, until: a.paid_through ?? a.pilot_ends_at });
+});
+
+portal.post("/billing/resume", async (c) => {
+  const id = acct(c);
+  await c.env.DB.batch([
+    c.env.DB.prepare("UPDATE accounts SET cancel_at_period_end = 0 WHERE id = ?").bind(id),
+    c.env.DB.prepare("INSERT INTO audit_log (id, account_id, actor, action, reason) VALUES (?, ?, 'brand', 'resume', 'cancellation withdrawn')").bind(ulid(), id),
+  ]);
+  return c.json({ ok: true });
 });

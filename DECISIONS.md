@@ -134,3 +134,24 @@ One line per decision: **what** — *why* — source if verified. Newest at the 
 - **Local e2e starts the Workers in order (API → site → admin) and without an outbound proxy** — *parallel `wrangler dev` processes race for the service-binding socket; workerd ignores NO_PROXY.*
 - **Admin console is a small React app behind Cloudflare Access with invite, funnel, brand list, stuck flags, reminders, overrides and product review; the full dashboard comes in Phase 3** — *enough to run onboarding alone.*
 - **Gemini Interactions API has no temperature; scoring uses a fixed seed** — *the size finder (Phase 4) needs temperature 0, to be solved then (classic API or deterministic post-checks).*
+
+## Phase 3 build (14 Nov 2026)
+
+- **Direct InstaPay is the live payment path, to `asserrostom@instapay`** — *Asser's choice: no fees, no paperwork, works today; Kashier stays ready behind the same interface (webhook signature implemented and tested against Kashier's worked example).*
+- **Kashier: no setup or monthly fee; cards 2.75% + 3 EGP + 14% VAT on the fee; InstaPay/wallet rates are "contact sales"** — kashier.io/pricing, 14 Nov 2026.
+- **Telegram Bot API 10.4: webhook secret in `X-Telegram-Bot-Api-Secret-Token`; `callback_data` 1–64 bytes** — core.telegram.org/bots/api. *Buttons carry `pc:<claim>:<a|r>:<12-char HMAC>`; only Asser's chat id is accepted; failures raise an alert.*
+- **`naturalStatus()` derives the status from the ledger; the daily run, payments and Restore all move accounts there** — *one rule set, no drift; admin Kill/Pause set `manual_hold`, which nothing automatic lifts.*
+- **`paid_through` is the last day covered (inclusive); the due date T = paid_through; past_due from T+1; suspended from T+6; archived from T+36** — *matches "due before each month starts" and the 5-day grace.*
+- **Allowed status transitions are enforced in one place (`transitionStatus`)** — *a refused move is logged, never silently applied.*
+- **Invoices are numbered in the same D1 transaction that bumps the year counter** — *sequential and gapless; found and fixed a bug where a numeric bind printed `2031.0`.*
+- **Invoice PDFs are generated on demand from the stored invoice (pdf-lib, Helvetica, English)** — *nothing extra to store or keep in sync.*
+- **Pay links are capability URLs (`/pay/<32-char token>`) that show one invoice and accept an "I've paid" notice, nothing else** — *like a hosted invoice link; no login needed to pay.*
+- **The first paid month starts on the payment date; renewals start the day after the previous paid_through** — *the brief's rule plus the reactivation exception.*
+- **A payment short of the invoice total is recorded but not applied, and alerts Asser; a second payment for a paid invoice alerts too** — *never guess with money.*
+- **The daily-cap auto-pause (Phase 1) is lifted by the next morning's billing run unless Asser killed the account** — *a cost spike pauses for the day; abuse needs an explicit Kill.*
+- **Digest at 08:30 Cairo by email and Telegram; empty sections are left out; a quiet day says "all quiet"** — *a 2-minute read.*
+- **Immediate Telegram alerts: payment received, payment to confirm, kill switch (suspended), spend cap, 5+ provider failures in an hour, webhook signature failure, short or duplicate payments** — *brief §8.*
+- **v1 WhatsApp = a ready `wa.me` message per open invoice in the admin** — *no WhatsApp API yet (brief §2).*
+- **Local dev: the site and admin Workers reach the API over HTTP (`API_DEV_URL`, dev only); staging/prod use service bindings** — *service bindings between separate local `wrangler dev` processes were intermittently "Network connection lost".*
+- **Magic-link page also reacts to `hashchange`** — *found by the e2e test: a link opened in a tab already on the sign-in page did nothing.*
+- **Known test noise: a full `vitest` run can print one "uncaught exception" from a queued background job that outlives its test file's storage; every file is clean on its own and no result changes** — *harness artifact, not a product bug.*

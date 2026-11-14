@@ -4,18 +4,24 @@ import { api } from "../api.js";
 export function Login({ onSignedIn }: { onSignedIn: () => void }) {
   const [email, setEmail] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "verifying" | "bad_link">("idle");
-  const once = useRef(false);
+  const once = useRef<string | null>(null);
 
   // Magic link: /portal/login#t=<token>. The token lives in the fragment, so link scanners can't use it.
+  // Also react to a link opened in a tab that already shows this page (only the #fragment changes).
   useEffect(() => {
-    const t = new URLSearchParams(location.hash.slice(1)).get("t");
-    if (!t || once.current) return;
-    once.current = true;
-    history.replaceState(null, "", "/portal/login");
-    setState("verifying");
-    api("/auth/verify", { body: { token: t } })
-      .then(onSignedIn)
-      .catch(() => setState("bad_link"));
+    const redeem = (): void => {
+      const t = new URLSearchParams(location.hash.slice(1)).get("t");
+      if (!t || once.current === t) return;
+      once.current = t;
+      history.replaceState(null, "", "/portal/login");
+      setState("verifying");
+      api("/auth/verify", { body: { token: t } })
+        .then(onSignedIn)
+        .catch(() => setState("bad_link"));
+    };
+    redeem();
+    addEventListener("hashchange", redeem);
+    return () => removeEventListener("hashchange", redeem);
   }, [onSignedIn]);
 
   return (

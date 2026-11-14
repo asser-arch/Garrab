@@ -184,6 +184,7 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
             </div>
           ))}
       </div>
+      <Money id={id} status={String(d.account.status)} hold={Number(d.account.manual_hold) === 1} notes={String(d.account.notes ?? "")} onChange={async () => (await load(), onChange())} />
       <h2 style={{ marginTop: 16 }}>Timeline</h2>
       <ul className="small">
         {d.audit.map((a, i) => (
@@ -196,17 +197,303 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
   );
 }
 
+
+const egp = (p: number): string => `${(p / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })} EGP`;
+
+function Money({ id, status, hold, notes, onChange }: { id: string; status: string; hold: boolean; notes: string; onChange: () => Promise<void> }) {
+  type B = {
+    invoices: { id: string; number: string; kind: string; total: number; status: string; due_date: string; payUrl: string; pdfUrl: string; whatsapp: string | null }[];
+    payments: { provider: string; amount: number; method: string; reference: string | null; actor: string; created_at: string }[];
+    claims: { id: string; reference: string; status: string; created_at: string }[];
+  };
+  const [b, setB] = useState<B | null>(null);
+  const [reason, setReason] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [note, setNote] = useState(notes);
+  const load = useCallback(async () => setB(await api<B>(`/accounts/${id}/billing`)), [id]);
+  useEffect(() => void load(), [load]);
+  const act = async (path: string, body: unknown, done: string) => {
+    try {
+      await api(path, body);
+      setMsg(done);
+      await load();
+      await onChange();
+    } catch (e) {
+      setMsg(e instanceof Error ? `Failed: ${e.message}` : "Failed");
+    }
+  };
+  if (!b) return null;
+  return (
+    <>
+      <h2 style={{ marginTop: 16 }}>Kill switch</h2>
+      <p className="small muted">
+        Status: <strong>{status}</strong>
+        {hold ? " · held by you (billing won't change it)" : ""}
+      </p>
+      <div className="row">
+        <input aria-label="Reason for kill, pause or restore" placeholder="Reason (required)" value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: 260 }} />
+        <button className="btn small" disabled={reason.trim().length < 3} onClick={() => act(`/accounts/${id}/kill`, { reason }, "Killed: switched off now.")}>
+          Kill
+        </button>
+        <button className="btn small ghost" disabled={reason.trim().length < 3} onClick={() => act(`/accounts/${id}/pause`, { reason }, "Paused.")}>
+          Pause
+        </button>
+        <button className="btn small ghost" disabled={reason.trim().length < 3} onClick={() => act(`/accounts/${id}/restore`, { reason }, "Restored to what the ledger says.")}>
+          Restore
+        </button>
+      </div>
+      {msg && <p className="note small" role="status">{msg}</p>}
+
+      <h2 style={{ marginTop: 16 }}>Invoices</h2>
+      <div className="row">
+        <button className="btn small ghost" onClick={() => act(`/accounts/${id}/invoice`, {}, "Invoice ready.")}>
+          Create / get open invoice
+        </button>
+        <button className="btn small ghost" onClick={() => act(`/accounts/${id}/resend`, { template: "invoice" }, "Invoice email sent.")}>
+          Resend invoice email
+        </button>
+        <button className="btn small ghost" onClick={() => act(`/accounts/${id}/resend`, { template: "login" }, "Sign-in link sent.")}>
+          Resend sign-in link
+        </button>
+      </div>
+      <table>
+        <tbody>
+          {b.invoices.map((i) => (
+            <tr key={i.id}>
+              <td>{i.number}</td>
+              <td>{i.kind}</td>
+              <td>{egp(i.total)}</td>
+              <td>{i.status === "open" ? `due ${i.due_date}` : i.status}</td>
+              <td className="row">
+                <a className="small" href={i.payUrl} target="_blank" rel="noopener">pay page</a>
+                <a className="small" href={i.pdfUrl} target="_blank" rel="noopener">PDF</a>
+                {i.whatsapp && <a className="small" href={i.whatsapp} target="_blank" rel="noopener">WhatsApp</a>}
+                {i.status === "open" && (
+                  <button
+                    className="btn small ghost"
+                    onClick={() => {
+                      const ref = prompt(`Mark ${i.number} paid. Reference (InstaPay / bank):`);
+                      if (ref === null) return;
+                      void act(`/invoices/${i.id}/mark-paid`, { method: "instapay", reference: ref || undefined, key: crypto.randomUUID() }, `${i.number} marked paid.`);
+                    }}
+                  >
+                    Mark paid
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {b.claims.filter((c) => c.status === "pending").map((c) => (
+        <p key={c.id} className="note row">
+          "I've paid" claim, ref {c.reference}
+          <button className="btn small" onClick={() => act(`/claims/${c.id}/decide`, { confirm: true }, "Confirmed.")}>Confirm</button>
+          <button className="btn small ghost" onClick={() => act(`/claims/${c.id}/decide`, { confirm: false }, "Marked not received.")}>Not received</button>
+        </p>
+      ))}
+      <h2 style={{ marginTop: 16 }}>Payments</h2>
+      <ul className="small">
+        {b.payments.map((p, i) => (
+          <li key={i}>
+            {p.created_at.slice(0, 10)} · {egp(p.amount)} · {p.provider} ({p.method}) {p.reference ? `ref ${p.reference}` : ""} · {p.actor}
+          </li>
+        ))}
+      </ul>
+      <h2 style={{ marginTop: 16 }}>Notes</h2>
+      <textarea aria-label="Notes" value={note} onChange={(e) => setNote(e.target.value)} />
+      <p>
+        <button className="btn small ghost" onClick={() => act(`/accounts/${id}/notes`, { notes: note }, "Notes saved.")}>Save notes</button>
+      </p>
+    </>
+  );
+}
+
+interface Dash {
+  statusCounts: Record<string, number>;
+  mrr: number;
+  egpPerUsd: number | null;
+  globalKill: boolean;
+  clients: { id: string; name: string; status: string; plan: string; paidThrough: string | null; previews: string; revenue30: number; costUsd30: number; margin30: number | null; manualHold: boolean }[];
+  alerts: { id: string; kind: string; message: string; created_at: string }[];
+  pendingClaims: { id: string; name: string; number: string; total: number; reference: string }[];
+  dueSoon: number;
+  crons: { job: string; last_run: string; ok: number }[];
+}
+
+function Dashboard({ open }: { open: (id: string) => void }) {
+  const [d, setD] = useState<Dash | null>(null);
+  const [q, setQ] = useState("");
+  const [hits, setHits] = useState<{ id: string; name: string; status: string }[]>([]);
+  const load = useCallback(async () => setD(await api<Dash>("/dashboard")), []);
+  useEffect(() => void load(), [load]);
+  if (!d) return <p className="muted">Loading…</p>;
+  return (
+    <>
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <h1>
+          Today <span className="soft">at a glance</span>
+        </h1>
+        <form
+          className="row"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setHits((await api<{ results: typeof hits }>(`/search?q=${encodeURIComponent(q)}`)).results);
+          }}
+        >
+          <input aria-label="Search brands" placeholder="Search brand, email, site" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 240 }} />
+        </form>
+      </div>
+      {hits.length > 0 && (
+        <div className="card">
+          {hits.map((h) => (
+            <p key={h.id}>
+              <a href="#" onClick={(e) => (e.preventDefault(), open(h.id))}>{h.name}</a> <span className="chip">{h.status}</span>
+            </p>
+          ))}
+        </div>
+      )}
+      <div className="grid" aria-label="Key numbers">
+        <div className="card" style={{ margin: 0 }}>
+          <p className="small muted">MRR</p>
+          <p className="stat">{egp(d.mrr)}</p>
+        </div>
+        {["pilot", "active", "past_due", "suspended"].map((s) => (
+          <div className="card" style={{ margin: 0 }} key={s}>
+            <p className="small muted">{s.replace("_", " ")}</p>
+            <p className="stat">{d.statusCounts[s] ?? 0}</p>
+          </div>
+        ))}
+        <div className="card" style={{ margin: 0 }}>
+          <p className="small muted">due in 3 days</p>
+          <p className="stat">{d.dueSoon}</p>
+        </div>
+      </div>
+      <div style={{ height: 16 }} />
+      {d.pendingClaims.length > 0 && (
+        <div className="card dark">
+          <h2>Payments to confirm</h2>
+          {d.pendingClaims.map((c) => (
+            <p key={c.id} className="row">
+              {c.name}: {egp(c.total)} ({c.number}), ref {c.reference}
+              <button className="btn small accent" onClick={async () => (await api(`/claims/${c.id}/decide`, { confirm: true }), load())}>Confirm</button>
+              <button className="btn small ghost" onClick={async () => (await api(`/claims/${c.id}/decide`, { confirm: false }), load())}>Not received</button>
+            </p>
+          ))}
+        </div>
+      )}
+      <div className="card">
+        <h2>Clients</h2>
+        {d.egpPerUsd === null && (
+          <p className="small warn">
+            Set the EGP/USD rate to see margins.{" "}
+            <button
+              className="btn small ghost"
+              onClick={async () => {
+                const v = Number(prompt("EGP per 1 USD (today's rate):") ?? "");
+                if (v > 0) {
+                  await api("/settings", { egpPerUsd: v });
+                  await load();
+                }
+              }}
+            >
+              Set rate
+            </button>
+          </p>
+        )}
+        <table>
+          <thead>
+            <tr>
+              <th>Brand</th>
+              <th>Status</th>
+              <th>Plan</th>
+              <th>Paid until</th>
+              <th>Previews</th>
+              <th>Revenue 30 d</th>
+              <th>AI cost 30 d</th>
+              <th>Margin 30 d</th>
+            </tr>
+          </thead>
+          <tbody>
+            {d.clients.map((c) => (
+              <tr key={c.id}>
+                <td>
+                  <a href="#" onClick={(e) => (e.preventDefault(), open(c.id))}>{c.name}</a>
+                </td>
+                <td>
+                  <span className={`chip ${c.status === "suspended" ? "bad" : c.status === "past_due" ? "peach" : ""}`}>{c.status}</span>
+                  {c.manualHold ? " ⛔" : ""}
+                </td>
+                <td>{c.plan}</td>
+                <td>{c.paidThrough ?? "–"}</td>
+                <td>{c.previews}</td>
+                <td>{egp(c.revenue30)}</td>
+                <td>{c.costUsd30.toFixed(2)} USD</td>
+                <td>{c.margin30 === null ? "–" : egp(c.margin30)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="grid">
+        <div className="card">
+          <h2>Alerts</h2>
+          {d.alerts.length === 0 ? (
+            <p className="muted">None.</p>
+          ) : (
+            d.alerts.map((a) => (
+              <p key={a.id} className="small">
+                <span className="chip">{a.kind}</span> {a.message}{" "}
+                <a href="#" onClick={async (e) => (e.preventDefault(), await api(`/alerts/${a.id}/resolve`, {}), load())}>dismiss</a>
+              </p>
+            ))
+          )}
+        </div>
+        <div className="card">
+          <h2>Jobs</h2>
+          {d.crons.map((c) => (
+            <p key={c.job} className="small">
+              {c.ok ? "✓" : "✗"} {c.job}: {String(c.last_run).slice(0, 16).replace("T", " ")} UTC
+            </p>
+          ))}
+          <button className="btn small ghost" onClick={async () => (await api("/jobs/billing_run/run", {}), load())}>Run billing now</button>
+        </div>
+        <div className={`card ${d.globalKill ? "dark" : ""}`}>
+          <h2>Emergency switch</h2>
+          <p className="small">{d.globalKill ? "ON: every preview is disabled." : "Off. Turning it on disables every preview everywhere within a minute."}</p>
+          <button
+            className={`btn small ${d.globalKill ? "accent" : ""}`}
+            onClick={async () => {
+              const reason = prompt(d.globalKill ? "Reason for turning previews back on:" : "Reason for disabling ALL previews:");
+              if (!reason || reason.trim().length < 3) return;
+              await api("/global-kill", { on: !d.globalKill, reason });
+              await load();
+            }}
+          >
+            {d.globalKill ? "Turn previews back on" : "Disable all previews"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 function App() {
   const [rows, setRows] = useState<Row[]>([]);
   const [funnel, setFunnel] = useState<Stage[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [tab, setTab] = useState<"dashboard" | "onboarding">("dashboard");
   const load = useCallback(async () => {
     const [a, f] = await Promise.all([api<{ accounts: Row[] }>("/accounts"), api<{ stages: Stage[] }>("/funnel")]);
     setRows(a.accounts);
     setFunnel(f.stages);
   }, []);
   useEffect(() => void load(), [load]);
+  useEffect(() => {
+    const m = /account=([A-Z0-9]+)/.exec(location.hash);
+    if (m) setOpen(m[1]!);
+  }, []);
 
   return (
     <div className="shell">
@@ -215,6 +502,14 @@ function App() {
           <span className="tile">G</span> Garrab admin
         </span>
       </header>
+      <nav className="tabs" aria-label="Admin">
+        <a href="#" aria-current={tab === "dashboard" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("dashboard"))}>Dashboard</a>
+        <a href="#" aria-current={tab === "onboarding" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("onboarding"))}>Onboarding</a>
+      </nav>
+      {open && <Detail id={open} onClose={() => setOpen(null)} onChange={load} />}
+      {tab === "dashboard" && <Dashboard open={setOpen} />}
+      {tab === "onboarding" && (
+      <>
       <h1>
         Onboarding <span className="soft">at a glance</span>
       </h1>
@@ -230,7 +525,6 @@ function App() {
       <div style={{ height: 16 }} />
       <Invite onDone={load} />
       {msg && <p className="note">{msg}</p>}
-      {open && <Detail id={open} onClose={() => setOpen(null)} onChange={load} />}
       <div className="card">
         <h2>Brands</h2>
         <table>
@@ -271,6 +565,8 @@ function App() {
           </tbody>
         </table>
       </div>
+      </>
+      )}
     </div>
   );
 }

@@ -3,18 +3,21 @@
  * of day run on the first tick at or after that time in Africa/Cairo, once per Cairo day.
  * Every job is idempotent. Each run is recorded in cron_runs (shown in the admin status line).
  */
-import { BILLING, PILOT, TIMINGS } from "@garrab/shared/plans";
+import { PILOT, TIMINGS } from "@garrab/shared/plans";
+import { accountFacts, billingRun, ensurePlanInvoice, payUrl, reconcileAccount } from "./billing/ledger.js";
+import { pingPendingClaims } from "./billing/instapay.js";
 import { emails } from "./emails.js";
 import type { Env } from "./env.js";
 import type { Job } from "./jobs-types.js";
 import { ulid } from "./lib/crypto.js";
 import { sendOnce } from "./lib/email.js";
 import { log } from "./lib/log.js";
-import { alert, transitionStatus } from "./lib/ops.js";
+import { alert } from "./lib/ops.js";
 import { cairoClock, cairoDay, nowIso } from "./lib/time.js";
 import { importForAccount } from "./onboarding/import.js";
 import { STEP_LABEL, advance, checkInstall, portalUrl, type Step } from "./onboarding/machine.js";
 import { testProduct } from "./onboarding/tests.js";
+import { sendDigest } from "./ops/digest.js";
 import { tryOnProvider } from "./providers/tryon.js";
 
 type JobFn = (env: Env, now: Date) => Promise<void>;
@@ -57,7 +60,9 @@ export const pilotClock: JobFn = async (env, now) => {
     const day = Math.floor((Date.parse(cairoDay(now)) - Date.parse(cairoDay(new Date(a.pilot_started_at)))) / 86_400_000) + 1;
     const user = await env.DB.prepare("SELECT email FROM users WHERE account_id = ? ORDER BY created_at LIMIT 1").bind(a.id).first<{ email: string }>();
     if (!user) continue;
-    const payUrl = portalUrl(env, "/billing");
+    // The first month's invoice exists from day 12; its pay link goes in the day-12 and day-14 emails.
+    const facts = day >= PILOT.emailDays.endingSoon ? await accountFacts(env, a.id) : null;
+    const payLink = facts ? payUrl(env, (await ensurePlanInvoice(env, facts, now)).pay_token) : portalUrl(env, "/billing");
     const c = await counters(env, a.id, cairoDay(new Date(a.pilot_started_at)));
     const used = (await env.DB.prepare("SELECT used FROM cycle_usage WHERE account_id = ? AND cycle_start = ?").bind(a.id, a.cycle_start).first<{ used: number }>())?.used ?? 0;
     const plan = a.target_plan_id ?? "starter";
@@ -65,7 +70,7 @@ export const pilotClock: JobFn = async (env, now) => {
     if (day >= PILOT.emailDays.checkIn)
       await sendOnce(env, { accountId: a.id, template: "pilot_day_7", dedupeKey: `pilot_day_7:${a.id}`, msg: emails.pilotDay7(user.email, used, c.button_view ?? 0, portalUrl(env)) });
     if (day >= PILOT.emailDays.endingSoon)
-      await sendOnce(env, { accountId: a.id, template: "pilot_day_12", dedupeKey: `pilot_day_12:${a.id}`, msg: emails.pilotDay12(user.email, plan, payUrl) });
+      await sendOnce(env, { accountId: a.id, template: "pilot_day_12", dedupeKey: `pilot_day_12:${a.id}`, msg: emails.pilotDay12(user.email, plan, payLink) });
     if (day >= PILOT.emailDays.results)
       await sendOnce(env, {
         accountId: a.id,
@@ -74,15 +79,12 @@ export const pilotClock: JobFn = async (env, now) => {
         msg: emails.pilotDay14(
           user.email,
           { previews: used, started: c.try_on_started ?? 0, completed: c.try_on_completed ?? 0, views: c.button_view ?? 0, buys: c.buy_click ?? 0 },
-          payUrl,
+          payLink,
         ),
       });
 
-    // Not paid by pilot end + grace → expired: kill switch on, data kept, one-click reactivation (Phase 3).
-    if (now.getTime() > Date.parse(a.pilot_ends_at) + BILLING.graceDays * 86_400_000) {
-      await transitionStatus(env, { id: a.id, status: "pilot" }, "expired", "cron", "Pilot ended without payment");
-      await env.DB.prepare("UPDATE accounts SET onboarding_step = 'expired', onboarding_step_at = ? WHERE id = ?").bind(nowIso(), a.id).run();
-    }
+    // Not paid by pilot end + grace → expired (kill switch on, data kept, pay link reactivates).
+    await reconcileAccount(env, a.id, now);
   }
 };
 
@@ -120,13 +122,27 @@ const installCrawler: JobFn = async (env) => {
   for (const r of rows.results) await checkInstall(env, r.id);
 };
 
-const EVERY_TICK: Record<string, JobFn> = { retry_pending_deletes: retryPendingDeletes, onboarding_sweep: onboardingSweep };
-const DAILY: Record<string, { at: [number, number]; fn: JobFn }> = {
+const EVERY_TICK: Record<string, JobFn> = {
+  retry_pending_deletes: retryPendingDeletes,
+  onboarding_sweep: onboardingSweep,
+  payment_claims: (env, now) => pingPendingClaims(env, now),
+};
+export const DAILY: Record<string, { at: [number, number]; fn: JobFn }> = {
   product_resync: { at: [2, 0], fn: productResync },
   install_crawler: { at: [3, 0], fn: installCrawler },
+  billing_run: { at: [5, 0], fn: billingRun },
   stuck_detector: { at: [6, 0], fn: stuckDetector },
+  digest: { at: [8, 30], fn: (env, now) => sendDigest(env, now) },
   pilot_clock: { at: [9, 0], fn: pilotClock },
 };
+
+/** Admin "run now" for a daily job (records a cron_runs row like the schedule does). */
+export async function runJobNow(env: Env, name: string, now = new Date()): Promise<boolean> {
+  const job = DAILY[name];
+  if (!job) return false;
+  await run(env, name, job.fn, now);
+  return true;
+}
 
 async function ranToday(env: Env, job: string, now: Date): Promise<boolean> {
   const r = await env.DB.prepare("SELECT started_at FROM cron_runs WHERE job = ? AND ok = 1 ORDER BY started_at DESC LIMIT 1").bind(job).first<{ started_at: string }>();

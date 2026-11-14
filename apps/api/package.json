@@ -10,12 +10,14 @@
     "typecheck": "tsc -p tsconfig.json && tsc -p test/tsconfig.json",
     "test": "vitest run",
     "verify:genlook-delete": "node --experimental-transform-types --no-warnings scripts/verify-genlook-delete.ts",
-    "bakeoff": "node --experimental-transform-types --no-warnings scripts/bakeoff.ts"
+    "bakeoff": "node --experimental-transform-types --no-warnings scripts/bakeoff.ts",
+    "telegram:webhook": "node --experimental-transform-types --no-warnings scripts/set-telegram-webhook.ts"
   },
   "dependencies": {
     "@garrab/shared": "workspace:*",
     "hono": "4.13.14",
-    "zod": "4.6.7"
+    "zod": "4.6.7",
+    "pdf-lib": "1.17.1"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "1.4.11",

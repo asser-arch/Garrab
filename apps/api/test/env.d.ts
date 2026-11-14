@@ -19,3 +19,9 @@ declare namespace Cloudflare {
     ADMIN_DEV_TOKEN: string;
   }
 }
+declare namespace Cloudflare {
+  interface Env {
+    TELEGRAM_WEBHOOK_SECRET: string;
+    TELEGRAM_CHAT_ID: string;
+  }
+}

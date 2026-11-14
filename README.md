@@ -3,7 +3,7 @@
 AI virtual try-on for small Egyptian brands, run as a done-for-you monthly service.
 *See it on you. Before you buy.*
 
-**Status: Phases 1–2 built and tested with mock AI.** Plan: [`PLAN.md`](PLAN.md). Demos: [`phase 1`](demo/phase-1.md), [`phase 2`](demo/phase-2.md), [`provider bake-off`](demo/bakeoff.md). Decisions and verified provider facts are in [`DECISIONS.md`](DECISIONS.md).
+**Status: Phases 1–3 built and tested with mock AI.** Plan: [`PLAN.md`](PLAN.md). Demos: [`phase 1`](demo/phase-1.md), [`phase 2`](demo/phase-2.md), [`phase 3`](demo/phase-3.md), [`provider bake-off`](demo/bakeoff.md). Decisions and verified provider facts are in [`DECISIONS.md`](DECISIONS.md).
 
 ## Layout
 

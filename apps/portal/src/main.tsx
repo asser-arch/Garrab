@@ -3,6 +3,7 @@ import { StrictMode, useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { SignedOut, api, type Me } from "./api.js";
 import { Approve } from "./pages/Approve.js";
+import { Billing } from "./pages/Billing.js";
 import { Home } from "./pages/Home.js";
 import { Install } from "./pages/Install.js";
 import { Login } from "./pages/Login.js";
@@ -74,6 +75,7 @@ function App() {
           <Link to="/portal/products">Products</Link>
           <Link to="/portal/approve">Approve</Link>
           <Link to="/portal/install">Install & links</Link>
+          <Link to="/portal/billing">Billing</Link>
         </nav>
       </header>
       <main className="fade" key={route}>
@@ -81,14 +83,7 @@ function App() {
         {route === "/portal/products" && <Products me={me} refresh={refresh} />}
         {route === "/portal/approve" && <Approve me={me} refresh={refresh} />}
         {route === "/portal/install" && <Install me={me} refresh={refresh} />}
-        {route === "/portal/billing" && (
-          <div className="card">
-            <h1>
-              Billing <span className="soft">is coming</span>
-            </h1>
-            <p>Payment by InstaPay arrives in the next update. Your pilot keeps running until then.</p>
-          </div>
-        )}
+        {route === "/portal/billing" && <Billing />}
       </main>
       <p className="small muted">
         Need help? Reply to any Garrab email. ·{" "}

@@ -6,7 +6,9 @@ import type { Job } from "./jobs-types.js";
 import { admin } from "./routes/admin.js";
 import { portal } from "./routes/portal.js";
 import { start } from "./routes/start.js";
+import { pay } from "./routes/pay.js";
 import { tryon } from "./routes/tryon.js";
+import { webhooks } from "./routes/webhooks.js";
 import { widget } from "./routes/widget.js";
 
 const app = new Hono<{ Bindings: Env }>();
@@ -29,6 +31,8 @@ app.get("/healthz", async (c) => {
 app.route("/v1", widget);
 app.route("/v1", tryon);
 app.route("/v1", start);
+app.route("/v1", pay);
+app.route("/webhooks", webhooks);
 app.route("/portal-api", portal);
 app.route("/admin-api", admin);
 

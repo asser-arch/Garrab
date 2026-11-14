@@ -32,6 +32,7 @@ test("portal and admin screens", async ({ page, request }) => {
   test.setTimeout(120_000);
   const email = `shots-${Date.now()}@brand.example`;
   await page.goto("http://localhost:8789/");
+  await page.getByRole("link", { name: "Onboarding" }).click();
   await page.getByLabel("Brand name").fill("Nour Linen");
   await page.getByLabel("Email").fill(email);
   await page.getByLabel("Website (optional)").fill("http://127.0.0.1:8790");
@@ -72,3 +73,32 @@ async function expect_(fn: () => Promise<void>): Promise<void> {
   }
   throw new Error("timed out");
 }
+
+test("billing screens", async ({ page }) => {
+  test.setTimeout(120_000);
+  const { sql, query } = await import("./db.js");
+  const day = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Cairo", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date(Date.now() - 6 * 86_400_000));
+  sql(`UPDATE accounts SET status = 'active', manual_hold = 0, paid_through = '${day}' WHERE id = 'acc_demo'`);
+  sql("UPDATE invoices SET status = 'void' WHERE account_id = 'acc_demo' AND status = 'open'");
+  sql("DELETE FROM payment_claims WHERE account_id = 'acc_demo'");
+  await page.request.post("http://localhost:8789/admin-api/jobs/billing_run/run", { data: {} });
+  const token = query<{ pay_token: string }>("SELECT pay_token FROM invoices WHERE account_id = 'acc_demo' AND status = 'open' AND kind = 'plan'")[0]!.pay_token;
+  await page.goto(`http://localhost:8788/pay/${token}`);
+  await page.getByRole("heading", { name: "Pay by InstaPay" }).waitFor();
+  await page.screenshot({ path: out("10-pay-page"), fullPage: true });
+  await page.request.post(`http://localhost:8788/pay-api/${token}/claim`, { data: { reference: "IPN-778812", payerName: "Mona" }, headers: { origin: "http://localhost:8788" } });
+  await page.request.post("http://localhost:8788/portal-api/auth/request", { data: { email: "owner@demo-brand.example" }, headers: { origin: "http://localhost:8788" } });
+  const html = query<{ html: string }>("SELECT html FROM dev_outbox WHERE subject = 'Your Garrab sign-in link' AND to_addr = 'owner@demo-brand.example' ORDER BY created_at DESC LIMIT 1")[0]!.html;
+  await page.goto(/href="([^"]+#t=[A-Za-z0-9]{40})"/.exec(html)![1]!);
+  await page.getByRole("heading", { name: /Welcome/ }).waitFor();
+  await page.goto("http://localhost:8788/portal/billing");
+  await page.getByRole("heading", { name: /Billing/ }).waitFor();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: out("11-portal-billing"), fullPage: true });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("http://localhost:8789/");
+  await page.getByRole("heading", { name: "Payments to confirm" }).waitFor();
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: out("12-admin-dashboard"), fullPage: true });
+  sql("UPDATE accounts SET status = 'active', manual_hold = 0, paid_through = '2099-12-31' WHERE id = 'acc_demo'");
+});

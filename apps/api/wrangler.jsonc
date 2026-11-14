@@ -10,7 +10,12 @@
     "GENLOOK_MOCK": "true",
     "GENLOOK_USD_PER_CREDIT": "0.04",
     "MOCK_TURNSTILE": "pass",
-    "ADMIN_DEV_TOKEN": "dev-admin-token-local-only"
+    "ADMIN_DEV_TOKEN": "dev-admin-token-local-only",
+    "INSTAPAY_IPA": "asserrostom@instapay",
+    "TELEGRAM_WEBHOOK_SECRET": "dev-telegram-secret-local-only",
+    "TELEGRAM_CHAT_ID": "424242",
+    "OPERATOR_EMAIL": "ops@garrab.local",
+    "ADMIN_ORIGIN": "http://localhost:8789"
   },
   "d1_databases": [
     { "binding": "DB", "database_name": "garrab-dev", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
@@ -32,6 +37,8 @@
       "name": "garrab-api-staging",
       "vars": {
         "ENVIRONMENT": "staging",
+        "INSTAPAY_IPA": "asserrostom@instapay",
+        "ADMIN_ORIGIN": "https://admin.staging.REPLACE_DOMAIN",
         "APP_ORIGIN": "https://app.staging.REPLACE_DOMAIN",
         "GENLOOK_MOCK": "false",
         "GENLOOK_USD_PER_CREDIT": "0.04"
@@ -54,6 +61,8 @@
       "name": "garrab-api",
       "vars": {
         "ENVIRONMENT": "prod",
+        "INSTAPAY_IPA": "asserrostom@instapay",
+        "ADMIN_ORIGIN": "https://admin.REPLACE_DOMAIN",
         "APP_ORIGIN": "https://app.REPLACE_DOMAIN",
         "GENLOOK_MOCK": "false",
         "GENLOOK_USD_PER_CREDIT": "0.04"

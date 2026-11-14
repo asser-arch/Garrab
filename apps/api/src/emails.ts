@@ -2,7 +2,7 @@
  * Brand-facing email templates. Plain words, short, honest (brand guideline "How we sound").
  * English for now; Arabic versions follow the Pitch Kit wording.
  */
-import { BILLING, PILOT, PLANS, type PlanId } from "@garrab/shared/plans";
+import { BILLING, EXTRA_PACK, PILOT, PLANS, type PlanId } from "@garrab/shared/plans";
 import type { EmailMessage } from "./lib/email.js";
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -29,6 +29,8 @@ function msg(to: string, subject: string, title: string, paras: string[], cta?: 
   const text = [title, "", ...paras, ...(cta ? ["", `${cta.label}: ${cta.url}`] : [])].join("\n");
   return { to, subject, html, text };
 }
+
+export const egpText = (piastres: number): string => `${(piastres / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })} EGP`;
 
 export const emails = {
   welcome: (to: string, brand: string, link: string): EmailMessage =>
@@ -150,4 +152,81 @@ export const emails = {
       ],
       { label: "Continue my plan", url: payUrl },
     ),
+
+  // ------------------------------------------------------------------ billing
+
+  invoice: (to: string, inv: { number: string; total: number; due: string; label: string }, payUrl: string): EmailMessage =>
+    msg(
+      to,
+      `Invoice ${inv.number}: ${egpText(inv.total)} due ${inv.due}`,
+      "Your next month of Garrab",
+      [
+        `${inv.label}: ${egpText(inv.total)}, due ${inv.due}.`,
+        "Pay by InstaPay in about a minute. The page shows the exact steps.",
+        `Try-on keeps running for ${BILLING.graceDays} days after the due date, then switches off until payment arrives.`,
+      ],
+      { label: "Pay now", url: payUrl },
+    ),
+
+  reminder: (to: string, inv: { number: string; total: number; due: string }, daysLate: number, payUrl: string): EmailMessage =>
+    msg(
+      to,
+      daysLate === 0 ? `Due today: invoice ${inv.number}` : `Reminder: invoice ${inv.number} is ${daysLate} day${daysLate === 1 ? "" : "s"} late`,
+      daysLate === 0 ? "Your payment is due today" : "Your payment is late",
+      [
+        `Invoice ${inv.number} for ${egpText(inv.total)} was due on ${inv.due}.`,
+        daysLate >= BILLING.graceDays
+          ? "Try-on switches off tomorrow if it isn't paid. It comes back on as soon as you pay."
+          : `Try-on keeps running until ${BILLING.graceDays} days after the due date.`,
+      ],
+      { label: "Pay now", url: payUrl },
+    ),
+
+  suspended: (to: string, payUrl: string): EmailMessage =>
+    msg(to, "Garrab try-on is switched off", "Try-on is off for now", [
+      "We didn't receive this month's payment, so the try-on button and links are switched off. Nothing else on your shop changed.",
+      "Pay any time and it switches back on within a minute.",
+    ], { label: "Pay and switch back on", url: payUrl }),
+
+  expired: (to: string, payUrl: string): EmailMessage =>
+    msg(to, "Your Garrab pilot has ended", "Your pilot has ended", [
+      "Try-on is switched off. We keep your products and settings for 30 days.",
+      "Want it back? Pay the first month and it switches on again within a minute.",
+    ], { label: "Continue with Garrab", url: payUrl }),
+
+  paymentReceived: (to: string, inv: { number: string; total: number }, paidThrough: string | null, pdfUrl: string): EmailMessage =>
+    msg(to, `Payment received: ${inv.number}`, "Thank you, payment received", [
+      `We received ${egpText(inv.total)} for invoice ${inv.number}.`,
+      ...(paidThrough ? [`Your plan is paid until ${paidThrough}.`] : ["Your extra previews are ready to use."]),
+    ], { label: "Download invoice (PDF)", url: pdfUrl }),
+
+  claimReceived: (to: string, inv: { number: string }): EmailMessage =>
+    msg(to, `We're confirming your payment for ${inv.number}`, "Thanks, we're checking your transfer", [
+      "We'll confirm your InstaPay transfer shortly, usually within a few hours. Try-on stays on while we check.",
+    ]),
+
+  claimRejected: (to: string, inv: { number: string }, payUrl: string): EmailMessage =>
+    msg(to, `We couldn't find your transfer for ${inv.number}`, "We couldn't match your transfer", [
+      "We couldn't find an InstaPay transfer matching your reference. Please check the reference in your InstaPay app and send it again, or reply to this email.",
+    ], { label: "Open payment page", url: payUrl }),
+
+  usageWarning: (to: string, pct: 80 | 100, used: number, total: number, portal: string): EmailMessage =>
+    msg(
+      to,
+      pct === 100 ? "Previews paused: monthly limit reached" : "You've used 80% of this month's previews",
+      pct === 100 ? "You've used all your previews" : "Previews are popular this month",
+      [
+        `You've used ${used} of ${total} previews this month.`,
+        pct === 100
+          ? `Previews are paused until your next month starts. Add ${EXTRA_PACK.previews} more for ${egpText(EXTRA_PACK.price)} any time in the portal.`
+          : `At 100% previews pause until next month. You can add ${EXTRA_PACK.previews} more for ${egpText(EXTRA_PACK.price)} in the portal.`,
+      ],
+      { label: "Open billing", url: portal },
+    ),
+
+  cancelled: (to: string, until: string | null): EmailMessage =>
+    msg(to, "Your Garrab plan will end", "Cancellation confirmed", [
+      until ? `Try-on stays on until ${until}, then switches off. No more invoices.` : "Try-on switches off at the end of your pilot.",
+      "Changed your mind? Turn your plan back on in the portal any time before then.",
+    ]),
 };

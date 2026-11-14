@@ -33,6 +33,22 @@ export interface Env {
 
   TELEGRAM_BOT_TOKEN?: string;
   TELEGRAM_CHAT_ID?: string;
+  /** Secret Telegram echoes in X-Telegram-Bot-Api-Secret-Token (set with setWebhook). */
+  TELEGRAM_WEBHOOK_SECRET?: string;
+  /** Signs the Confirm / Not received buttons. */
+  TELEGRAM_CALLBACK_KEY?: string;
+
+  /** Direct InstaPay: where brands pay (not secret: it is shown on the pay page). */
+  INSTAPAY_IPA?: string;
+  INSTAPAY_ACCOUNT_NAME?: string;
+  /** Optional InstaPay payment link generated in the InstaPay app. */
+  INSTAPAY_LINK?: string;
+  /** Seller line on invoices, e.g. "Garrab · hello@…". */
+  BILLING_CONTACT?: string;
+  KASHIER_PAYMENT_API_KEY?: string;
+
+  /** Admin console origin, for links in the digest. */
+  ADMIN_ORIGIN?: string;
 
   /** Admin auth: Cloudflare Access. */
   CF_ACCESS_TEAM_DOMAIN?: string;

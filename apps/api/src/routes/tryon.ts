@@ -4,7 +4,7 @@ import { ctxKey, type Env } from "../env.js";
 import { verifyCtx } from "../lib/crypto.js";
 import { accountFresh, domainAllowed, getSetting, isServing, servableProduct } from "../lib/db.js";
 import { log } from "../lib/log.js";
-import { checkCaps, recordUsage, releasePreview, reservePreview } from "../lib/metering.js";
+import { checkCaps, recordUsage, releasePreview, reservePreview, usageWarnings } from "../lib/metering.js";
 import { alert } from "../lib/ops.js";
 import { readPhoto } from "../lib/photo.js";
 import { verifyTurnstile } from "../lib/turnstile.js";
@@ -47,6 +47,18 @@ export async function deleteAtProvider(env: Env, provider: TryOnProvider, oneTim
     .bind(oneTimeUserId, provider.name)
     .run();
   await alert(env, "provider_delete_failed", null, `${provider.name}: delete call failed 3 times; queued for retry.`);
+}
+
+/** Alert right away when a provider fails 5+ times in an hour (once per hour). */
+async function providerErrorBurst(env: Env, provider: string): Promise<void> {
+  const since = new Date(Date.now() - 3_600_000).toISOString();
+  const r = await env.DB.prepare("SELECT COUNT(*) AS n FROM usage_events WHERE provider = ? AND ok = 0 AND created_at >= ?").bind(provider, since).first<{ n: number }>();
+  if ((r?.n ?? 0) < 5) return;
+  const hour = new Date().toISOString().slice(0, 13);
+  const claim = await env.DB.prepare("INSERT OR IGNORE INTO notifications (id, template, channel, dedupe_key, status) VALUES (?, 'provider_errors', 'alert', ?, 'sent')")
+    .bind(crypto.randomUUID(), `alert:provider:${provider}:${hour}`)
+    .run();
+  if (claim.meta.changes === 1) await alert(env, "provider_errors", null, `${provider}: ${r?.n} failed AI calls in the last hour.`);
 }
 
 export const tryon = new Hono<{ Bindings: Env }>();
@@ -137,6 +149,7 @@ tryon.post("/tryon", async (c) => {
     await recordUsage(c.env, account.id, "tryon", provider.name, false, 0, result.code);
     log("tryon_failed", { route: "tryon", account: account.id, provider: provider.name, code: result.code, ms: Date.now() - started });
     if (result.code === "provider_credits") await alert(c.env, "provider_credits", null, `${provider.name}: out of credits.`);
+    c.executionCtx.waitUntil(providerErrorBurst(c.env, provider.name));
     if (result.code === "content_policy") return fail(c, 422, "content_policy");
     if (result.code === "bad_photo") return fail(c, 422, "bad_photo");
     if (result.code === "provider_busy") return fail(c, 503, "busy");
@@ -144,6 +157,7 @@ tryon.post("/tryon", async (c) => {
   }
 
   await recordUsage(c.env, account.id, "tryon", provider.name, true, result.costMicroUsd);
+  c.executionCtx.waitUntil(usageWarnings(c.env, account, `${c.env.APP_ORIGIN}/portal/billing`));
   if (!product.provider_synced_at) {
     await c.env.DB.prepare("UPDATE products SET provider_synced_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?")
       .bind(product.id)

@@ -13,6 +13,8 @@ interface Env {
   API_ORIGIN: string;
   TURNSTILE_SITE_KEY: string;
   ENVIRONMENT: string;
+  /** Local dev only: reach the API over HTTP (local service bindings between wrangler processes are flaky). */
+  API_DEV_URL?: string;
 }
 
 const FRAME_RE = /^\/frame\/?$/;
@@ -76,6 +78,7 @@ async function template(req: Request, env: Env, path: string, csp: string, injec
 /** Forward to the API Worker, keeping cookies; the API checks Origin itself. */
 function forward(req: Request, env: Env, path: string): Promise<Response> {
   const url = new URL(req.url);
+  if (env.ENVIRONMENT === "dev" && env.API_DEV_URL) return fetch(new Request(`${env.API_DEV_URL}${path}${url.search}`, req));
   return env.API.fetch(new Request(`https://api.internal${path}${url.search}`, req));
 }
 
@@ -85,6 +88,10 @@ export default {
     const p = url.pathname;
 
     if (p.startsWith("/portal-api/")) return forward(req, env, p);
+    const payApi = /^\/pay-api\/([A-Za-z0-9]{32})(\/claim)?$/.exec(p);
+    if (payApi) return forward(req, env, `/v1/pay/${payApi[1]}${payApi[2] ?? ""}`);
+    const payPdf = /^\/pay\/([A-Za-z0-9]{32})\/invoice\.pdf$/.exec(p);
+    if (payPdf) return forward(req, env, `/v1/pay/${payPdf[1]}/pdf`);
     if (p === "/api/start" && req.method === "POST") return forward(req, env, "/v1/start");
     if (req.method !== "GET" && req.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
 
@@ -92,6 +99,12 @@ export default {
     if (FRAME_RE.test(p)) return template(req, env, "/frame.html", frameCsp(env, true), cfg);
     if (HOSTED_RE.test(p)) return template(req, env, "/frame.html", frameCsp(env, false), cfg);
     if (p === "/start" || p === "/") return template(req, env, "/start.html", pageCsp(env), cfg);
+    if (/^\/pay\/[A-Za-z0-9]{32}\/?$/.test(p)) {
+      const res = await env.ASSETS.fetch(new Request(new URL("/pay.html", req.url)));
+      return new Response(res.body, {
+        headers: { ...BASE_HEADERS, "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": pageCsp(env), "x-robots-tag": "noindex" },
+      });
+    }
     if (p === "/privacy" || p === "/terms") {
       const res = await env.ASSETS.fetch(new Request(new URL(`${p}.html`, req.url)));
       return new Response(res.body, { headers: { ...BASE_HEADERS, "content-type": "text/html; charset=utf-8", "content-security-policy": pageCsp(env) } });
@@ -102,7 +115,7 @@ export default {
         headers: { ...BASE_HEADERS, "content-type": "text/html; charset=utf-8", "cache-control": "no-store", "content-security-policy": pageCsp(env) },
       });
     }
-    if (p === "/frame.html" || p === "/start.html") return new Response("Not found", { status: 404 });
+    if (p === "/frame.html" || p === "/start.html" || p === "/pay.html") return new Response("Not found", { status: 404 });
 
     const res = await env.ASSETS.fetch(req);
     const out = new Response(res.body, res);
