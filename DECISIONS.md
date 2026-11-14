@@ -185,3 +185,4 @@ One line per decision: **what** — *why* — source if verified. Newest at the 
 - **Signing keys (ctx tokens, Telegram webhook and buttons) are generated in CI on first deploy and never overwritten** — *no one ever sees them; rotating would break live sessions.*
 - **Until the real Turnstile widget and Genlook key arrive, staging uses Cloudflare's public always-pass Turnstile test keys and Genlook's free mock.** Prod is not deployed until both are real.
 - Removed unused `SESSION_SIGNING_KEY` and `PAY_TOKEN_KEY` from `.env.example`.
+- **Telegram: bot token and chat ID live as GitHub secrets; every deploy syncs them to the Worker and points the bot's webhook at that environment (prod always wins; staging only while prod doesn't hold it). The webhook secret is regenerated in the same step, so it never needs to be known by anyone.** Replaces running `telegram:webhook` by hand.

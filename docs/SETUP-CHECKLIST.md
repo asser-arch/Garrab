@@ -34,7 +34,11 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 12. BotFather replies with a **token** like `123456789:AA…`. Keep it private.
 13. Open your new bot (link in BotFather's message) → **Start** → send it any message, e.g. `hi`.
 14. In a browser open `https://api.telegram.org/bot<TOKEN>/getUpdates` (put your token in place of `<TOKEN>`). Find `"chat":{"id":123456789` → that number is your **chat ID**.
-15. Tell Claude **"Telegram ready"**: you'll enter the token and chat ID in the secure form.
+15. ✅ Tell Claude **"Telegram ready"**.
+15b. Add both to GitHub (same place as the Cloudflare secrets): repo **Settings → Secrets and variables → Actions → New repository secret**:
+   - Name `TELEGRAM_BOT_TOKEN`, value: the token from BotFather.
+   - Name `TELEGRAM_CHAT_ID`, value: the chat ID number.
+   The next deploy connects the bot and it sends you "✅ Garrab staging is connected".
 
 ## Part 4: Genlook (15 minutes + their reply)
 

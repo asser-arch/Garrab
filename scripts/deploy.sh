@@ -27,6 +27,17 @@ JS
 if [ "$(cat "$RUNNER_TEMP/secrets.json")" != "{}" ]; then W api secret bulk "$RUNNER_TEMP/secrets.json" --env "$ENV"; fi
 rm -f "$RUNNER_TEMP/secrets.json"
 
+# Telegram (GitHub secrets TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID): token and chat id are always synced;
+# the webhook secret is replaced together with the webhook itself, so the two always match.
+if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ]; then
+  node scripts/telegram-connect.mjs plan "$ENV" "$RUNNER_TEMP/tg.json"
+  W api secret bulk "$RUNNER_TEMP/tg.json" --env "$ENV"
+  node scripts/telegram-connect.mjs hook "$ENV" "$RUNNER_TEMP/tg.json"
+  rm -f "$RUNNER_TEMP/tg.json" "$RUNNER_TEMP/tg.json.meta"
+else
+  echo "Telegram not configured (no TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID GitHub secrets): skipping"
+fi
+
 W site deploy --env "$ENV"
 W admin deploy --env "$ENV"
 
