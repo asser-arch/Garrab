@@ -4,7 +4,7 @@ Do them in this order: each part unblocks the next. Dashboard menus move around;
 
 **Never paste a key or token into the chat.** When one is ready, tell Claude "<name> key ready" and Claude sends a secure form; or set it yourself with `wrangler secret put NAME`.
 
-Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Cloudflare deploy token and Account ID in GitHub.
+Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Cloudflare deploy token and Account ID in GitHub · ✅ `main` is the default branch.
 
 ---
 
@@ -14,7 +14,7 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 2. **Product limits**: Starter 30 and Growth 100 live products? Yes, or give other numbers.
 3. **VAT**: ask your accountant whether you must charge VAT and at what rate. Until then it's 0 and not shown.
 4. **Free pilot for later (non-founding) brands?** Today every brand gets the free 14-day pilot, and non-founding brands also pay the 1,500 EGP setup fee on their first invoice. Keep that, or no pilot for them?
-5. **`main` branch**: may Claude create `main` from the current work and make it the default branch? (Deploys will run from `main`.)
+5. ✅ **`main` branch**: created and set as the default (14 Nov). Deploys will run from `main`.
 
 ## Part 2: Domain and Cloudflare (30 minutes, then up to 24 h waiting)
 
