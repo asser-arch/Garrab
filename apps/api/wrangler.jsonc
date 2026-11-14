@@ -9,7 +9,8 @@
     "APP_ORIGIN": "http://localhost:8788",
     "GENLOOK_MOCK": "true",
     "GENLOOK_USD_PER_CREDIT": "0.04",
-    "MOCK_TURNSTILE": "pass"
+    "MOCK_TURNSTILE": "pass",
+    "ADMIN_DEV_TOKEN": "dev-admin-token-local-only"
   },
   "d1_databases": [
     { "binding": "DB", "database_name": "garrab-dev", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
@@ -21,6 +22,11 @@
     { "name": "RL_CONFIG_IP", "namespace_id": "1003", "simple": { "limit": 120, "period": 60 } }
   ],
   "triggers": { "crons": ["*/15 * * * *"] },
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "garrab-files-dev" }],
+  "queues": {
+    "producers": [{ "binding": "JOBS", "queue": "garrab-jobs-dev" }],
+    "consumers": [{ "queue": "garrab-jobs-dev", "max_batch_size": 5, "max_retries": 5, "max_batch_timeout": 5 }]
+  },
   "env": {
     "staging": {
       "name": "garrab-api-staging",
@@ -37,7 +43,12 @@
         { "name": "RL_TRYON_KEY", "namespace_id": "2002", "simple": { "limit": 120, "period": 60 } },
         { "name": "RL_CONFIG_IP", "namespace_id": "2003", "simple": { "limit": 120, "period": 60 } }
       ],
-      "triggers": { "crons": ["*/15 * * * *"] }
+      "triggers": { "crons": ["*/15 * * * *"] },
+      "r2_buckets": [{ "binding": "FILES", "bucket_name": "garrab-files-staging" }],
+      "queues": {
+        "producers": [{ "binding": "JOBS", "queue": "garrab-jobs-staging" }],
+        "consumers": [{ "queue": "garrab-jobs-staging", "max_batch_size": 5, "max_retries": 5, "max_batch_timeout": 5 }]
+      }
     },
     "prod": {
       "name": "garrab-api",
@@ -54,7 +65,12 @@
         { "name": "RL_TRYON_KEY", "namespace_id": "3002", "simple": { "limit": 120, "period": 60 } },
         { "name": "RL_CONFIG_IP", "namespace_id": "3003", "simple": { "limit": 120, "period": 60 } }
       ],
-      "triggers": { "crons": ["*/15 * * * *"] }
+      "triggers": { "crons": ["*/15 * * * *"] },
+      "r2_buckets": [{ "binding": "FILES", "bucket_name": "garrab-files-prod" }],
+      "queues": {
+        "producers": [{ "binding": "JOBS", "queue": "garrab-jobs-prod" }],
+        "consumers": [{ "queue": "garrab-jobs-prod", "max_batch_size": 5, "max_retries": 5, "max_batch_timeout": 5 }]
+      }
     }
   }
 }

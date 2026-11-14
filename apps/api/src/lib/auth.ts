@@ -1,0 +1,144 @@
+import { TIMINGS } from "@garrab/shared/plans";
+import { isLocal, type Env } from "../env.js";
+import { b64urlDecode, randomToken, sha256Hex, ulid } from "./crypto.js";
+
+// ---------------------------------------------------------------------------
+// Magic links: single use, 15 minutes, bound to the email they were sent to.
+// The link carries the token in the URL fragment (/portal/login#t=…) so email scanners
+// that pre-fetch links can't burn it; the portal POSTs it to /portal-api/auth/verify.
+
+export async function createMagicLink(env: Env, userId: string, email: string): Promise<string> {
+  const token = randomToken(40);
+  const expires = new Date(Date.now() + TIMINGS.magicLinkMinutes * 60_000).toISOString();
+  await env.DB.prepare("INSERT INTO magic_links (id, user_id, email, token_hash, expires_at) VALUES (?, ?, ?, ?, ?)")
+    .bind(ulid(), userId, email.toLowerCase(), await sha256Hex(token), expires)
+    .run();
+  return `${env.APP_ORIGIN}/portal/login#t=${token}`;
+}
+
+/** Consume a magic link. Returns the user id, or null if unknown, used, expired or the email changed. */
+export async function consumeMagicLink(env: Env, token: string): Promise<string | null> {
+  if (!/^[A-Za-z0-9]{40}$/.test(token)) return null;
+  const hash = await sha256Hex(token);
+  const now = new Date().toISOString();
+  // Atomic single use: only one request can flip used_at.
+  const r = await env.DB.prepare("UPDATE magic_links SET used_at = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?")
+    .bind(now, hash, now)
+    .run();
+  if (r.meta.changes !== 1) return null;
+  const row = await env.DB.prepare(
+    "SELECT m.user_id FROM magic_links m JOIN users u ON u.id = m.user_id WHERE m.token_hash = ? AND u.email = m.email",
+  )
+    .bind(hash)
+    .first<{ user_id: string }>();
+  return row?.user_id ?? null;
+}
+
+// ---------------------------------------------------------------------------
+// Sessions: random token in an HttpOnly cookie; only its hash is stored.
+
+export const SESSION_COOKIE = "__Host-garrab_s";
+
+export async function createSession(env: Env, userId: string): Promise<string> {
+  const token = randomToken(40);
+  const expires = new Date(Date.now() + TIMINGS.portalSessionDays * 86_400_000).toISOString();
+  await env.DB.batch([
+    env.DB.prepare("INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, ?)").bind(ulid(), userId, await sha256Hex(token), expires),
+    env.DB.prepare("UPDATE users SET last_login_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?").bind(userId),
+  ]);
+  return token;
+}
+
+export function sessionCookie(token: string, maxAgeSec = TIMINGS.portalSessionDays * 86_400): string {
+  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAgeSec}`;
+}
+
+export function readCookie(header: string | undefined, name: string): string | null {
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k === name) return v.join("=");
+  }
+  return null;
+}
+
+export interface SessionUser {
+  userId: string;
+  accountId: string;
+  email: string;
+  sessionHash: string;
+}
+
+export async function sessionUser(env: Env, cookieHeader: string | undefined): Promise<SessionUser | null> {
+  const token = readCookie(cookieHeader, SESSION_COOKIE);
+  if (!token || !/^[A-Za-z0-9]{40}$/.test(token)) return null;
+  const hash = await sha256Hex(token);
+  const row = await env.DB.prepare(
+    `SELECT u.id AS user_id, u.account_id, u.email FROM sessions s JOIN users u ON u.id = s.user_id
+      WHERE s.token_hash = ? AND s.expires_at > ?`,
+  )
+    .bind(hash, new Date().toISOString())
+    .first<{ user_id: string; account_id: string; email: string }>();
+  return row ? { userId: row.user_id, accountId: row.account_id, email: row.email, sessionHash: hash } : null;
+}
+
+/**
+ * CSRF guard for cookie-authenticated writes: same-origin requests only, JSON bodies only.
+ * (SameSite=Lax already blocks most cross-site POSTs; this closes the rest.)
+ */
+/** The parts of a Hono context the auth helpers read. */
+interface ReqCtx {
+  env: Env;
+  req: { method: string; header(name: string): string | undefined };
+}
+
+export function sameOriginWrite(c: ReqCtx): boolean {
+  if (c.req.method === "GET" || c.req.method === "HEAD") return true;
+  const origin = c.req.header("origin");
+  return origin === c.env.APP_ORIGIN;
+}
+
+// ---------------------------------------------------------------------------
+// Admin: Cloudflare Access JWT (RS256), checked against the team's public keys and audience.
+
+let jwksCache: { at: number; keys: JsonWebKey[] } | null = null;
+
+async function accessKeys(env: Env): Promise<JsonWebKey[]> {
+  if (jwksCache && Date.now() - jwksCache.at < 3_600_000) return jwksCache.keys;
+  const r = await fetch(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`);
+  const j = (await r.json()) as { keys: JsonWebKey[] };
+  jwksCache = { at: Date.now(), keys: j.keys };
+  return j.keys;
+}
+
+export async function verifyAccessJwt(env: Env, jwt: string): Promise<string | null> {
+  if (!env.CF_ACCESS_TEAM_DOMAIN || !env.CF_ACCESS_AUD) return null;
+  const [h, p, s] = jwt.split(".");
+  if (!h || !p || !s) return null;
+  try {
+    const header = JSON.parse(new TextDecoder().decode(b64urlDecode(h))) as { kid?: string; alg?: string };
+    if (header.alg !== "RS256") return null;
+    const jwk = (await accessKeys(env)).find((k) => (k as { kid?: string }).kid === header.kid);
+    if (!jwk) return null;
+    const key = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
+    const ok = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, b64urlDecode(s), new TextEncoder().encode(`${h}.${p}`));
+    if (!ok) return null;
+    const claims = JSON.parse(new TextDecoder().decode(b64urlDecode(p))) as { aud?: string | string[]; exp?: number; email?: string; iss?: string };
+    const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+    if (!aud.includes(env.CF_ACCESS_AUD)) return null;
+    if (!claims.exp || claims.exp * 1000 < Date.now()) return null;
+    if (claims.iss !== `https://${env.CF_ACCESS_TEAM_DOMAIN}`) return null;
+    return claims.email ?? "admin";
+  } catch {
+    return null;
+  }
+}
+
+/** Returns the admin's identity, or null. Dev token only works locally. */
+export async function adminIdentity(c: ReqCtx): Promise<string | null> {
+  const jwt = c.req.header("cf-access-jwt-assertion");
+  if (jwt) return verifyAccessJwt(c.env, jwt);
+  const auth = c.req.header("authorization");
+  if (isLocal(c.env) && c.env.ADMIN_DEV_TOKEN && c.env.ADMIN_DEV_TOKEN.length >= 16 && auth === `Bearer ${c.env.ADMIN_DEV_TOKEN}`) return "dev-admin";
+  return null;
+}

@@ -12,3 +12,10 @@ declare namespace Cloudflare {
     mainModule: typeof import("../src/index");
   }
 }
+declare namespace Cloudflare {
+  interface Env {
+    FILES: R2Bucket;
+    JOBS: Queue<import("../src/jobs-types").Job>;
+    ADMIN_DEV_TOKEN: string;
+  }
+}

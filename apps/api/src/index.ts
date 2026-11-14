@@ -1,7 +1,11 @@
 import { Hono } from "hono";
 import type { Env } from "./env.js";
 import { log } from "./lib/log.js";
-import { runScheduled } from "./jobs.js";
+import { handleQueue, runScheduled } from "./jobs.js";
+import type { Job } from "./jobs-types.js";
+import { admin } from "./routes/admin.js";
+import { portal } from "./routes/portal.js";
+import { start } from "./routes/start.js";
 import { tryon } from "./routes/tryon.js";
 import { widget } from "./routes/widget.js";
 
@@ -24,6 +28,9 @@ app.get("/healthz", async (c) => {
 
 app.route("/v1", widget);
 app.route("/v1", tryon);
+app.route("/v1", start);
+app.route("/portal-api", portal);
+app.route("/admin-api", admin);
 
 app.notFound((c) => c.json({ error: "not_found" }, 404));
 app.onError((_err, c) => {
@@ -37,6 +44,9 @@ export default {
   scheduled(controller, env, ctx) {
     ctx.waitUntil(runScheduled(env, new Date(controller.scheduledTime)));
   },
-} satisfies ExportedHandler<Env>;
+  async queue(batch, env) {
+    await handleQueue(batch, env);
+  },
+} satisfies ExportedHandler<Env, Job>;
 
 export { app };

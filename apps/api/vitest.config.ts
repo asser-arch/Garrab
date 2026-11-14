@@ -15,6 +15,8 @@ export default defineConfig(async () => {
             APP_ORIGIN: "https://app.test",
             MOCK_TURNSTILE: "pass",
             GENLOOK_API_KEY: "",
+            GEMINI_API_KEY: "",
+            ADMIN_DEV_TOKEN: "test-admin-token-123456",
           },
         },
       }),

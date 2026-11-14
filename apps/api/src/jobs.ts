@@ -1,16 +1,28 @@
+/**
+ * Scheduled work. Cloudflare cron fires every 15 minutes (UTC); jobs that belong to a time
+ * of day run on the first tick at or after that time in Africa/Cairo, once per Cairo day.
+ * Every job is idempotent. Each run is recorded in cron_runs (shown in the admin status line).
+ */
+import { BILLING, PILOT, TIMINGS } from "@garrab/shared/plans";
+import { emails } from "./emails.js";
 import type { Env } from "./env.js";
+import type { Job } from "./jobs-types.js";
+import { ulid } from "./lib/crypto.js";
+import { sendOnce } from "./lib/email.js";
 import { log } from "./lib/log.js";
-import { nowIso } from "./lib/time.js";
+import { alert, transitionStatus } from "./lib/ops.js";
+import { cairoClock, cairoDay, nowIso } from "./lib/time.js";
+import { importForAccount } from "./onboarding/import.js";
+import { STEP_LABEL, advance, checkInstall, portalUrl, type Step } from "./onboarding/machine.js";
+import { testProduct } from "./onboarding/tests.js";
 import { tryOnProvider } from "./providers/tryon.js";
 
-type Job = (env: Env, now: Date) => Promise<void>;
+type JobFn = (env: Env, now: Date) => Promise<void>;
 
-/** Retry provider deletes that failed during a request. */
-const retryPendingDeletes: Job = async (env) => {
-  const rows = await env.DB.prepare("SELECT provider_ref, attempts FROM pending_deletes ORDER BY created_at LIMIT 50").all<{
-    provider_ref: string;
-    attempts: number;
-  }>();
+// ---------------------------------------------------------------------------- every tick
+
+const retryPendingDeletes: JobFn = async (env) => {
+  const rows = await env.DB.prepare("SELECT provider_ref FROM pending_deletes ORDER BY created_at LIMIT 50").all<{ provider_ref: string }>();
   const provider = tryOnProvider(env);
   for (const r of rows.results) {
     if (await provider.deleteUserData(r.provider_ref)) {
@@ -21,23 +33,157 @@ const retryPendingDeletes: Job = async (env) => {
   }
 };
 
-/** Jobs run on every 15-minute tick. Cairo-time jobs (digest, billing) arrive in later phases. */
-const EVERY_TICK: Record<string, Job> = { retry_pending_deletes: retryPendingDeletes };
+/** Re-drive every onboarding account: a lost queue message can never stall a brand. */
+const onboardingSweep: JobFn = async (env) => {
+  const rows = await env.DB.prepare("SELECT id FROM accounts WHERE status = 'onboarding' ORDER BY onboarding_step_at LIMIT 50").all<{ id: string }>();
+  for (const r of rows.results) await env.JOBS.send({ t: "advance", a: r.id });
+};
+
+// ---------------------------------------------------------------------------- daily (Cairo time)
+
+async function counters(env: Env, accountId: string, fromDay: string): Promise<Record<string, number>> {
+  const rows = await env.DB.prepare("SELECT metric, SUM(count) AS n FROM daily_counters WHERE account_id = ? AND day >= ? GROUP BY metric")
+    .bind(accountId, fromDay)
+    .all<{ metric: string; n: number }>();
+  return Object.fromEntries(rows.results.map((r) => [r.metric, r.n]));
+}
+
+/** Pilot clock (brief §6.7–6.8): day 7 / 12 / 14 emails, then expiry after the grace period. */
+export const pilotClock: JobFn = async (env, now) => {
+  const rows = await env.DB.prepare(
+    "SELECT id, name, slug, status, pilot_started_at, pilot_ends_at, target_plan_id, cycle_start FROM accounts WHERE status = 'pilot' AND pilot_started_at IS NOT NULL",
+  ).all<{ id: string; name: string; slug: string; status: string; pilot_started_at: string; pilot_ends_at: string; target_plan_id: "starter" | "growth" | null; cycle_start: string }>();
+  for (const a of rows.results) {
+    const day = Math.floor((Date.parse(cairoDay(now)) - Date.parse(cairoDay(new Date(a.pilot_started_at)))) / 86_400_000) + 1;
+    const user = await env.DB.prepare("SELECT email FROM users WHERE account_id = ? ORDER BY created_at LIMIT 1").bind(a.id).first<{ email: string }>();
+    if (!user) continue;
+    const payUrl = portalUrl(env, "/billing");
+    const c = await counters(env, a.id, cairoDay(new Date(a.pilot_started_at)));
+    const used = (await env.DB.prepare("SELECT used FROM cycle_usage WHERE account_id = ? AND cycle_start = ?").bind(a.id, a.cycle_start).first<{ used: number }>())?.used ?? 0;
+    const plan = a.target_plan_id ?? "starter";
+
+    if (day >= PILOT.emailDays.checkIn)
+      await sendOnce(env, { accountId: a.id, template: "pilot_day_7", dedupeKey: `pilot_day_7:${a.id}`, msg: emails.pilotDay7(user.email, used, c.button_view ?? 0, portalUrl(env)) });
+    if (day >= PILOT.emailDays.endingSoon)
+      await sendOnce(env, { accountId: a.id, template: "pilot_day_12", dedupeKey: `pilot_day_12:${a.id}`, msg: emails.pilotDay12(user.email, plan, payUrl) });
+    if (day >= PILOT.emailDays.results)
+      await sendOnce(env, {
+        accountId: a.id,
+        template: "pilot_day_14",
+        dedupeKey: `pilot_day_14:${a.id}`,
+        msg: emails.pilotDay14(
+          user.email,
+          { previews: used, started: c.try_on_started ?? 0, completed: c.try_on_completed ?? 0, views: c.button_view ?? 0, buys: c.buy_click ?? 0 },
+          payUrl,
+        ),
+      });
+
+    // Not paid by pilot end + grace → expired: kill switch on, data kept, one-click reactivation (Phase 3).
+    if (now.getTime() > Date.parse(a.pilot_ends_at) + BILLING.graceDays * 86_400_000) {
+      await transitionStatus(env, { id: a.id, status: "pilot" }, "expired", "cron", "Pilot ended without payment");
+      await env.DB.prepare("UPDATE accounts SET onboarding_step = 'expired', onboarding_step_at = ? WHERE id = ?").bind(nowIso(), a.id).run();
+    }
+  }
+};
+
+/** Stuck detector (brief §6.9): >48 h in one onboarding step → digest alert; install reminder after 48 h. */
+export const stuckDetector: JobFn = async (env, now) => {
+  const cutoff = new Date(now.getTime() - TIMINGS.stuckAfterHours * 3_600_000).toISOString();
+  const rows = await env.DB.prepare(
+    "SELECT id, name, onboarding_step, onboarding_step_at, approved_at, installed_at FROM accounts WHERE status = 'onboarding' AND onboarding_step_at < ?",
+  )
+    .bind(cutoff)
+    .all<{ id: string; name: string; onboarding_step: Step; onboarding_step_at: string; approved_at: string | null; installed_at: string | null }>();
+  for (const a of rows.results) {
+    const hours = Math.round((now.getTime() - Date.parse(a.onboarding_step_at)) / 3_600_000);
+    const dedupe = `alert:stuck:${a.id}:${cairoDay(now)}`;
+    const claim = await env.DB.prepare("INSERT OR IGNORE INTO notifications (id, account_id, template, channel, dedupe_key, status) VALUES (?, ?, 'stuck', 'alert', ?, 'sent')")
+      .bind(ulid(), a.id, dedupe)
+      .run();
+    if (claim.meta.changes === 1) await alert(env, "stuck", a.id, `${a.name}: stuck ${hours} h at "${STEP_LABEL[a.onboarding_step]}". Send a reminder from admin.`);
+    if (a.onboarding_step === "products_approved") {
+      const user = await env.DB.prepare("SELECT email FROM users WHERE account_id = ? ORDER BY created_at LIMIT 1").bind(a.id).first<{ email: string }>();
+      if (user) await sendOnce(env, { accountId: a.id, template: "install_reminder", dedupeKey: `install_reminder:${a.id}`, msg: emails.installReminder(user.email, portalUrl(env, "/install")) });
+    }
+  }
+};
+
+/** Nightly product re-sync for live brands (prices, images, new products). Selection is kept. */
+const productResync: JobFn = async (env) => {
+  const rows = await env.DB.prepare("SELECT id FROM accounts WHERE status IN ('pilot','active','past_due') AND website IS NOT NULL LIMIT 200").all<{ id: string }>();
+  for (const r of rows.results) await env.JOBS.send({ t: "import", a: r.id });
+};
+
+/** Daily install crawler for live brands: keeps install status current in the admin. */
+const installCrawler: JobFn = async (env) => {
+  const rows = await env.DB.prepare("SELECT id FROM accounts WHERE status IN ('pilot','active','past_due') AND website IS NOT NULL LIMIT 200").all<{ id: string }>();
+  for (const r of rows.results) await checkInstall(env, r.id);
+};
+
+const EVERY_TICK: Record<string, JobFn> = { retry_pending_deletes: retryPendingDeletes, onboarding_sweep: onboardingSweep };
+const DAILY: Record<string, { at: [number, number]; fn: JobFn }> = {
+  product_resync: { at: [2, 0], fn: productResync },
+  install_crawler: { at: [3, 0], fn: installCrawler },
+  stuck_detector: { at: [6, 0], fn: stuckDetector },
+  pilot_clock: { at: [9, 0], fn: pilotClock },
+};
+
+async function ranToday(env: Env, job: string, now: Date): Promise<boolean> {
+  const r = await env.DB.prepare("SELECT started_at FROM cron_runs WHERE job = ? AND ok = 1 ORDER BY started_at DESC LIMIT 1").bind(job).first<{ started_at: string }>();
+  return !!r && cairoDay(new Date(r.started_at)) === cairoDay(now);
+}
+
+async function run(env: Env, name: string, fn: JobFn, now: Date): Promise<void> {
+  // Keyed by the scheduled time, so "already ran today" is judged on the Cairo day of the tick.
+  const started = now.toISOString();
+  let ok = true;
+  let error: string | null = null;
+  try {
+    await fn(env, now);
+  } catch (e) {
+    ok = false;
+    error = e instanceof Error ? e.message.slice(0, 200) : "error";
+  }
+  await env.DB.prepare("INSERT OR REPLACE INTO cron_runs (job, started_at, finished_at, ok, error) VALUES (?, ?, ?, ?, ?)")
+    .bind(name, started, nowIso(), ok ? 1 : 0, error)
+    .run();
+  log("cron", { job: name, ok });
+}
 
 export async function runScheduled(env: Env, now: Date): Promise<void> {
-  for (const [name, job] of Object.entries(EVERY_TICK)) {
-    const started = nowIso();
-    let ok = true;
-    let error: string | null = null;
+  for (const [name, fn] of Object.entries(EVERY_TICK)) await run(env, name, fn, now);
+  const { hour, minute } = cairoClock(now);
+  for (const [name, job] of Object.entries(DAILY)) {
+    const due = hour > job.at[0] || (hour === job.at[0] && minute >= job.at[1]);
+    if (due && !(await ranToday(env, name, now))) await run(env, name, job.fn, now);
+  }
+}
+
+// ---------------------------------------------------------------------------- queue consumer
+
+export async function runJob(env: Env, job: Job): Promise<void> {
+  switch (job.t) {
+    case "advance":
+      await advance(env, job.a);
+      return;
+    case "import":
+      await importForAccount(env, job.a);
+      return;
+    case "test":
+      await testProduct(env, job.a, job.p);
+      await env.JOBS.send({ t: "advance", a: job.a });
+      return;
+  }
+}
+
+export async function handleQueue(batch: MessageBatch<Job>, env: Env): Promise<void> {
+  for (const m of batch.messages) {
     try {
-      await job(env, now);
-    } catch (e) {
-      ok = false;
-      error = e instanceof Error ? e.message.slice(0, 200) : "error";
+      await runJob(env, m.body);
+      m.ack();
+    } catch {
+      log("job_failed", { kind: m.body.t, account: m.body.a });
+      m.retry({ delaySeconds: 60 });
     }
-    await env.DB.prepare("INSERT INTO cron_runs (job, started_at, finished_at, ok, error) VALUES (?, ?, ?, ?, ?)")
-      .bind(name, started, nowIso(), ok ? 1 : 0, error)
-      .run();
-    log("cron", { job: name, ok });
   }
 }
