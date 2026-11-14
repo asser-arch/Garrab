@@ -24,6 +24,7 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
    2. Cloudflare shows **two nameservers**. Log in to where you bought the domain → DNS / Nameservers → replace theirs with Cloudflare's two → save.
    3. Wait until Cloudflare emails you that the domain is **Active** (usually under an hour, up to 24 h).
 8. ✅ **Workers Paid (5 USD/month)**: dashboard → **Workers & Pages** → **Plans** (or "Upgrade") → **Workers Paid** → pay. Needed for queues, cron and higher limits.
+8b. **Switch on R2 (file storage)**: dashboard → **R2 Object Storage** → **Get started** → accept (free up to 10 GB; no charge at our size). Tell Claude **"R2 is on"**.
 9. ✅ Tell Claude: **"Domain is active: <domain>"**. Claude then wires up staging (creates the database, storage and queue, and deploys).
 
 ## Part 3: Telegram bot (10 minutes)
