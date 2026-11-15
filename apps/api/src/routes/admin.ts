@@ -221,6 +221,7 @@ admin.get("/dashboard", async (c) => {
     mrr,
     egpPerUsd: fx,
     globalKill,
+    privacyClaim: await getSetting(env, "privacy_claim_verified", false),
     clients: rows,
     alerts: alertsOpen.results,
     pendingClaims: claims.results,

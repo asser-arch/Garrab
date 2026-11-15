@@ -428,6 +428,7 @@ interface Dash {
   mrr: number;
   egpPerUsd: number | null;
   globalKill: boolean;
+  privacyClaim: boolean;
   clients: { id: string; name: string; status: string; plan: string; paidThrough: string | null; previews: string; revenue30: number; costUsd30: number; margin30: number | null; manualHold: boolean }[];
   alerts: { id: string; kind: string; message: string; created_at: string }[];
   pendingClaims: { id: string; name: string; number: string; total: number; reference: string }[];
@@ -585,6 +586,34 @@ function Dashboard({ open }: { open: (id: string) => void }) {
             }}
           >
             {d.globalKill ? "Turn previews back on" : "Disable all previews"}
+          </button>
+        </div>
+        <div className="card">
+          <h2>Privacy line</h2>
+          <p className="small">
+            {d.privacyClaim
+              ? "ON: shoppers see \"We don't save it. It's deleted when you close this page.\""
+              : "Off. Needs a PASS report from the Genlook delete check (docs/privacy/), less than 90 days old."}
+          </p>
+          <button
+            className="btn small ghost"
+            onClick={async () => {
+              if (d.privacyClaim) {
+                if (!confirm("Turn the privacy line off?")) return;
+                await api("/privacy-claim", { on: false });
+              } else {
+                const raw = prompt("Paste the PASS report (JSON from docs/privacy/):");
+                if (!raw) return;
+                try {
+                  await api("/privacy-claim", { on: true, report: JSON.parse(raw) });
+                } catch {
+                  alert("That report wasn't accepted. It must be a PASS less than 90 days old.");
+                }
+              }
+              await load();
+            }}
+          >
+            {d.privacyClaim ? "Turn off" : "Turn on with report"}
           </button>
         </div>
       </div>
