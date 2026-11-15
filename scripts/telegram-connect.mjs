@@ -17,12 +17,22 @@ const api = `https://api${env === "prod" ? "" : `-${env}`}.garrabb.com`;
 const target = `${api}/webhooks/telegram`;
 const prodTarget = "https://api.garrabb.com/webhooks/telegram";
 
-async function tg(method, body) {
-  const r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify(body ?? {}),
-  });
+async function tg(method, body, tries = 3) {
+  let r;
+  for (let i = 1; ; i++) {
+    try {
+      r = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body ?? {}),
+      });
+      break;
+    } catch (e) {
+      // Network problem, not Telegram's answer: retry, then report it as such.
+      if (i >= tries) throw Object.assign(new Error(`network: ${e.message}`), { network: true });
+      await new Promise((res) => setTimeout(res, 2000 * i));
+    }
+  }
   const j = await r.json();
   if (!j.ok) throw new Error(`Telegram ${method}: ${j.description ?? r.status}`);
   return j.result;
@@ -33,7 +43,12 @@ if (mode === "plan") {
   try {
     await tg("getChat", { chat_id: chat });
   } catch (e) {
-    // Unhook so the next good run counts as a move and sends the "connected" message.
+    if (e.network) {
+      console.error(`::warning::Telegram unreachable (${e.message}); bot left as it was.`);
+      process.exit(3);
+    }
+    // Telegram itself says the chat is wrong: unhook so the next good run counts as a move
+    // and sends the "connected" message.
     await tg("deleteWebhook").catch(() => {});
     console.error(
       `::warning::Telegram chat ID not usable (${e.message}). Open @${me.username} in Telegram, press Start, send "hi", ` +
