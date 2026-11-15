@@ -240,26 +240,14 @@ export async function advance(env: Env, accountId: string, deps: AdvanceDeps = {
       }
 
       case "products_approved": {
+        // Approved products go live straight away on the brand's try-on links (Instagram bio, WhatsApp).
+        // The website script is optional and can come later: the install email explains it, the daily
+        // install crawler records it, and the widget works the moment it's pasted.
         const social = acc.platform === "social_only" || !acc.website;
         const u = await userId(env, acc.id);
         if (u) await sendOnce(env, { accountId: acc.id, template: "install", dedupeKey: `install:${acc.id}`, msg: emails.install(u.email, social, portalUrl(env, "/install")) });
-        if (social) {
-          await moveStep(env, acc, "installed", "system", "hosted links only");
-          break;
-        }
-        if (acc.installed_at) {
-          await moveStep(env, acc, "installed", "brand", "install check passed");
-          break;
-        }
-        const last = await env.DB.prepare("SELECT MAX(last_checked_at) AS t FROM domains WHERE account_id = ?").bind(acc.id).first<{ t: string | null }>();
-        if (!last?.t || Date.now() - Date.parse(last.t) > HOUR) {
-          if (await checkInstall(env, acc.id, fetcher)) {
-            await env.DB.prepare("UPDATE accounts SET installed_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?").bind(acc.id).run();
-            await moveStep(env, acc, "installed", "system", "script tag found");
-            break;
-          }
-        }
-        return acc.onboarding_step;
+        await moveStep(env, acc, "installed", acc.installed_at ? "brand" : "system", social ? "hosted links only" : acc.installed_at ? "install check passed" : "links live; website script optional");
+        break;
       }
 
       case "installed": {

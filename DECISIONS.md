@@ -237,3 +237,6 @@ A pilot brand couldn't sign in again: her link had expired, and each new link sa
 
 ## 2026-11-15 — One bio link per brand; QR moved to "for print"
 Brands without a website share one link in their Instagram/TikTok bio, which allows a single link. New brand page `/t/<brand>` lists every live product; each opens the existing product try-on page. The portal shows this link first with Copy and Share on WhatsApp; per-product links (for posts, stories, replies) follow. QR codes are kept only behind "QR code for print (flyers, shop counter, packaging)".
+
+## 2026-11-15 — Approved products go live straight away; the website line is optional
+A pilot brand approved her products and her bio link said "Temporarily unavailable": brands with a website stayed in onboarding until the script was found on their shop, so their links stayed off. Now approval puts the brand live (pilot clock starts, links work); the website line can be added any time and the widget works the moment it's pasted. Brands already waiting are moved on the next time they open the portal.

@@ -104,6 +104,11 @@ const acct = (c: C): string => c.get("user").accountId;
 
 portal.get("/me", async (c) => {
   const id = acct(c);
+  // Brands approved before links went live on approval were left waiting for the website script.
+  if (!c.get("user").readonly) {
+    const step = await c.env.DB.prepare("SELECT onboarding_step FROM accounts WHERE id = ?").bind(id).first<{ onboarding_step: string }>();
+    if (step?.onboarding_step === "products_approved") await advance(c.env, id);
+  }
   const a = await c.env.DB.prepare(
     `SELECT name, slug, status, platform, website, target_plan_id, plan_id, onboarding_step, pilot_started_at, pilot_ends_at, cycle_start
        FROM accounts WHERE id = ?`,

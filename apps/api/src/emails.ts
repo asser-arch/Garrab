@@ -89,12 +89,15 @@ export const emails = {
   install: (to: string, social: boolean, portal: string): EmailMessage =>
     msg(
       to,
-      social ? "Your try-on links are ready" : "One last step: add Garrab to your shop",
-      social ? "Your links are ready" : "Add one line to your shop",
+      social ? "Your try-on link is ready" : "Your try-on link is live. Next: add Garrab to your shop",
+      social ? "Your link is ready" : "Your link is live",
       social
-        ? ["Your try-on links and QR codes are ready to share on Instagram and WhatsApp. Your 14-day pilot starts now."]
-        : ["Copy one line of code into your shop. The portal shows the exact steps for your platform, and checks that it worked."],
-      { label: social ? "Get my links" : "Show me how", url: portal },
+        ? ["Your try-on link is ready. Put it in your Instagram bio, or share it on WhatsApp. Your 14-day pilot starts now."]
+        : [
+            "Your try-on link is ready. Put it in your Instagram bio, or share it on WhatsApp. Your 14-day pilot starts now.",
+            "To show the Try it on button on your website too, copy one line of code into your shop. The portal shows the exact steps for your platform, and checks that it worked.",
+          ],
+      { label: social ? "Get my link" : "Get my link and install steps", url: portal },
     ),
 
   installReminder: (to: string, portal: string): EmailMessage =>

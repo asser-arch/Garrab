@@ -178,13 +178,9 @@ describe("onboarding: invite → pilot_live with no admin action", () => {
     await decideProduct(env, accountId, enabled.results[0]!.id, "approved");
     await decideProduct(env, accountId, enabled.results[1]!.id, "hidden");
     expect(await confirmApproval(env, accountId)).toBe(true);
-    expect(await advance(env, accountId, { fetcher })).toBe("products_approved");
-
-    // Not installed yet → waits. Then the snippet appears on the shop → installed → pilot_live.
-    const key = (await env.DB.prepare("SELECT key_public FROM api_keys WHERE account_id = ?").bind(accountId).first<{ key_public: string }>())!.key_public;
-    await env.DB.prepare("UPDATE domains SET last_checked_at = NULL WHERE account_id = ?").bind(accountId).run();
-    installHtml = `<html><script src="https://cdn.garrab.example/w.js" data-key="${key}" async></script></html>`;
+    // Approval puts the products live straight away (try-on links); the website line can come later.
     expect(await advance(env, accountId, { fetcher })).toBe("pilot_live");
+    const key = (await env.DB.prepare("SELECT key_public FROM api_keys WHERE account_id = ?").bind(accountId).first<{ key_public: string }>())!.key_public;
 
     const acc = await env.DB.prepare("SELECT status, plan_id, target_plan_id, pilot_started_at, pilot_ends_at, cycle_start FROM accounts WHERE id = ?").bind(accountId).first<Record<string, string>>();
     expect(acc).toMatchObject({ status: "pilot", plan_id: "pilot", target_plan_id: "growth", cycle_start: cairoDay() });
@@ -194,7 +190,7 @@ describe("onboarding: invite → pilot_live with no admin action", () => {
     expect(subjects).toEqual([
       "Welcome to Garrab, Hayal Test",
       "Your try-on previews are ready to approve",
-      "One last step: add Garrab to your shop",
+      "Your try-on link is live. Next: add Garrab to your shop",
       "Your 14-day Garrab pilot has started",
     ]);
     const steps = await env.DB.prepare("SELECT step, state FROM onboarding_steps WHERE account_id = ? ORDER BY entered_at").bind(accountId).all();

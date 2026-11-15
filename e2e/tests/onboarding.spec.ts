@@ -74,7 +74,7 @@ test("invite → import → tests → approve → install → pilot live, with n
   expect(mails.map((m) => m.subject)).toEqual([
     "Welcome to Garrab, E2E Linen Co",
     "Your try-on previews are ready to approve",
-    "One last step: add Garrab to your shop",
+    "Your try-on link is live. Next: add Garrab to your shop",
     "Your 14-day Garrab pilot has started",
   ]);
 
