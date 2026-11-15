@@ -29,13 +29,13 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 
 ## Part 3: Telegram bot (10 minutes)
 
-10. In Telegram, search **@BotFather** (blue tick) → **Start** → send `/newbot`.
-11. Name: `Garrab Ops` → username: something ending in `bot`, e.g. `garrab_ops_asser_bot`.
-12. BotFather replies with a **token** like `123456789:AA…`. Keep it private.
-13. Open your new bot (link in BotFather's message) → **Start** → send it any message, e.g. `hi`.
-14. In a browser open `https://api.telegram.org/bot<TOKEN>/getUpdates` (put your token in place of `<TOKEN>`). Find `"chat":{"id":123456789` → that number is your **chat ID**.
+10. ✅ In Telegram, search **@BotFather** (blue tick) → **Start** → send `/newbot`.
+11. ✅ Name: `Garrab Ops` → username: something ending in `bot`, e.g. `garrab_ops_asser_bot`.
+12. ✅ BotFather replies with a **token** like `123456789:AA…`. Keep it private.
+13. ✅ Open your new bot (link in BotFather's message) → **Start** → send it any message, e.g. `hi`.
+14. ✅ (Easiest: Telegram Web → ☰ → Saved Messages; the number after `#` in the address bar.) Or in a browser open `https://api.telegram.org/bot<TOKEN>/getUpdates` (put your token in place of `<TOKEN>`). Find `"chat":{"id":123456789` → that number is your **chat ID**.
 15. ✅ Tell Claude **"Telegram ready"**.
-15b. Add both to GitHub (same place as the Cloudflare secrets): repo **Settings → Secrets and variables → Actions → New repository secret**:
+15b. ✅ Add both to GitHub (same place as the Cloudflare secrets): repo **Settings → Secrets and variables → Actions → New repository secret**:
    - Name `TELEGRAM_BOT_TOKEN`, value: the token from BotFather.
    - Name `TELEGRAM_CHAT_ID`, value: the chat ID number.
    The next deploy connects the bot and it sends you "✅ Garrab staging is connected".
