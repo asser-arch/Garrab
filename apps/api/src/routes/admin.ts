@@ -4,7 +4,7 @@
  * one-click reminders, review "needs review" products.
  */
 import { InviteBrand, OnboardingStep } from "@garrab/shared";
-import { PLANS, type PlanId } from "@garrab/shared/plans";
+import { PLANS, SETUP_FEE, type PlanId } from "@garrab/shared/plans";
 import { Hono } from "hono";
 import { z } from "zod";
 import { emails } from "../emails.js";
@@ -565,6 +565,12 @@ admin.get("/accounts/:id/costs", async (c) => {
     byDay.set(row.day, d);
   }
   return c.json({ egpPerUsd: fx, days: [...byDay.values()] });
+});
+
+/** The setup-fee offer as the invite form shows it. */
+admin.get("/offer", async (c) => {
+  const open = await getSetting<boolean>(c.env, "founding_pilots_open", true);
+  return c.json({ foundingOfferOn: open, setupFee: SETUP_FEE });
 });
 
 admin.post("/founding-pilots", async (c) => {

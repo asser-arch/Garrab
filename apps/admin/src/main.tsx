@@ -36,6 +36,10 @@ function Invite({ onDone }: { onDone: () => void }) {
   const [link, setLink] = useState<string | null>(null);
   const [again, setAgain] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [offer, setOffer] = useState<{ foundingOfferOn: boolean; setupFee: number } | null>(null);
+  const loadOffer = useCallback(async () => setOffer(await api<{ foundingOfferOn: boolean; setupFee: number }>("/offer")), []);
+  useEffect(() => void loadOffer().catch(() => undefined), [loadOffer]);
+  const fee = offer ? egp(offer.setupFee) : "1,500 EGP";
   return (
     <div className="card">
       <h2>Invite a brand</h2>
@@ -91,10 +95,15 @@ function Invite({ onDone }: { onDone: () => void }) {
           <div>
             <label htmlFor="sf">Setup fee</label>
             <select id="sf" value={f.setupFee} onChange={(e) => setF({ ...f, setupFee: e.target.value })}>
-              <option value="default">Default (founding pilots: none)</option>
-              <option value="yes">Charge the one-off setup fee</option>
-              <option value="no">No setup fee</option>
+              <option value="default">
+                {offer === null ? "Current offer" : offer.foundingOfferOn ? "Current offer: no fee" : `Current offer: ${fee}`}
+              </option>
+              <option value="no">No fee for this brand</option>
+              <option value="yes">Charge {fee} for this brand</option>
             </select>
+            <p className="small muted" style={{ margin: "4px 0 0" }}>
+              A one-off {fee} for setting the brand up. Never charged during the free pilot: it's added to their first invoice only if they continue on a paid plan.
+            </p>
           </div>
           <div>
             <label htmlFor="ws">Website (optional)</label>
@@ -106,6 +115,24 @@ function Invite({ onDone }: { onDone: () => void }) {
             Create and get sign-in link
           </button>
         </p>
+        {offer && (
+          <p className="small muted" style={{ marginTop: -4 }}>
+            <strong>Founding-brands offer: {offer.foundingOfferOn ? "on" : "off"}.</strong>{" "}
+            {offer.foundingOfferOn ? `New brands pay no setup fee unless you choose to charge it.` : `New brands pay the ${fee} setup fee unless you waive it.`}{" "}
+            <a
+              href="#"
+              onClick={async (e) => {
+                e.preventDefault();
+                const next = !offer.foundingOfferOn;
+                if (!confirm(next ? "Turn the founding-brands offer on? New invites will have no setup fee by default." : `Turn the founding-brands offer off? New invites will pay the ${fee} setup fee by default. Brands already invited keep what they were offered.`)) return;
+                await api("/founding-pilots", { open: next });
+                await loadOffer();
+              }}
+            >
+              {offer.foundingOfferOn ? "Turn it off" : "Turn it on"}
+            </a>
+          </p>
+        )}
       </form>
       {err && <p className="warn">{err}</p>}
       {link && (
