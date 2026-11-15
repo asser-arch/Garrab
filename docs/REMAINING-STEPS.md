@@ -23,22 +23,7 @@ Staging: `app-staging.garrabb.com` · `api-staging.garrabb.com` · `admin-stagin
 3. Press **Download my scores (CSV)** on each page and send both files to Claude.
 4. Then choose with Claude: Genlook, nano-banana, or nano-banana for some product types. If Google becomes the main model, the privacy line changes to *"We don't save it on our systems"* (Google keeps requests for a limited time to check abuse), and Genlook stays as automatic backup.
 
-## 3. Arabic check by a native speaker (10 minutes of their time)
-
-The main try-on wording is from your Pitch Kit. These 8 lines aren't, so Claude wrote them in the same style:
-
-| Where | Arabic |
-|---|---|
-| Before upload: AI note | تُنشأ المعاينة بالذكاء الاصطناعي لمساعدتك على تخيّل الشكل. هي دليل قريب وليست صورة مطابقة تمامًا، لذا من الطبيعي وجود اختلافات بسيطة عن المنتج الحقيقي. |
-| Room photo prompt | ارفع صورة لغرفتك |
-| Close button | إغلاق |
-| "Not now" button | ليس الآن |
-| Temporarily unavailable | غير متاح مؤقتًا |
-| Buy button | اشترِ الآن |
-| Instagram caption | شاهده عليك قبل الشراء ✨ جرّب "[product]" على نفسك مع المعاينة بالذكاء الاصطناعي: [link] |
-| WhatsApp caption | تريد أن ترى "[product]" عليك أولًا؟ ارفع صورة هنا واحصل على معاينة سريعة: [link] |
-
-Send Claude corrections, or "Arabic OK".
+## 3. ✅ Arabic check (done 15 Nov: "Arabic OK")
 
 ## 4. Genlook follow-up (when it happens)
 
@@ -53,7 +38,7 @@ Send Claude corrections, or "Arabic OK".
 
 ## 6. Going live
 
-When 1, 2 and 3 are done, tell Claude **"go live"**. Claude deploys `app.garrabb.com`, `api.garrabb.com`, `admin.garrabb.com` and `cdn.garrabb.com`, moves the Telegram bot to live and runs the same checks. Then:
+When 1 and 2 are done, tell Claude **"go live"**. Claude deploys `app.garrabb.com`, `api.garrabb.com`, `admin.garrabb.com` and `cdn.garrabb.com`, moves the Telegram bot to live and runs the same checks. Then:
 - keep `admin` + `garrabb.com` in the Cloudflare Access app (it protects the live admin);
 - add `https://api.garrabb.com/healthz` to the uptime monitor.
 
