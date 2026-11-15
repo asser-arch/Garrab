@@ -7,8 +7,20 @@ on:
       check:
         description: What to run
         type: choice
-        options: [fixtures-and-delete-check, fixtures-only, delete-check-only]
+        options: [fixtures-and-delete-check, fixtures-only, delete-check-only, bakeoff]
         default: fixtures-and-delete-check
+      shop:
+        description: "Bake-off: the brand's Shopify site"
+        type: string
+        default: ""
+      count:
+        description: "Bake-off: number of products"
+        type: string
+        default: "8"
+      max_usd:
+        description: "Bake-off: spending cap in USD"
+        type: string
+        default: "5"
 
 permissions:
   contents: read
@@ -36,7 +48,7 @@ jobs:
             file "$RUNNER_TEMP/fx/$name"
           done
       - name: Save them as the staging test photos (R2 fixtures/)
-        if: inputs.check != 'delete-check-only'
+        if: inputs.check == 'fixtures-and-delete-check' || inputs.check == 'fixtures-only'
         working-directory: apps/api
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -46,13 +58,29 @@ jobs:
             pnpm exec wrangler r2 object put "garrab-files-staging/fixtures/$(basename "$f")" --file "$f" --content-type image/jpeg --remote
           done
       - name: Genlook delete check (1 real preview, about 0.04 USD)
-        if: inputs.check != 'fixtures-only'
+        if: inputs.check == 'fixtures-and-delete-check' || inputs.check == 'delete-check-only'
         working-directory: apps/api
         env:
           GENLOOK_API_KEY: ${{ secrets.GENLOOK_API_KEY }}
         run: pnpm verify:genlook-delete -- "$RUNNER_TEMP/fx/model-a.jpg"
+      - name: Bake-off (Genlook vs Google on the brand's products)
+        if: inputs.check == 'bakeoff'
+        working-directory: apps/api
+        env:
+          GENLOOK_API_KEY: ${{ secrets.GENLOOK_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SHOP: ${{ inputs.shop }}
+          COUNT: ${{ inputs.count }}
+          MAX_USD: ${{ inputs.max_usd }}
+        run: pnpm bakeoff -- --photos "$RUNNER_TEMP/fx" --shop "$SHOP" --count "$COUNT" --max-usd "$MAX_USD"
       - uses: actions/upload-artifact@v4
-        if: always() && inputs.check != 'fixtures-only'
+        if: always() && inputs.check == 'bakeoff'
+        with:
+          name: bakeoff
+          path: docs/bakeoff/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        if: always() && (inputs.check == 'fixtures-and-delete-check' || inputs.check == 'delete-check-only')
         with:
           name: privacy-report
           path: docs/privacy/
