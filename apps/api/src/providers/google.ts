@@ -13,6 +13,7 @@
  * Neither has a per-user delete call: nothing is stored on request (Gemini: store=false),
  * but Google keeps paid-tier prompts for a limited time for abuse monitoring.
  */
+import { workerFetch } from "../lib/http.js";
 import type { TryOnProvider, TryOnRequest, TryOnResult } from "./tryon.js";
 
 /** List prices in USD (paid tier), checked 13–14 Nov 2026. */
@@ -70,7 +71,7 @@ export class GeminiTryOnProvider implements TryOnProvider {
   constructor(
     private readonly apiKey: string,
     private readonly model: GoogleModel = "gemini-3.1-flash-image",
-    private readonly fetcher: typeof fetch = fetch,
+    private readonly fetcher: typeof fetch = workerFetch,
   ) {
     this.name = `gemini:${model}`;
   }
@@ -144,7 +145,7 @@ export class VertexTryOnProvider implements TryOnProvider {
     private readonly project: string,
     private readonly location: string,
     private readonly accessToken: () => Promise<string>,
-    private readonly fetcher: typeof fetch = fetch,
+    private readonly fetcher: typeof fetch = workerFetch,
   ) {}
 
   async buildBody(req: TryOnRequest): Promise<Record<string, unknown> | null> {

@@ -3,6 +3,7 @@
  * Gemini Interactions API with structured JSON output (response_format text + application/json + schema),
  * `store: false`, fixed seed. Verified in ai.google.dev/gemini-api/docs/structured-output (14 Nov 2026).
  */
+import { workerFetch } from "../lib/http.js";
 import type { Env } from "../env.js";
 import { isLocal } from "../env.js";
 import { toBase64 } from "./google.js";
@@ -43,7 +44,7 @@ export class GeminiScorer implements ScoringProvider {
   constructor(
     private readonly apiKey: string,
     private readonly model = "gemini-3.5-flash-lite",
-    private readonly fetcher: typeof fetch = fetch,
+    private readonly fetcher: typeof fetch = workerFetch,
   ) {
     this.name = `gemini:${model}`;
   }

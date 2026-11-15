@@ -138,3 +138,26 @@ describe("Vertex request", () => {
     expect((sent.init!.headers as Record<string, string>).authorization).toBe("Bearer tok");
   });
 });
+
+import { vi } from "vitest";
+import { ResendProvider } from "../src/lib/email.js";
+describe("fetch is never called as a method (Workers: 'Illegal invocation')", () => {
+  it("every provider works with a fetch that refuses a foreign `this`", async () => {
+    const strict = function (this: unknown, input: RequestInfo | URL): Promise<Response> {
+      if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation: function called with incorrect this reference");
+      const u = String(input);
+      if (u.includes("resend.com")) return Promise.resolve(Response.json({ id: "em_1" }));
+      if (u.includes("genlook")) return Promise.resolve(u.includes("/customers/") ? new Response(null, { status: 204 }) : Response.json({ resultImageUrl: "https://storage.example/r.jpg" }, { status: 201 }));
+      return Promise.resolve(new Response(PNG, { headers: { "content-type": "image/png" } }));
+    };
+    vi.stubGlobal("fetch", strict);
+    try {
+      expect(await new ResendProvider("re_x", "Garrab <hello@garrabb.com>").send({ to: "a@b.example", subject: "s", html: "h", text: "t" }, "k")).toEqual({ ok: true, id: "em_1" });
+      const g = new GenlookProvider("gk", 0.04, false);
+      expect(await g.tryOn(req())).toMatchObject({ ok: true });
+      expect(await g.deleteUserData("x")).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

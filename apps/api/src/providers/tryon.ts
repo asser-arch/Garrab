@@ -1,3 +1,4 @@
+import { workerFetch } from "../lib/http.js";
 import type { Env } from "../env.js";
 import type { ImageType } from "../lib/photo.js";
 
@@ -78,7 +79,7 @@ export class GenlookProvider implements TryOnProvider {
     private readonly apiKey: string,
     private readonly usdPerCredit: number,
     private readonly mock: boolean,
-    private readonly fetcher: typeof fetch = fetch,
+    private readonly fetcher: typeof fetch = workerFetch,
   ) {}
 
   private body(req: TryOnRequest, inline: boolean): Record<string, unknown> {

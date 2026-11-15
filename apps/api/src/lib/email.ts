@@ -3,6 +3,7 @@
  * POST https://api.resend.com/emails, Authorization: Bearer, Idempotency-Key header (24 h).
  * Swap providers by implementing EmailProvider.
  */
+import { workerFetch } from "./http.js";
 import { isLocal, type Env } from "../env.js";
 import { ulid } from "./crypto.js";
 import { log } from "./log.js";
@@ -25,7 +26,7 @@ export class ResendProvider implements EmailProvider {
   constructor(
     private readonly apiKey: string,
     private readonly from: string,
-    private readonly fetcher: typeof fetch = fetch,
+    private readonly fetcher: typeof fetch = workerFetch,
   ) {}
   async send(msg: EmailMessage, idempotencyKey: string): Promise<{ ok: boolean; id: string | null; error?: string }> {
     try {
