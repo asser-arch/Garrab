@@ -147,8 +147,9 @@ function chip(t: S): HTMLElement {
 
 function startScreen(st: State, error?: string): void {
   const t = st.t;
-  const input = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp,image/heic,image/heif", class: "sr-only", id: "photo" });
   const uploadLabel = st.kind === "decor" ? t.uploadRoom : t.upload;
+  // The visible button opens this input; it stays out of the tab order but keeps a name for screen readers.
+  const input = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp,image/heic,image/heif", class: "sr-only", id: "photo", tabindex: "-1", "aria-label": uploadLabel });
   const pick = h("button", { type: "button", class: "btn primary", "data-autofocus": "" }, uploadLabel);
   pick.addEventListener("click", () => input.click());
   input.addEventListener("change", () => {

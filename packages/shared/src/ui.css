@@ -12,7 +12,9 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--cream); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.55; }
-a { color: var(--teal); }
+/* Links: Forest, underlined (Teal is 4.1:1, "large text and icons" only in the brand guide). */
+a { color: var(--forest); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { text-decoration-thickness: 2px; }
 a, button, .btn, summary, input[type="checkbox"], input[type="file"], select { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 h1, h2, h3 { text-wrap: balance; }
 p, li, td { text-wrap: pretty; overflow-wrap: anywhere; }
@@ -47,7 +49,7 @@ h2 { font-weight: 700; font-size: 19px; margin: 0 0 8px; }
 @media (prefers-reduced-motion: reduce) { .btn { transition: none; } .btn:active:not(:disabled) { transform: none; } }
 .btn:disabled { opacity: .5; cursor: default; }
 /* A choice that is made reads as done, not as disabled. */
-.btn.chosen, .btn.chosen:hover:not(:disabled) { background: var(--mint); color: var(--teal); border-color: var(--mint); }
+.btn.chosen, .btn.chosen:hover:not(:disabled) { background: var(--mint); color: var(--forest); border-color: var(--mint); }
 .btn.chosen-off, .btn.chosen-off:hover:not(:disabled) { background: var(--mist); color: var(--muted); border-color: var(--mist); }
 .btn.chosen:disabled, .btn.chosen-off:disabled { opacity: 1; }
 figure.shot { margin: 0; }
@@ -60,7 +62,7 @@ figure.shot figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; 
 }
 .btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
 label { display: block; font-weight: 700; font-size: 13px; margin: 12px 0 4px; }
-input, select, textarea { width: 100%; font: 15px var(--font); padding: 10px 14px; border-radius: 14px; border: 1px solid var(--sand); background: #fff; color: var(--ink); min-height: 44px; }
+input, select, textarea { width: 100%; font: 15px var(--font); padding: 10px 14px; border-radius: 14px; border: 1px solid var(--grey); background: #fff; color: var(--ink); min-height: 44px; } /* Grey: a field's edge must reach 3:1 */
 textarea { min-height: 96px; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
