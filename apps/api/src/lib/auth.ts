@@ -108,10 +108,14 @@ export function sameOriginWrite(c: ReqCtx): boolean {
 
 let jwksCache: { at: number; team: string; keys: JsonWebKey[] } | null = null;
 
-/** Accepts "team.cloudflareaccess.com", with or without https:// and a trailing slash. */
+/**
+ * Accepts "team.cloudflareaccess.com", "team" on its own, with or without https://,
+ * a path or a trailing slash.
+ */
 export function accessTeamHost(env: Env): string | null {
-  const t = env.CF_ACCESS_TEAM_DOMAIN?.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
-  return t ? t.toLowerCase() : null;
+  const t = env.CF_ACCESS_TEAM_DOMAIN?.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0];
+  if (!t) return null;
+  return t.includes(".") ? t : `${t}.cloudflareaccess.com`;
 }
 
 async function accessKeys(team: string): Promise<JsonWebKey[]> {
@@ -139,7 +143,7 @@ export async function checkAccessJwt(env: Env, jwt: string): Promise<AccessResul
     try {
       keys = await accessKeys(team);
     } catch {
-      return { ok: false, reason: "team_domain_unreachable" };
+      return { ok: false, reason: `team_domain_unreachable (${team})` };
     }
     const jwk = keys.find((k) => (k as { kid?: string }).kid === header.kid);
     if (!jwk) return { ok: false, reason: "unknown_signing_key (check CF_ACCESS_TEAM_DOMAIN)" };
