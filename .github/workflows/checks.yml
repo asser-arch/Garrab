@@ -7,7 +7,7 @@ on:
       check:
         description: What to run
         type: choice
-        options: [fixtures-and-delete-check, fixtures-only, delete-check-only, bakeoff]
+        options: [fixtures-and-delete-check, fixtures-only, delete-check-only, bakeoff, diagnose-tryon]
         default: fixtures-and-delete-check
       shop:
         description: "Bake-off: the brand's Shopify site"
@@ -67,6 +67,20 @@ jobs:
         env:
           GENLOOK_API_KEY: ${{ secrets.GENLOOK_API_KEY }}
         run: pnpm verify:genlook-delete -- "$RUNNER_TEMP/fx/model-a.jpg"
+      - name: Diagnose failing try-ons (newest staging products, at most 1 preview)
+        if: inputs.check == 'diagnose-tryon'
+        working-directory: apps/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GENLOOK_API_KEY: ${{ secrets.GENLOOK_API_KEY }}
+        run: |
+          node ../../scripts/cf-provision.mjs staging >/dev/null
+          pnpm exec wrangler d1 execute DB --env staging --remote --json \
+            --command "SELECT id, title, description, images_json, test_score FROM products ORDER BY rowid DESC LIMIT 3" > "$RUNNER_TEMP/p.json"
+          pnpm exec wrangler d1 execute DB --env staging --remote --json \
+            --command "SELECT kind, provider, ok, error_code, created_at FROM usage_events WHERE kind = 'test' ORDER BY created_at DESC LIMIT 6"
+          node ../../scripts/diagnose-tryon.mjs "$RUNNER_TEMP/p.json" "$RUNNER_TEMP/fx/model-a.jpg"
       - name: Bake-off (Genlook vs Google on the brand's products)
         if: inputs.check == 'bakeoff'
         working-directory: apps/api

@@ -88,7 +88,10 @@ export async function testProduct(
     const testId = ulid();
     if (!r.ok) {
       scores.push(1);
-      lastReason = r.code === "content_policy" ? "This product can't be shown in try-on (content rules)." : "The try-on failed for this product.";
+      lastReason =
+        r.code === "content_policy"
+          ? "This product can't be shown in try-on (content rules)."
+          : `The try-on failed for this product (${r.code}${r.detail ? `, ${r.detail}` : ""}).`;
       await env.DB.prepare("INSERT INTO product_tests (id, account_id, product_id, fixture, score, reason) VALUES (?, ?, ?, ?, 1, ?)")
         .bind(testId, accountId, productId, fixture, lastReason)
         .run();
