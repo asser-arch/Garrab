@@ -7,6 +7,10 @@ export function Products({ me, refresh }: { me: Me; refresh: () => Promise<void>
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [msg, setMsg] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", imageUrl: "", productUrl: "" });
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [useLink, setUseLink] = useState(false);
+  const [busy, setBusy] = useState(false);
   const locked = atOrAfter(me.step, "products_approved");
 
   const load = async () => {
@@ -74,30 +78,87 @@ export function Products({ me, refresh }: { me: Me; refresh: () => Promise<void>
       {!locked && (
         <div className="card">
           <h2>Add a product by hand</h2>
-          <p className="small muted">For Instagram and WhatsApp shops, or products we couldn't read. Use a clear photo of the product on a plain background.</p>
+          <p className="small muted">For Instagram and WhatsApp shops, or products we couldn't read. Upload a clear photo of the product on a plain background, straight from your phone or computer.</p>
           <form
             onSubmit={async (e) => {
               e.preventDefault();
+              if (!useLink && !photo) {
+                setMsg("Choose a photo of the product first.");
+                return;
+              }
+              setBusy(true);
               try {
-                await api("/products", { body: { title: form.title, imageUrl: form.imageUrl, productUrl: form.productUrl || undefined } });
+                if (useLink) {
+                  await api("/products", { body: { title: form.title, imageUrl: form.imageUrl, productUrl: form.productUrl || undefined } });
+                } else {
+                  const fd = new FormData();
+                  fd.set("title", form.title);
+                  if (form.productUrl) fd.set("productUrl", form.productUrl);
+                  fd.set("photo", photo!);
+                  await api("/products/upload", { form: fd });
+                }
                 setForm({ title: "", imageUrl: "", productUrl: "" });
+                setPhoto(null);
+                setPreview(null);
                 setMsg("Added. We'll test it on our models now.");
                 await load();
                 await refresh();
               } catch (err) {
-                setMsg(err instanceof Error && err.message === "limit_reached" ? `You can have up to ${max ?? "unlimited"} products right now.` : "Please check the fields and try again.");
+                const m = err instanceof Error ? err.message : "";
+                setMsg(
+                  m === "limit_reached"
+                    ? `You can have up to ${max ?? "unlimited"} products right now.`
+                    : m === "too_large"
+                      ? "That photo is too big. Please use one under 10 MB."
+                      : m === "not_an_image"
+                        ? "That file isn't a photo we can read. Please use a JPG, PNG or WEBP."
+                        : "Please check the fields and try again.",
+                );
+              } finally {
+                setBusy(false);
               }
             }}
           >
             <label htmlFor="t">Product name</label>
             <input id="t" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-            <label htmlFor="i">Photo link (https://…)</label>
-            <input id="i" type="url" required value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
+            {useLink ? (
+              <>
+                <label htmlFor="i">Photo link (https://…)</label>
+                <input id="i" type="url" required value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
+              </>
+            ) : (
+              <>
+                <label htmlFor="ph">Product photo (JPG, PNG or WEBP)</label>
+                <input
+                  id="ph"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] ?? null;
+                    setPhoto(f);
+                    if (preview) URL.revokeObjectURL(preview);
+                    setPreview(f ? URL.createObjectURL(f) : null);
+                  }}
+                />
+                {preview && <img src={preview} alt="Selected product photo" style={{ marginTop: 8, width: 160, aspectRatio: "4/5", objectFit: "cover", borderRadius: 12, border: "1px solid var(--sand)" }} />}
+              </>
+            )}
+            <p className="small" style={{ margin: "6px 0 0" }}>
+              <a
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setUseLink(!useLink);
+                }}
+              >
+                {useLink ? "Upload a photo instead" : "My photo is already online: paste a link instead"}
+              </a>
+            </p>
             <label htmlFor="u">Where people buy it (optional)</label>
-            <input id="u" type="url" value={form.productUrl} onChange={(e) => setForm({ ...form, productUrl: e.target.value })} />
+            <input id="u" type="url" placeholder="Your product page or Instagram post" value={form.productUrl} onChange={(e) => setForm({ ...form, productUrl: e.target.value })} />
             <p>
-              <button className="btn" type="submit">
-                Add product
+              <button className="btn" type="submit" disabled={busy}>
+                {busy ? "Adding…" : "Add product"}
               </button>
             </p>
           </form>

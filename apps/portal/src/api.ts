@@ -1,11 +1,12 @@
 /** Same-origin calls to /portal-api (the site Worker forwards them to the API Worker). */
 export class SignedOut extends Error {}
 
-export async function api<T>(path: string, init: { method?: string; body?: unknown; raw?: string } = {}): Promise<T> {
-  const body = init.raw ?? (init.body !== undefined ? JSON.stringify(init.body) : null);
+export async function api<T>(path: string, init: { method?: string; body?: unknown; raw?: string; form?: FormData } = {}): Promise<T> {
+  const body = init.form ?? init.raw ?? (init.body !== undefined ? JSON.stringify(init.body) : null);
   const r = await fetch(`/portal-api${path}`, {
     method: init.method ?? (body !== null ? "POST" : "GET"),
-    headers: init.raw !== undefined ? { "content-type": "text/csv" } : init.body !== undefined ? { "content-type": "application/json" } : {},
+    // FormData sets its own multipart content type.
+    headers: init.form ? {} : init.raw !== undefined ? { "content-type": "text/csv" } : init.body !== undefined ? { "content-type": "application/json" } : {},
     body,
     credentials: "same-origin",
   });

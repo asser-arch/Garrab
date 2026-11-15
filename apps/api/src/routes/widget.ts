@@ -47,6 +47,22 @@ export const widget = new Hono<{ Bindings: Env }>();
  * GET /v1/config?key=gk_live_…  (called by w.js on every page load)
  * Fails closed: any doubt → { enabled: false }.
  */
+/** Product photos uploaded by brands (public: they are the brand's own product pictures). */
+widget.get("/product-image/:acct/:file", async (c) => {
+  const { acct, file } = c.req.param();
+  if (!/^[A-Z0-9]{26}$/.test(acct) || !/^[a-z0-9]{26}\.(jpg|png|webp)$/.test(file)) return c.text("Not found", 404);
+  const obj = await c.env.FILES.get(`products/${acct}/${file}`);
+  if (!obj) return c.text("Not found", 404);
+  return new Response(obj.body, {
+    headers: {
+      "content-type": obj.httpMetadata?.contentType ?? "image/jpeg",
+      "cache-control": "public, max-age=31536000, immutable",
+      "x-content-type-options": "nosniff",
+      "access-control-allow-origin": "*",
+    },
+  });
+});
+
 widget.get("/config", async (c) => {
   c.header("Cache-Control", "no-store");
   const origin = c.req.header("origin") ?? "";

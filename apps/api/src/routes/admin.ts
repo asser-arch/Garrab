@@ -435,13 +435,15 @@ admin.post("/accounts/:id/delete", async (c) => {
     c.env.DB.prepare("DELETE FROM users WHERE account_id = ?1").bind(id),
     c.env.DB.prepare("DELETE FROM accounts WHERE id = ?1").bind(id),
   ]);
-  // Test result images in R2.
-  let cursor: string | undefined;
-  do {
-    const l = await c.env.FILES.list(cursor ? { prefix: `tests/${id}/`, cursor } : { prefix: `tests/${id}/` });
-    if (l.objects.length) await c.env.FILES.delete(l.objects.map((o) => o.key));
-    cursor = l.truncated ? l.cursor : undefined;
-  } while (cursor);
+  // Test result images and uploaded product photos in R2.
+  for (const prefix of [`tests/${id}/`, `products/${id}/`]) {
+    let cursor: string | undefined;
+    do {
+      const l = await c.env.FILES.list(cursor ? { prefix, cursor } : { prefix });
+      if (l.objects.length) await c.env.FILES.delete(l.objects.map((o) => o.key));
+      cursor = l.truncated ? l.cursor : undefined;
+    } while (cursor);
+  }
   invalidateStatus(id);
   await audit(c.env, id, c.get("admin"), "delete_invitation", `${acc.name}: ${body.data.reason}`);
   return c.json({ ok: true });

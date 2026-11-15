@@ -527,3 +527,39 @@ describe("admin API", () => {
     expect(r.stages[0]!.count).toBeGreaterThan(0);
   });
 });
+
+describe("product photo upload", () => {
+  it("stores the photo without its metadata, serves it publicly, and adds the product", async () => {
+    const email = `up-${uniq()}@brand.example`;
+    const { accountId } = await createAccount(env, { brandName: `Upload ${uniq()}`, email, plan: "starter" });
+    const cookie = await login(email);
+    const fd = new FormData();
+    fd.set("title", "Linen abaya");
+    fd.set("photo", new Blob([fakeJpeg("PIXELS", "EXIF-GPS")], { type: "image/jpeg" }), "abaya.jpg");
+    const r = await exports.default.fetch("https://api.test/portal-api/products/upload", { method: "POST", headers: { cookie, origin: APP }, body: fd });
+    expect(r.status).toBe(200);
+    const { imageUrl } = (await r.json()) as { imageUrl: string };
+    const m = /\/pi\/([A-Z0-9]{26})\/([a-z0-9]{26}\.jpg)$/.exec(imageUrl)!;
+    expect(m[1]).toBe(accountId);
+    const img = await exports.default.fetch(`https://api.test/v1/product-image/${m[1]}/${m[2]}`);
+    expect(img.status).toBe(200);
+    expect(img.headers.get("content-type")).toBe("image/jpeg");
+    const body = new TextDecoder("latin1").decode(new Uint8Array(await img.arrayBuffer()));
+    expect(body).toContain("PIXELS");
+    expect(body).not.toContain("EXIF-GPS");
+    const p = await env.DB.prepare("SELECT title, images_json, selected FROM products WHERE account_id = ?").bind(accountId).first<{ title: string; images_json: string; selected: number }>();
+    expect(p).toMatchObject({ title: "Linen abaya", selected: 1 });
+    expect(JSON.parse(p!.images_json)).toEqual([imageUrl]);
+  });
+
+  it("refuses files that aren't photos", async () => {
+    const email = `up2-${uniq()}@brand.example`;
+    await createAccount(env, { brandName: `Upload2 ${uniq()}`, email, plan: "starter" });
+    const cookie = await login(email);
+    const fd = new FormData();
+    fd.set("title", "Not a photo");
+    fd.set("photo", new Blob([new TextEncoder().encode("hello, this is a text file, not an image")], { type: "image/jpeg" }), "x.jpg");
+    const r = await exports.default.fetch("https://api.test/portal-api/products/upload", { method: "POST", headers: { cookie, origin: APP }, body: fd });
+    expect(r.status).toBe(415);
+  });
+});

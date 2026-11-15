@@ -19,6 +19,7 @@ import {
   type SessionUser,
 } from "../lib/auth.js";
 import { ulid } from "../lib/crypto.js";
+import { sniffImage, stripJpegMetadata } from "../lib/photo.js";
 import { sendOnce } from "../lib/email.js";
 import { saveProducts, guessKind } from "../onboarding/import.js";
 import { accountFacts, billingPlan, createInvoice, ensurePlanInvoice, payUrl, pdfUrl } from "../billing/ledger.js";
@@ -258,6 +259,39 @@ portal.post("/products", async (c) => {
   if (!added) return c.json({ error: "limit_reached" }, 400);
   await c.env.JOBS.send({ t: "advance", a: acct(c) });
   return c.json({ ok: true });
+});
+
+/** Brands upload product photos as files (JPG, PNG or WEBP). Product photos, never shopper photos. */
+export const PRODUCT_PHOTO_MAX_BYTES = 10 * 1024 * 1024;
+
+/**
+ * Add a product with an uploaded photo. The photo is stored in R2 under products/<account>/ and
+ * served from a public, unguessable address on our own site (the AI providers fetch it by URL).
+ * JPEG metadata (camera, GPS) is removed first.
+ */
+portal.post("/products/upload", async (c) => {
+  const form = await c.req.formData().catch(() => null);
+  const file = form?.get("photo");
+  const title = String(form?.get("title") ?? "").trim();
+  const productUrl = String(form?.get("productUrl") ?? "").trim() || undefined;
+  if (!form || !(file instanceof File) || title.length < 2 || title.length > 200) return c.json({ error: "invalid" }, 400);
+  if (file.size > PRODUCT_PHOTO_MAX_BYTES) return c.json({ error: "too_large" }, 413);
+  if (productUrl && !z.string().url().max(1000).safeParse(productUrl).success) return c.json({ error: "invalid", fields: ["productUrl"] }, 400);
+  let bytes: Uint8Array = new Uint8Array(await file.arrayBuffer());
+  const type = sniffImage(bytes);
+  if (!type) return c.json({ error: "not_an_image" }, 415);
+  if (type === "image/jpeg") bytes = stripJpegMetadata(bytes);
+  const id = acct(c);
+  const name = `${ulid().toLowerCase()}.${type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg"}`;
+  await c.env.FILES.put(`products/${id}/${name}`, bytes, { httpMetadata: { contentType: type, cacheControl: "public, max-age=31536000, immutable" } });
+  const imageUrl = `${c.env.APP_ORIGIN}/pi/${id}/${name}`;
+  const added = await addManual(c.env, id, [{ title, imageUrl, productUrl }]);
+  if (!added) {
+    await c.env.FILES.delete(`products/${id}/${name}`);
+    return c.json({ error: "limit_reached" }, 400);
+  }
+  await c.env.JOBS.send({ t: "advance", a: id });
+  return c.json({ ok: true, imageUrl });
 });
 
 /** CSV: name,image_url,product_url,description (header row optional). */
