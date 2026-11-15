@@ -37,23 +37,29 @@ export function Approve({ me, refresh }: { me: Me; refresh: () => Promise<void> 
             <h2>{p.title}</h2>
             <div className="thumbs">
               {p.image && (
-                <div className="preview">
-                  <img src={p.image} alt={`${p.title}, product photo`} referrerPolicy="no-referrer" />
-                </div>
+                <figure className="shot">
+                  <div className="preview">
+                    <img src={p.image} alt={`${p.title}, product photo`} referrerPolicy="no-referrer" />
+                  </div>
+                  <figcaption>Your photo</figcaption>
+                </figure>
               )}
               {p.tests.map((src, i) => (
-                <div className="preview" key={src}>
-                  <span className="chip">AI preview</span>
-                  <img src={src} alt={`AI preview ${i + 1} of ${p.title} on a test model`} />
-                </div>
+                <figure className="shot" key={src}>
+                  <div className="preview">
+                    <span className="chip">AI preview</span>
+                    <img src={src} alt={`AI preview ${i + 1} of ${p.title} on a test model`} />
+                  </div>
+                  <figcaption>On model {String.fromCharCode(65 + i)}</figcaption>
+                </figure>
               ))}
             </div>
             {p.result === "passed" && (
               <div className="row" style={{ marginTop: 12 }}>
-                <button className={`btn small ${p.decision === "approved" ? "" : "ghost"}`} aria-pressed={p.decision === "approved"} onClick={() => decide(p.id, "approved")}>
+                <button className={`btn small ${p.decision === "approved" ? "chosen" : ""}`} aria-pressed={p.decision === "approved"} onClick={() => decide(p.id, "approved")}>
                   {p.decision === "approved" ? "✓ Approved" : "Approve"}
                 </button>
-                <button className={`btn small ${p.decision === "hidden" ? "" : "ghost"}`} aria-pressed={p.decision === "hidden"} onClick={() => decide(p.id, "hidden")}>
+                <button className={`btn small ghost ${p.decision === "hidden" ? "chosen-off" : ""}`} aria-pressed={p.decision === "hidden"} onClick={() => decide(p.id, "hidden")}>
                   {p.decision === "hidden" ? "Hidden" : "Hide"}
                 </button>
               </div>

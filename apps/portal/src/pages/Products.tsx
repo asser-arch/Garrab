@@ -120,11 +120,11 @@ export function Products({ me, refresh }: { me: Me; refresh: () => Promise<void>
             }}
           >
             <label htmlFor="t">Product name</label>
-            <input id="t" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+            <input id="t" name="title" autoComplete="off" placeholder="e.g. Linen abaya, olive…" required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
             {useLink ? (
               <>
                 <label htmlFor="i">Photo link (https://…)</label>
-                <input id="i" type="url" required value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
+                <input id="i" name="imageUrl" type="url" inputMode="url" autoComplete="off" spellCheck={false} autoCapitalize="none" placeholder="https://…" required value={form.imageUrl} onChange={(e) => setForm({ ...form, imageUrl: e.target.value })} />
               </>
             ) : (
               <>
@@ -155,7 +155,7 @@ export function Products({ me, refresh }: { me: Me; refresh: () => Promise<void>
               </a>
             </p>
             <label htmlFor="u">Where people buy it (optional)</label>
-            <input id="u" type="url" placeholder="Your product page or Instagram post" value={form.productUrl} onChange={(e) => setForm({ ...form, productUrl: e.target.value })} />
+            <input id="u" name="productUrl" type="url" inputMode="url" autoComplete="off" spellCheck={false} autoCapitalize="none" placeholder="Your product page or Instagram post…" value={form.productUrl} onChange={(e) => setForm({ ...form, productUrl: e.target.value })} />
             <p>
               <button className="btn" type="submit" disabled={busy}>
                 {busy ? "Adding…" : "Add product"}

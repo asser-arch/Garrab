@@ -56,7 +56,7 @@ export function Login({ onSignedIn }: { onSignedIn: () => void }) {
             }}
           >
             <label htmlFor="email">Your email</label>
-            <input id="email" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input id="email" name="email" type="email" autoComplete="email" spellCheck={false} autoCapitalize="none" required value={email} onChange={(e) => setEmail(e.target.value)} />
             <p className="small muted">No password. We email you a one-time link.</p>
             <button className="btn" type="submit" disabled={state === "sending"}>
               Email me a sign-in link

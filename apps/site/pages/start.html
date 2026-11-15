@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#F4F2EB"><meta name="referrer" content="no-referrer">
 <title>Start your free pilot · Garrab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap">
@@ -19,15 +19,15 @@
     <form id="start" class="card" novalidate>
       <label for="brandName">Brand name</label><input id="brandName" name="brandName" required autocomplete="organization">
       <label for="contactName">Your name</label><input id="contactName" name="contactName" required autocomplete="name">
-      <label for="email">Email</label><input id="email" name="email" type="email" required autocomplete="email">
+      <label for="email">Email</label><input id="email" name="email" type="email" required autocomplete="email" spellcheck="false" autocapitalize="none">
       <label for="whatsapp">WhatsApp number</label><input id="whatsapp" name="whatsapp" type="tel" required placeholder="01xxxxxxxxx" autocomplete="tel">
       <label for="platform">Where do you sell?</label>
       <select id="platform" name="platform" required>
         <option value="shopify">Shopify</option><option value="woocommerce">WooCommerce</option>
         <option value="other_website">Another website</option><option value="social_only">Instagram / WhatsApp only</option>
       </select>
-      <label for="website">Website</label><input id="website" name="website" type="url" placeholder="https://yourshop.com">
-      <label for="instagram">Instagram handle</label><input id="instagram" name="instagram" placeholder="@yourbrand">
+      <label for="website">Website</label><input id="website" name="website" type="url" inputmode="url" autocomplete="url" spellcheck="false" autocapitalize="none" placeholder="https://yourshop.com">
+      <label for="instagram">Instagram handle</label><input id="instagram" name="instagram" autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="@yourbrand">
       <label for="niche">What do you sell?</label>
       <select id="niche" name="niche" required><option value="clothing">Clothing</option><option value="accessories">Accessories</option><option value="home_decor">Home decor</option></select>
       <label for="plan">Plan after the pilot</label>

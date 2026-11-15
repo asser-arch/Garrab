@@ -79,11 +79,11 @@ function Invite({ onDone }: { onDone: () => void }) {
         <div className="grid">
           <div>
             <label htmlFor="bn">Brand name</label>
-            <input id="bn" required value={f.brandName} onChange={(e) => setF({ ...f, brandName: e.target.value })} />
+            <input id="bn" name="brandName" autoComplete="off" required value={f.brandName} onChange={(e) => setF({ ...f, brandName: e.target.value })} />
           </div>
           <div>
             <label htmlFor="em">Email</label>
-            <input id="em" type="email" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+            <input id="em" name="email" type="email" autoComplete="off" spellCheck={false} autoCapitalize="none" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
           </div>
           <div>
             <label htmlFor="pl">Plan after pilot</label>
@@ -107,7 +107,7 @@ function Invite({ onDone }: { onDone: () => void }) {
           </div>
           <div>
             <label htmlFor="ws">Website (optional)</label>
-            <input id="ws" type="url" placeholder="https://" value={f.website} onChange={(e) => setF({ ...f, website: e.target.value })} />
+            <input id="ws" name="website" type="url" inputMode="url" autoComplete="off" spellCheck={false} autoCapitalize="none" placeholder="https://yourshop.com" value={f.website} onChange={(e) => setF({ ...f, website: e.target.value })} />
           </div>
         </div>
         <p>
@@ -263,7 +263,7 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
             <option key={s} value={s}>{nice(STEP_NAME, s)}</option>
           ))}
         </select>
-        <input aria-label="Reason" placeholder="Reason (required)" required minLength={3} value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: 260 }} />
+        <input aria-label="Reason" name="reason" autoComplete="off" placeholder="Reason (required)…" required minLength={3} value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: 260 }} />
         <button className="btn small ghost" type="submit">
           Move to this step
         </button>
@@ -504,7 +504,7 @@ function Access({ id }: { id: string }) {
           }
         }}
       >
-        <input aria-label="Add domain" placeholder="shop.example.com" value={host} onChange={(e) => setHost(e.target.value)} style={{ width: 240 }} />
+        <input aria-label="Add domain" name="domain" inputMode="url" autoComplete="off" spellCheck={false} autoCapitalize="none" placeholder="shop.example.com" value={host} onChange={(e) => setHost(e.target.value)} style={{ width: 240 }} />
         <button className="btn small ghost" type="submit">Add domain</button>
       </form>
       {msg && <p className="warn small">{msg}</p>}
@@ -568,7 +568,7 @@ function Money({ id, status, hold, notes, onChange }: { id: string; status: stri
         {hold ? " · held by you (billing won't change it)" : ""}. Kill switches the try-on off at once; Restore puts it back to what billing says.
       </p>
       <div className="row">
-        <input aria-label="Reason for kill, pause or restore" placeholder="Reason (required)" value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: 260 }} />
+        <input aria-label="Reason for kill, pause or restore" name="reason" autoComplete="off" placeholder="Reason (required)…" value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: 260 }} />
         <button className="btn small" disabled={reason.trim().length < 3} onClick={() => act(`/accounts/${id}/kill`, { reason }, "Killed: switched off now.")}>
           Kill now
         </button>
@@ -724,7 +724,7 @@ function Dashboard({ open }: { open: (id: string) => void }) {
             <circle cx="11" cy="11" r="7" />
             <path d="m20 20-3.5-3.5" />
           </svg>
-          <input aria-label="Search brands" placeholder="Search by brand, email or website" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input aria-label="Search brands" type="search" name="q" autoComplete="off" spellCheck={false} placeholder="Search by brand, email or website…" value={q} onChange={(e) => setQ(e.target.value)} />
         </form>
       </div>
       {hits && (

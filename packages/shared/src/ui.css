@@ -13,6 +13,11 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; background: var(--cream); color: var(--ink); font-family: var(--font); font-size: 15px; line-height: 1.55; }
 a { color: var(--teal); }
+a, button, .btn, summary, input[type="checkbox"], input[type="file"], select { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+h1, h2, h3 { text-wrap: balance; }
+p, li, td { text-wrap: pretty; overflow-wrap: anywhere; }
+.stat, td, .tabular { font-variant-numeric: tabular-nums; }
+img { max-width: 100%; }
 .shell { max-width: 960px; margin: 0 auto; padding: 16px; }
 .top { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 8px 0 16px; flex-wrap: wrap; }
 .logo { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 18px; color: var(--ink); text-decoration: none; }
@@ -34,7 +39,25 @@ h2 { font-weight: 700; font-size: 19px; margin: 0 0 8px; }
 .btn.accent { background: var(--peach); color: var(--forest); }
 .btn.ghost { background: var(--paper); color: var(--ink); border-color: var(--sand); }
 .btn.small { min-height: 36px; padding: 0 16px; font-size: 13px; }
+.btn { transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
+.btn:hover:not(:disabled) { background: #0e2a19; }
+.btn.accent:hover:not(:disabled) { background: #ecc98f; }
+.btn.ghost:hover:not(:disabled) { background: var(--cream); border-color: var(--grey); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+@media (prefers-reduced-motion: reduce) { .btn { transition: none; } .btn:active:not(:disabled) { transform: none; } }
 .btn:disabled { opacity: .5; cursor: default; }
+/* A choice that is made reads as done, not as disabled. */
+.btn.chosen, .btn.chosen:hover:not(:disabled) { background: var(--mint); color: var(--teal); border-color: var(--mint); }
+.btn.chosen-off, .btn.chosen-off:hover:not(:disabled) { background: var(--mist); color: var(--muted); border-color: var(--mist); }
+.btn.chosen:disabled, .btn.chosen-off:disabled { opacity: 1; }
+figure.shot { margin: 0; }
+figure.shot figcaption { font-size: 12px; color: var(--muted); margin-top: 4px; text-align: center; }
+/* Phones: the menu is one row you can swipe, instead of wrapping. */
+@media (max-width: 600px) {
+  nav.tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -16px; padding: 0 16px 4px; overscroll-behavior-x: contain; }
+  nav.tabs::-webkit-scrollbar { display: none; }
+  nav.tabs a { flex: none; }
+}
 .btn:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
 label { display: block; font-weight: 700; font-size: 13px; margin: 12px 0 4px; }
 input, select, textarea { width: 100%; font: 15px var(--font); padding: 10px 14px; border-radius: 14px; border: 1px solid var(--sand); background: #fff; color: var(--ink); min-height: 44px; }
