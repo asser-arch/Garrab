@@ -1,6 +1,6 @@
 # What's left on your side (updated 15 Nov 2026)
 
-**Done:** domain, Cloudflare, staging, Telegram, Genlook (key, credits, written approval, delete check **PASS**, you replied about the startup program), Google AI (paid tier), Resend (verified), Turnstile, admin login, privacy line **on**, brand files, logo, Arabic wording, prices (5,000 / 8,500 EGP), admin redesign, delete-invitation, AI note on the upload screen.
+**Done:** domain, Cloudflare, staging, Telegram, Genlook (key, credits, written approval, delete check **PASS**, you replied about the startup program), Google AI (paid tier), Resend (verified), Turnstile, admin login, privacy line **on**, brand files, logo, Arabic wording, prices (5,000 / 8,500 EGP), admin redesign, delete-invitation, AI note on the upload screen, setup fee wording, **uptime monitor (staging)**.
 
 Staging: `app-staging.garrabb.com` · `api-staging.garrabb.com` · `admin-staging.garrabb.com`
 
@@ -53,7 +53,7 @@ Send Claude corrections, or "Arabic OK".
    - Genlook's terms (genlook.app/terms, section 6) and data agreement (genlook.app/dpa); Google's Gemini API terms if Google becomes the main model
 
    Ask: is the wording right, does Garrab need to register with the Data Protection Center, and does each brand need a data processing agreement with Garrab. Send Claude their changes.
-2. **Uptime monitor** (5 minutes): uptimerobot.com → free account → **New monitor** → HTTP(s) → `https://api-staging.garrabb.com/healthz` → every 5 minutes → alerts by app or email.
+2. ✅ **Uptime monitor**: UptimeRobot watches `https://api-staging.garrabb.com/healthz` every 5 minutes, alerts by email (done 15 Nov).
 3. **Optional, better:** two photos of real people who sign the consent text (`docs/SETUP-CHECKLIST.md`, step 36) to replace the stock photos used for product tests.
 
 ## 6. Going live

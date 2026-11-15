@@ -122,4 +122,4 @@ GitHub secrets in place: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `TELEG
 ## Part 10: Before the first real brand
 
 40. **Lawyer**: send them `/privacy` and `/terms` (Claude can export them) and ask for a review against Egypt's Personal Data Protection Law (Law 151 of 2020), plus whether you need to register with the Data Protection Center.
-41. **Uptime monitor** (after staging is live): uptimerobot.com → free account → **New monitor** → HTTP(s) → `https://api-staging.garrabb.com/healthz` now (add `https://api.garrabb.com/healthz` when live) → every 5 minutes → alerts to your phone (app or email).
+41. ✅ **Uptime monitor** (staging done 15 Nov; add the live URL at go-live) (after staging is live): uptimerobot.com → free account → **New monitor** → HTTP(s) → `https://api-staging.garrabb.com/healthz` now (add `https://api.garrabb.com/healthz` when live) → every 5 minutes → alerts to your phone (app or email).
