@@ -83,7 +83,7 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 ## Part 7: Bot check and admin login (20 minutes, after Part 2)
 
 33. **Turnstile**: Cloudflare dashboard → **Turnstile** → **Add widget** → name `Garrab app` → hostnames `app.garrabb.com` and `app-staging.garrabb.com` → mode **Managed** → create. Copy the **site key** and **secret key**. Tell Claude **"Turnstile ready"**.
-34. **Admin login (Cloudflare Access)**:
+34. ✅ **Admin login (Cloudflare Access)**:
     1. Dashboard → **Zero Trust** → pick a team name (e.g. `garrab`) → **Free** plan (it may ask for a card; free up to 50 users).
     2. **Access → Applications → Add an application → Self-hosted**.
     3. Name `Garrab admin`. Under **Destinations**, remove the empty Private IP row and click **+ Add public hostname** twice: subdomain `admin-staging` + domain `garrabb.com`, and subdomain `admin` + domain `garrabb.com` (path empty).
