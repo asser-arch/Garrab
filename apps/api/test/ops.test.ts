@@ -257,3 +257,20 @@ describe("product re-test", () => {
     expect((await env.DB.prepare("SELECT action FROM audit_log WHERE account_id = ? AND action = 'product_retest'").bind(b.id).first())).not.toBeNull();
   });
 });
+
+describe("remove a product", () => {
+  it("deletes the product, its tests and its uploaded photo", async () => {
+    const b = await liveBrand();
+    const pid = `p${uniq()}`;
+    const file = `${"0".repeat(20)}${uniq().padEnd(6, "0").slice(0, 6)}`.toLowerCase().slice(0, 26) + ".jpg";
+    await env.FILES.put(`products/${b.id}/${file}`, new Uint8Array([1, 2, 3]));
+    await env.DB.prepare(`INSERT INTO products (id, account_id, external_ref, title, images_json, selected) VALUES (?, ?, ?, 'Dup', ?, 1)`)
+      .bind(pid, b.id, `manual:${pid}`, JSON.stringify([`https://app.test/pi/${b.id}/${file}`]))
+      .run();
+    await env.DB.prepare("INSERT INTO product_tests (id, account_id, product_id, fixture, score) VALUES (?, ?, ?, 'f', 3)").bind(`t${uniq()}`, b.id, pid).run();
+    expect((await post(`/products/${pid}/delete`, {})).status).toBe(200);
+    expect(await env.DB.prepare("SELECT 1 FROM products WHERE id = ?").bind(pid).first()).toBeNull();
+    expect(await env.DB.prepare("SELECT 1 FROM product_tests WHERE product_id = ?").bind(pid).first()).toBeNull();
+    expect(await env.FILES.get(`products/${b.id}/${file}`)).toBeNull();
+  });
+});

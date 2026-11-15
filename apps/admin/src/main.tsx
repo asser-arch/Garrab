@@ -310,6 +310,17 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
                     Disable
                   </button>
                 )}
+                <button
+                  className="btn small ghost"
+                  title="Delete this product, e.g. a duplicate"
+                  onClick={async () => {
+                    if (!confirm(`Remove "${p.title}"? Its photo and test results are deleted too.`)) return;
+                    await api(`/products/${p.id}/delete`, {});
+                    await load();
+                  }}
+                >
+                  Remove
+                </button>
                 {p.test_score !== null && (
                   <button
                     className="btn small ghost"

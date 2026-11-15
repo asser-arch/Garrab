@@ -168,6 +168,24 @@ admin.post("/accounts/:id/remind", async (c) => {
 });
 
 /** Decide a "needs review" product (score 3): enable it for the brand to approve, or disable it. */
+/** Remove a product (duplicates, mistakes): its tests, test images and uploaded photo go too. */
+admin.post("/products/:id/delete", async (c) => {
+  const pid = c.req.param("id");
+  const p = await c.env.DB.prepare("SELECT account_id, title, images_json FROM products WHERE id = ?").bind(pid).first<{ account_id: string; title: string; images_json: string }>();
+  if (!p) return c.json({ error: "not_found" }, 404);
+  const keys = (await c.env.DB.prepare("SELECT r2_key FROM product_tests WHERE product_id = ? AND r2_key IS NOT NULL").bind(pid).all<{ r2_key: string }>()).results.map((r) => r.r2_key);
+  // Photos the brand uploaded live at <APP_ORIGIN>/pi/<account>/<file> → R2 products/<account>/<file>.
+  for (const u of JSON.parse(p.images_json) as string[]) {
+    const m = /\/pi\/([A-Z0-9]{26})\/([a-z0-9]{26}\.(?:jpg|png|webp))$/.exec(u);
+    if (m && m[1] === p.account_id) keys.push(`products/${m[1]}/${m[2]}`);
+  }
+  if (keys.length) await c.env.FILES.delete(keys);
+  await c.env.DB.batch([c.env.DB.prepare("DELETE FROM product_tests WHERE product_id = ?").bind(pid), c.env.DB.prepare("DELETE FROM products WHERE id = ?").bind(pid)]);
+  await audit(c.env, p.account_id, c.get("admin"), "product_delete", p.title);
+  await c.env.JOBS.send({ t: "advance", a: p.account_id });
+  return c.json({ ok: true });
+});
+
 /** Clear a product's test so it runs again (e.g. after switching from test mode to real try-ons). */
 admin.post("/products/:id/retest", async (c) => {
   const p = await c.env.DB.prepare("SELECT account_id FROM products WHERE id = ?").bind(c.req.param("id")).first<{ account_id: string }>();
