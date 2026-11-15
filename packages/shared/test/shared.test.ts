@@ -109,7 +109,7 @@ describe("strings (§4)", () => {
   it("Arabic uses the exact Pitch Kit §05 wording", () => {
     expect(ar.buttonTryOn).toBe("جرّبه على نفسك");
     expect(ar.aiPreview).toBe("معاينة بالذكاء الاصطناعي");
-    expect(ar.privacy).toBe("نستخدم صورتك فقط لإنشاء هذه المعاينة. لا نحتفظ بها، ويتم حذفها عند إغلاق الصفحة.");
+    expect(ar.privacy).toBe("نستخدم صورتك فقط لإنشاء هذه المعاينة. لا نحتفظ بها على أنظمتنا.");
     expect(ar.closed).toBe("تم حذف صورتك.");
     expect(AR_IS_DRAFT).toBe(false);
   });

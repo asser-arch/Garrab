@@ -15,12 +15,12 @@ type TryOnKey = (typeof TRY_ON_KEYS)[number];
 export const AR_IS_DRAFT = false;
 
 export const ar: Record<TryOnKey, string> = {
-  // Pitch Kit §05
+  // Pitch Kit §05 (privacy: the Pitch Kit's own variant for a provider that keeps images for a period)
   buttonTryOn: "جرّبه على نفسك",
   buttonRoom: "شاهده في غرفتك",
   upload: "ارفع صورة واضحة لك",
   consent: "برفع الصورة توافق على استخدامها فقط لإنشاء المعاينة.",
-  privacy: "نستخدم صورتك فقط لإنشاء هذه المعاينة. لا نحتفظ بها، ويتم حذفها عند إغلاق الصفحة.",
+  privacy: "نستخدم صورتك فقط لإنشاء هذه المعاينة. لا نحتفظ بها على أنظمتنا.",
   aiPreview: "معاينة بالذكاء الاصطناعي",
   disclaimer:
     "هذه معاينة توضيحية بالذكاء الاصطناعي لمساعدتك على تخيّل الشكل. قد تختلف الألوان والمقاس والتفاصيل قليلًا عن المنتج الحقيقي.",

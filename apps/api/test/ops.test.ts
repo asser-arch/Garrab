@@ -305,3 +305,17 @@ describe("remove a product", () => {
     expect(row).toEqual({ selected: 0, enabled: 0, brand_decision: "hidden" });
   });
 });
+
+import { appFetch } from "../src/lib/products.js";
+describe("uploaded photos for the AI providers", () => {
+  it("are read straight from storage, not fetched through the public site", async () => {
+    const acct = "01AAAAAAAAAAAAAAAAAAAAAAAA";
+    const file = "01aaaaaaaaaaaaaaaaaaaaaaaa.png";
+    await env.FILES.put(`products/${acct}/${file}`, new Uint8Array([9, 9, 9]), { httpMetadata: { contentType: "image/png" } });
+    const r = await appFetch(env)(`https://app.test/pi/${acct}/${file}`);
+    expect(r.status).toBe(200);
+    expect(r.headers.get("content-type")).toBe("image/png");
+    expect([...new Uint8Array(await r.arrayBuffer())]).toEqual([9, 9, 9]);
+    expect((await appFetch(env)(`https://app.test/pi/${acct}/01bbbbbbbbbbbbbbbbbbbbbbbb.png`)).status).toBe(404);
+  });
+});

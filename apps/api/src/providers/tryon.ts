@@ -1,6 +1,8 @@
 import { workerFetch } from "../lib/http.js";
 import type { Env } from "../env.js";
 import type { ImageType } from "../lib/photo.js";
+import { GeminiTryOnProvider } from "./google.js";
+import { appFetch } from "../lib/products.js";
 
 export interface TryOnProduct {
   /** Stable id we give the provider: `{accountId}_{productId}`. */
@@ -211,10 +213,55 @@ export class MockTryOnProvider implements TryOnProvider {
   }
 }
 
-export function tryOnProvider(env: Env): TryOnProvider {
-  if (env.GENLOOK_API_KEY && env.ENVIRONMENT !== "test") {
-    return new GenlookProvider(env.GENLOOK_API_KEY, Number(env.GENLOOK_USD_PER_CREDIT ?? "0.04"), env.GENLOOK_MOCK === "true");
+/**
+ * Try the main provider; on a provider-side failure (busy, error, timeout) try the backup once.
+ * A refusal (content rules) or an unusable photo is final: another model would only cost more.
+ */
+export class FallbackTryOnProvider implements TryOnProvider {
+  readonly name: string;
+  constructor(
+    private readonly primary: TryOnProvider,
+    private readonly backup: TryOnProvider,
+  ) {
+    this.name = primary.name;
   }
-  if (env.ENVIRONMENT === "prod") throw new Error("GENLOOK_API_KEY missing in prod");
+
+  /** The provider that produced the last result (for usage records). */
+  lastUsed: string = "";
+
+  async tryOn(req: TryOnRequest): Promise<TryOnResult> {
+    const r = await this.primary.tryOn(req);
+    this.lastUsed = this.primary.name;
+    if (r.ok || r.code === "content_policy" || r.code === "bad_photo") return r;
+    this.lastUsed = this.backup.name;
+    const b = await this.backup.tryOn(req);
+    return b.ok ? b : { ...b, detail: `${this.primary.name}: ${r.code}${r.detail ? ` ${r.detail}` : ""}; ${this.backup.name}: ${b.code}${b.detail ? ` ${b.detail}` : ""}` };
+  }
+
+  async deleteUserData(oneTimeUserId: string): Promise<boolean> {
+    const [a, b] = await Promise.all([this.primary.deleteUserData(oneTimeUserId), this.backup.deleteUserData(oneTimeUserId)]);
+    return a && b;
+  }
+}
+
+/**
+ * The shopper try-on provider (Asser, 15 Nov, after the bake-off: nano-banana 3.6/5, flash-image 3.3/5,
+ * Genlook 1.9/5). TRYON_PROVIDER: "gemini" (default) = nano-banana with flash-image as backup;
+ * "genlook" = Genlook (kept for a later re-test).
+ */
+export function tryOnProvider(env: Env): TryOnProvider {
+  if (env.ENVIRONMENT !== "test") {
+    if ((env.TRYON_PROVIDER ?? "gemini") === "gemini" && env.GEMINI_API_KEY) {
+      const f = appFetch(env);
+      return new FallbackTryOnProvider(
+        new GeminiTryOnProvider(env.GEMINI_API_KEY, "gemini-nano-banana-2.1", f),
+        new GeminiTryOnProvider(env.GEMINI_API_KEY, "gemini-3.1-flash-image", f),
+      );
+    }
+    if (env.TRYON_PROVIDER === "genlook" && env.GENLOOK_API_KEY) {
+      return new GenlookProvider(env.GENLOOK_API_KEY, Number(env.GENLOOK_USD_PER_CREDIT ?? "0.04"), env.GENLOOK_MOCK === "true");
+    }
+  }
+  if (env.ENVIRONMENT === "prod") throw new Error("No try-on provider key in prod (GEMINI_API_KEY or GENLOOK_API_KEY)");
   return new MockTryOnProvider();
 }

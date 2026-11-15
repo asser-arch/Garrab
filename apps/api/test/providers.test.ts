@@ -170,3 +170,34 @@ describe("fetch is never called as a method (Workers: 'Illegal invocation')", ()
     }
   });
 });
+
+import { FallbackTryOnProvider, type TryOnProvider as TP } from "../src/providers/tryon.js";
+describe("main try-on with automatic backup", () => {
+  const fake = (name: string, result: Awaited<ReturnType<TP["tryOn"]>>): TP & { calls: number } => {
+    const p = { name, calls: 0, tryOn: async () => (p.calls++, result), deleteUserData: async () => true };
+    return p;
+  };
+  const ok = { ok: true as const, image: PNG, contentType: "image/png", costMicroUsd: 40_000, productSynced: true };
+
+  it("uses the main model when it works", async () => {
+    const main = fake("nano", ok), backup = fake("flash", ok);
+    expect(await new FallbackTryOnProvider(main, backup).tryOn(req())).toMatchObject({ ok: true });
+    expect([main.calls, backup.calls]).toEqual([1, 0]);
+  });
+
+  it("switches to the backup when the main model is busy, errors or times out", async () => {
+    for (const code of ["provider_busy", "provider_error", "timeout"] as const) {
+      const main = fake("nano", { ok: false, code, costMicroUsd: 0, retryable: true }), backup = fake("flash", ok);
+      expect(await new FallbackTryOnProvider(main, backup).tryOn(req())).toMatchObject({ ok: true });
+      expect(backup.calls).toBe(1);
+    }
+  });
+
+  it("never retries a content refusal or an unusable photo on the backup (it would only cost more)", async () => {
+    for (const code of ["content_policy", "bad_photo"] as const) {
+      const main = fake("nano", { ok: false, code, costMicroUsd: 0, retryable: false }), backup = fake("flash", ok);
+      expect(await new FallbackTryOnProvider(main, backup).tryOn(req())).toMatchObject({ ok: false, code });
+      expect(backup.calls).toBe(0);
+    }
+  });
+});

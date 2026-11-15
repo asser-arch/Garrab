@@ -3,6 +3,7 @@
  * Gemini Interactions API with structured JSON output (response_format text + application/json + schema),
  * `store: false`, fixed seed. Verified in ai.google.dev/gemini-api/docs/structured-output (14 Nov 2026).
  */
+import { appFetch } from "../lib/products.js";
 import { workerFetch } from "../lib/http.js";
 import type { Env } from "../env.js";
 import { isLocal } from "../env.js";
@@ -122,7 +123,7 @@ export class MockScorer implements ScoringProvider {
 }
 
 export function scoringProvider(env: Env): ScoringProvider {
-  if (env.GEMINI_API_KEY && env.ENVIRONMENT !== "test") return new GeminiScorer(env.GEMINI_API_KEY, env.GEMINI_TEXT_MODEL ?? "gemini-3.5-flash-lite");
+  if (env.GEMINI_API_KEY && env.ENVIRONMENT !== "test") return new GeminiScorer(env.GEMINI_API_KEY, env.GEMINI_TEXT_MODEL ?? "gemini-3.5-flash-lite", appFetch(env));
   if (isLocal(env)) return new MockScorer();
   throw new Error("GEMINI_API_KEY missing");
 }

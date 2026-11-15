@@ -896,7 +896,7 @@ function Dashboard({ open }: { open: (id: string) => void }) {
           <h2>Privacy line</h2>
           <p className="small">
             {d.privacyClaim
-              ? "On. Shoppers see: \"We don't save it. It's deleted when you close this page.\""
+              ? "On. Shoppers see: \"We don't save it on our systems.\""
               : "Off. Needs a PASS report from the Genlook delete check (docs/privacy/), less than 90 days old."}
           </p>
           <button

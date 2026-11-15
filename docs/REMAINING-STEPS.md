@@ -11,17 +11,10 @@ Staging: `app-staging.garrabb.com` · `api-staging.garrabb.com` · `admin-stagin
 1. Admin → **Onboarding** → **Invite a brand** with your friend's email → **Create and get sign-in link**.
 2. The welcome email from `hello@garrabb.com` should arrive within a minute (check spam the first time). If it doesn't: the reason shows under **Alerts** and in Telegram; send the link with **Send on WhatsApp** meanwhile.
 3. Your friend signs in, adds 1–3 products, approves them, and tries a preview (website: install the code; no website: use the product link / QR code).
-4. Staging now makes **real** Genlook try-ons (about 0.04 USD per preview, about 0.09 USD per product test).
+4. Staging now makes **real** try-ons with Google nano-banana (about 0.04 USD per preview, about 16 seconds each).
 5. Send Claude screenshots of anything confusing or broken.
 
-## 2. Score the bake-off and choose the try-on model (30 minutes)
-
-1. Open each run, scroll to **Artifacts** → **bakeoff** to download:
-   - Google (flash-image and nano-banana): https://github.com/asser-arch/Garrab/actions/runs/43711464354
-   - Genlook: https://github.com/asser-arch/Garrab/actions/runs/43712878638
-2. Unzip, open `index.html`, score every result **1–5** (garment right, person unchanged incl. hijab, no glitches, believable fit).
-3. Press **Download my scores (CSV)** on each page and send both files to Claude.
-4. Then choose with Claude: Genlook, nano-banana, or nano-banana for some product types. If Google becomes the main model, the privacy line changes to *"We don't save it on our systems"* (Google keeps requests for a limited time to check abuse), and Genlook stays as automatic backup.
+## 2. ✅ Bake-off scored and model chosen (15 Nov): nano-banana, with Gemini flash-image as backup
 
 ## 3. ✅ Arabic check (done 15 Nov: "Arabic OK")
 
@@ -38,7 +31,7 @@ Staging: `app-staging.garrabb.com` · `api-staging.garrabb.com` · `admin-stagin
 
 ## 6. Going live
 
-When 1 and 2 are done, tell Claude **"go live"**. Claude deploys `app.garrabb.com`, `api.garrabb.com`, `admin.garrabb.com` and `cdn.garrabb.com`, moves the Telegram bot to live and runs the same checks. Then:
+When 1 is done, tell Claude **"go live"**. Claude deploys `app.garrabb.com`, `api.garrabb.com`, `admin.garrabb.com` and `cdn.garrabb.com`, moves the Telegram bot to live and runs the same checks. Then:
 - keep `admin` + `garrabb.com` in the Cloudflare Access app (it protects the live admin);
 - add `https://api.garrabb.com/healthz` to the uptime monitor.
 

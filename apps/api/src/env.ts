@@ -23,6 +23,8 @@ export interface Env {
 
   GENLOOK_API_KEY?: string;
   GENLOOK_MOCK?: string;
+  /** "gemini" (default: nano-banana, flash-image backup) or "genlook". */
+  TRYON_PROVIDER?: string;
   GENLOOK_USD_PER_CREDIT?: string;
   GEMINI_API_KEY?: string;
   GEMINI_TEXT_MODEL?: string;

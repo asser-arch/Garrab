@@ -10,7 +10,7 @@ export const en = {
   expectation: "Your preview is created by AI to help you picture the look. It's a close guide rather than an exact photo, so small differences from the real product are normal.",
   /** Gated: shown only when settings.privacy_claim_verified is true. */
   privacy:
-    "Your photo is used only to create this preview. We don't save it. It's deleted when you close this page.",
+    "Your photo is used only to create this preview. We don't save it on our systems.",
   aiPreview: "AI preview",
   disclaimer:
     "This is an AI preview to help you imagine the look. Colours, size and small details may differ slightly from the real product.",

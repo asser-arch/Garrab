@@ -8,6 +8,28 @@ import type { Env } from "../env.js";
 export const PHOTO_FILE_RE = /^[a-z0-9]{26}\.(?:jpg|png|webp)$/;
 const PI_URL_RE = /\/pi\/([A-Z0-9]{26})\/([a-z0-9]{26}\.(?:jpg|png|webp))$/;
 
+/** The R2 key behind any uploaded-photo address (any account), or null. */
+export function uploadedPhotoKey(url: string): string | null {
+  const m = PI_URL_RE.exec(url);
+  return m ? `products/${m[1]}/${m[2]}` : null;
+}
+
+/**
+ * fetch() for the AI providers: uploaded product photos are read straight from R2. A Worker can't
+ * reliably fetch another Worker on the same zone through its public address, so going through
+ * app.<domain>/pi/... from inside the API would fail.
+ */
+export function appFetch(env: Env): typeof fetch {
+  return async (input, init) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const key = uploadedPhotoKey(url);
+    if (!key) return fetch(input, init);
+    const obj = await env.FILES.get(key);
+    if (!obj) return new Response(null, { status: 404 });
+    return new Response(obj.body, { headers: { "content-type": obj.httpMetadata?.contentType ?? "image/jpeg" } });
+  };
+}
+
 export function productPhotoUrl(env: Env, accountId: string, file: string): string {
   return `${env.APP_ORIGIN}/pi/${accountId}/${file}`;
 }
