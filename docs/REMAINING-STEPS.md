@@ -47,18 +47,13 @@ Send Claude corrections, or "Arabic OK".
 
 ## 5. Before the first real brand
 
-1. **Lawyer** (Egypt's Personal Data Protection Law, Law 151 of 2020). Send them:
-   - https://app-staging.garrabb.com/privacy and https://app-staging.garrabb.com/terms
-   - the Pilot Proposal (`docs/brand/Garrab_Pilot-Proposal.docx`)
-   - Genlook's terms (genlook.app/terms, section 6) and data agreement (genlook.app/dpa); Google's Gemini API terms if Google becomes the main model
-
-   Ask: is the wording right, does Garrab need to register with the Data Protection Center, and does each brand need a data processing agreement with Garrab. Send Claude their changes.
+1. ✅ **Lawyer review**: set aside for now by Asser (15 Nov). Revisit before scaling past the first pilots.
 2. ✅ **Uptime monitor**: UptimeRobot watches `https://api-staging.garrabb.com/healthz` every 5 minutes, alerts by email (done 15 Nov).
 3. **Optional, better:** two photos of real people who sign the consent text (`docs/SETUP-CHECKLIST.md`, step 36) to replace the stock photos used for product tests.
 
 ## 6. Going live
 
-When 1, 2, 3 and 5 are done, tell Claude **"go live"**. Claude deploys `app.garrabb.com`, `api.garrabb.com`, `admin.garrabb.com` and `cdn.garrabb.com`, moves the Telegram bot to live and runs the same checks. Then:
+When 1, 2 and 3 are done, tell Claude **"go live"**. Claude deploys `app.garrabb.com`, `api.garrabb.com`, `admin.garrabb.com` and `cdn.garrabb.com`, moves the Telegram bot to live and runs the same checks. Then:
 - keep `admin` + `garrabb.com` in the Cloudflare Access app (it protects the live admin);
 - add `https://api.garrabb.com/healthz` to the uptime monitor.
 

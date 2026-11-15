@@ -13,7 +13,7 @@ Do them in this order: each part unblocks the next. Dashboard menus move around;
 | Genlook key, credits, retention, **written approval** | Try logging into admin-staging |
 | Google AI key (both models available) | Native Arabic review of 5 extra strings (DECISIONS.md) |
 | Resend verified, key and operator email | Switch on the privacy line in admin-staging; provider comparison (38) |
-| Turnstile site key, admin login, brand files, logo, stock photos | Lawyer, uptime monitor (40–41) |
+| Turnstile site key, admin login, brand files, logo, stock photos, uptime monitor | (lawyer set aside;40–41) |
 
 GitHub secrets in place: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GENLOOK_API_KEY`, `GEMINI_API_KEY`, `RESEND_API_KEY`, `OPERATOR_EMAIL`, `CF_ACCESS_AUD`, `CF_ACCESS_TEAM_DOMAIN`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECERET_KEY` (spelled this way; the deploy reads it as the Turnstile secret).
 
@@ -121,5 +121,5 @@ GitHub secrets in place: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `TELEG
 
 ## Part 10: Before the first real brand
 
-40. **Lawyer**: send them `/privacy` and `/terms` (Claude can export them) and ask for a review against Egypt's Personal Data Protection Law (Law 151 of 2020), plus whether you need to register with the Data Protection Center.
+40. ⏸ **Lawyer** (set aside for now by Asser, 15 Nov): send them `/privacy` and `/terms` (Claude can export them) and ask for a review against Egypt's Personal Data Protection Law (Law 151 of 2020), plus whether you need to register with the Data Protection Center.
 41. ✅ **Uptime monitor** (staging done 15 Nov; add the live URL at go-live) (after staging is live): uptimerobot.com → free account → **New monitor** → HTTP(s) → `https://api-staging.garrabb.com/healthz` now (add `https://api.garrabb.com/healthz` when live) → every 5 minutes → alerts to your phone (app or email).
