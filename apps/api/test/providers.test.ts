@@ -77,6 +77,15 @@ describe("Genlook request", () => {
     expect(second.products[0].title).toBe("Red linen dress");
   });
 
+  it("never sends an empty description (Genlook rejects it): falls back to the product name", async () => {
+    const { fetcher, calls } = fakeFetch((url) =>
+      url.endsWith("/try-on/sync") ? Response.json({ resultImageUrl: "https://storage.example/r.jpg" }, { status: 201 }) : new Response(PNG),
+    );
+    await new GenlookProvider("k", 0.04, false, fetcher).tryOn(req({ description: "  " }));
+    const data = JSON.parse(String((calls[0]!.init!.body as FormData).get("data")));
+    expect(data.products[0].description).toBe("Red linen dress");
+  });
+
   it("treats 201 Created (what Genlook really returns) as success", async () => {
     const { fetcher } = fakeFetch((url) =>
       url.endsWith("/try-on/sync") ? Response.json({ resultImageUrl: "https://storage.example/r.jpg" }, { status: 201 }) : new Response(PNG),

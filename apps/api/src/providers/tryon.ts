@@ -88,7 +88,9 @@ export class GenlookProvider implements TryOnProvider {
       ? {
           externalId: p.externalId,
           title: p.title,
-          description: p.description,
+          // Genlook requires a non-empty description (VALIDATION_FAILED otherwise, seen 15 Nov):
+          // products added by hand often have none, so fall back to the name.
+          description: p.description.trim() || p.title,
           images: p.imageUrls.slice(0, 6).map((url) => ({ source: { url } })),
         }
       : { externalId: p.externalId };

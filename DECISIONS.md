@@ -219,3 +219,4 @@ One line per decision: **what** — *why* — source if verified. Newest at the 
 - **Staging now uses real Genlook try-ons (`GENLOOK_MOCK=false`)** — *the first real staging test showed every product "not eligible": the free mock returns the model without the product, and the real quality check rightly scores that low.* About 0.09 USD per product test; the 3 USD per brand per 30 days cap still applies.
 - **In Genlook's free test mode a product is never auto-rejected; it goes to "needs your review".**
 - **Admin can re-test any product ("Test again") and enable a rejected product by hand ("Enable anyway"); the reason a product was disabled is shown.**
+- **Bug found on staging (15 Nov): Genlook rejects an empty product description (HTTP 400 VALIDATION_FAILED); products added by hand had none, so every test failed.** The provider now sends the product name when there's no description; test added. Failed product tests now show the provider's code in the admin.
