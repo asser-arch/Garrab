@@ -165,9 +165,36 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
             )}
           </p>
         </div>
-        <button className="btn small ghost" onClick={onClose}>
-          Close
-        </button>
+        <div className="row">
+          {String(d.account.status) === "onboarding" && (
+            <button
+              className="btn small ghost"
+              title="For a wrong email, a typo or a test brand. Only before any invoice or payment."
+              onClick={async () => {
+                const name = String(d.account.name);
+                const typed = prompt(
+                  `Delete the invitation for "${name}"?\n\nThis removes the account, its sign-in links, products and test results, so you can invite the right email again. It's only possible before any invoice or payment.\n\nType the brand name to confirm:`,
+                );
+                if (typed === null) return;
+                const reason = prompt("Reason (for the history):", "Wrong email, inviting again");
+                if (!reason || reason.trim().length < 3) return;
+                try {
+                  await api(`/accounts/${id}/delete`, { confirmName: typed, reason });
+                  alert(`${name} was deleted. You can invite the right email from the Onboarding tab.`);
+                  onChange();
+                  onClose();
+                } catch (e) {
+                  alert(e instanceof Error ? e.message.replace(/^[a-z_]+: /, "") : "Couldn't delete.");
+                }
+              }}
+            >
+              Delete invitation
+            </button>
+          )}
+          <button className="btn small ghost" onClick={onClose}>
+            Close
+          </button>
+        </div>
       </div>
       <div className="section">
       <h3>Onboarding steps</h3>
@@ -255,34 +282,6 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
         ))}
       </ul>
       </div>
-      {String(d.account.status) === "onboarding" && (
-        <div className="section">
-          <h3>Delete this invitation</h3>
-          <p className="small muted">
-            For a wrong email, a typo or a test brand. Removes the account, its sign-in links, products and test results. Only possible before the brand has any invoice or payment. You can invite the right email afterwards.
-          </p>
-          <button
-            className="btn small ghost"
-            onClick={async () => {
-              const name = String(d.account.name);
-              const typed = prompt(`To delete "${name}", type the brand name exactly:`);
-              if (typed === null) return;
-              const reason = prompt("Reason (for the history):", "Wrong email, inviting again");
-              if (!reason || reason.trim().length < 3) return;
-              try {
-                await api(`/accounts/${id}/delete`, { confirmName: typed, reason });
-                alert(`${name} was deleted.`);
-                onChange();
-                onClose();
-              } catch (e) {
-                alert(e instanceof Error ? e.message.replace(/^[a-z_]+: /, "") : "Couldn't delete.");
-              }
-            }}
-          >
-            Delete invitation
-          </button>
-        </div>
-      )}
     </div>
   );
 }
