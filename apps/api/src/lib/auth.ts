@@ -106,37 +106,60 @@ export function sameOriginWrite(c: ReqCtx): boolean {
 // ---------------------------------------------------------------------------
 // Admin: Cloudflare Access JWT (RS256), checked against the team's public keys and audience.
 
-let jwksCache: { at: number; keys: JsonWebKey[] } | null = null;
+let jwksCache: { at: number; team: string; keys: JsonWebKey[] } | null = null;
 
-async function accessKeys(env: Env): Promise<JsonWebKey[]> {
-  if (jwksCache && Date.now() - jwksCache.at < 3_600_000) return jwksCache.keys;
-  const r = await fetch(`https://${env.CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`);
+/** Accepts "team.cloudflareaccess.com", with or without https:// and a trailing slash. */
+export function accessTeamHost(env: Env): string | null {
+  const t = env.CF_ACCESS_TEAM_DOMAIN?.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  return t ? t.toLowerCase() : null;
+}
+
+async function accessKeys(team: string): Promise<JsonWebKey[]> {
+  if (jwksCache && jwksCache.team === team && Date.now() - jwksCache.at < 3_600_000) return jwksCache.keys;
+  const r = await fetch(`https://${team}/cdn-cgi/access/certs`);
+  if (!r.ok) throw new Error("certs");
   const j = (await r.json()) as { keys: JsonWebKey[] };
-  jwksCache = { at: Date.now(), keys: j.keys };
+  jwksCache = { at: Date.now(), team, keys: j.keys };
   return j.keys;
 }
 
-export async function verifyAccessJwt(env: Env, jwt: string): Promise<string | null> {
-  if (!env.CF_ACCESS_TEAM_DOMAIN || !env.CF_ACCESS_AUD) return null;
+/** Why an Access login was refused: short codes, safe to show to the admin. */
+export type AccessResult = { ok: true; email: string } | { ok: false; reason: string };
+
+export async function checkAccessJwt(env: Env, jwt: string): Promise<AccessResult> {
+  const team = accessTeamHost(env);
+  const aud = env.CF_ACCESS_AUD?.trim();
+  if (!team || !aud) return { ok: false, reason: "access_not_configured" };
   const [h, p, s] = jwt.split(".");
-  if (!h || !p || !s) return null;
+  if (!h || !p || !s) return { ok: false, reason: "malformed_token" };
   try {
     const header = JSON.parse(new TextDecoder().decode(b64urlDecode(h))) as { kid?: string; alg?: string };
-    if (header.alg !== "RS256") return null;
-    const jwk = (await accessKeys(env)).find((k) => (k as { kid?: string }).kid === header.kid);
-    if (!jwk) return null;
+    if (header.alg !== "RS256") return { ok: false, reason: "bad_algorithm" };
+    let keys: JsonWebKey[];
+    try {
+      keys = await accessKeys(team);
+    } catch {
+      return { ok: false, reason: "team_domain_unreachable" };
+    }
+    const jwk = keys.find((k) => (k as { kid?: string }).kid === header.kid);
+    if (!jwk) return { ok: false, reason: "unknown_signing_key (check CF_ACCESS_TEAM_DOMAIN)" };
     const key = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
     const ok = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, b64urlDecode(s), new TextEncoder().encode(`${h}.${p}`));
-    if (!ok) return null;
+    if (!ok) return { ok: false, reason: "bad_signature" };
     const claims = JSON.parse(new TextDecoder().decode(b64urlDecode(p))) as { aud?: string | string[]; exp?: number; email?: string; iss?: string };
-    const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
-    if (!aud.includes(env.CF_ACCESS_AUD)) return null;
-    if (!claims.exp || claims.exp * 1000 < Date.now()) return null;
-    if (claims.iss !== `https://${env.CF_ACCESS_TEAM_DOMAIN}`) return null;
-    return claims.email ?? "admin";
+    const auds = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+    if (!auds.includes(aud)) return { ok: false, reason: "wrong_audience (check CF_ACCESS_AUD)" };
+    if (!claims.exp || claims.exp * 1000 < Date.now()) return { ok: false, reason: "expired" };
+    if (claims.iss !== `https://${team}`) return { ok: false, reason: "wrong_issuer (check CF_ACCESS_TEAM_DOMAIN)" };
+    return { ok: true, email: claims.email ?? "admin" };
   } catch {
-    return null;
+    return { ok: false, reason: "malformed_token" };
   }
+}
+
+export async function verifyAccessJwt(env: Env, jwt: string): Promise<string | null> {
+  const r = await checkAccessJwt(env, jwt);
+  return r.ok ? r.email : null;
 }
 
 /** Returns the admin's identity, or null. Dev token only works locally. */

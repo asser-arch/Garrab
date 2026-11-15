@@ -10,12 +10,13 @@ import { z } from "zod";
 import { emails } from "../emails.js";
 import { cdnOrigin, type Env } from "../env.js";
 import { createAccount, newWidgetKey } from "../lib/accounts.js";
-import { adminIdentity, createMagicLink } from "../lib/auth.js";
+import { adminIdentity, checkAccessJwt, createMagicLink } from "../lib/auth.js";
 import { sha256Hex, ulid } from "../lib/crypto.js";
 import { sendOnce } from "../lib/email.js";
 import { cairoDay } from "../lib/time.js";
 import { getSetting, originHost, setSetting } from "../lib/db.js";
 import { alert, transitionStatus } from "../lib/ops.js";
+import { log } from "../lib/log.js";
 import { cycleStartOf } from "../lib/metering.js";
 import { addDays } from "../billing/dates.js";
 import { accountFacts, applyPayment, ensurePlanInvoice, openPlanInvoice, payUrl, pdfUrl, reconcileAccount } from "../billing/ledger.js";
@@ -30,7 +31,12 @@ export const admin = new Hono<{ Bindings: Env; Variables: Vars }>();
 admin.use("*", async (c, next) => {
   c.header("Cache-Control", "no-store");
   const who = await adminIdentity(c);
-  if (!who) return c.json({ error: "unauthorized" }, 401);
+  if (!who) {
+    const jwt = c.req.header("cf-access-jwt-assertion");
+    const reason = jwt ? ((await checkAccessJwt(c.env, jwt)) as { reason?: string }).reason : "not_logged_in";
+    log("admin_auth", { code: reason ?? "unknown" });
+    return c.json({ error: "unauthorized", reason }, 401);
+  }
   c.set("admin", who);
   await next();
 });

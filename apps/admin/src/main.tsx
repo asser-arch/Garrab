@@ -7,8 +7,8 @@ async function api<T>(path: string, body?: unknown): Promise<T> {
     `/admin-api${path}`,
     body === undefined ? {} : { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) },
   );
-  const j = (await r.json().catch(() => ({}))) as T & { error?: string };
-  if (!r.ok) throw new Error(j.error ?? `HTTP ${r.status}`);
+  const j = (await r.json().catch(() => ({}))) as T & { error?: string; reason?: string };
+  if (!r.ok) throw new Error([j.error ?? `HTTP ${r.status}`, j.reason].filter(Boolean).join(": "));
   return j;
 }
 
@@ -440,8 +440,24 @@ function Dashboard({ open }: { open: (id: string) => void }) {
   const [d, setD] = useState<Dash | null>(null);
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<{ id: string; name: string; status: string }[]>([]);
-  const load = useCallback(async () => setD(await api<Dash>("/dashboard")), []);
+  const [err, setErr] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    try {
+      setD(await api<Dash>("/dashboard"));
+      setErr(null);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    }
+  }, []);
   useEffect(() => void load(), [load]);
+  if (err && !d)
+    return (
+      <div className="card" role="alert">
+        <h2>Couldn't load the dashboard</h2>
+        <p className="small">{err}</p>
+        <button className="btn small ghost" onClick={() => void load()}>Try again</button>
+      </div>
+    );
   if (!d) return <p className="muted">Loading…</p>;
   return (
     <>
@@ -639,7 +655,7 @@ function App() {
   }, []);
 
   return (
-    <div className="shell">
+    <div className="shell" style={{ maxWidth: 1200 }}>
       <header className="top">
         <span className="logo">
           <span className="tile">G</span> Garrab admin

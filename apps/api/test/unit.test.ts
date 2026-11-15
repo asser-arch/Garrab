@@ -71,3 +71,16 @@ describe("misc", () => {
     expect(line).toContain("dropped_fields");
   });
 });
+
+import { accessTeamHost, checkAccessJwt } from "../src/lib/auth.js";
+describe("Cloudflare Access settings", () => {
+  it("accepts the team domain with or without https:// and a trailing slash", () => {
+    for (const v of ["team.cloudflareaccess.com", "https://team.cloudflareaccess.com/", " HTTPS://Team.cloudflareaccess.com "]) {
+      expect(accessTeamHost({ CF_ACCESS_TEAM_DOMAIN: v } as never)).toBe("team.cloudflareaccess.com");
+    }
+  });
+  it("explains a refusal instead of failing silently", async () => {
+    expect(await checkAccessJwt({} as never, "a.b.c")).toEqual({ ok: false, reason: "access_not_configured" });
+    expect(await checkAccessJwt({ CF_ACCESS_TEAM_DOMAIN: "t.cloudflareaccess.com", CF_ACCESS_AUD: "x" } as never, "nope")).toEqual({ ok: false, reason: "malformed_token" });
+  });
+});
