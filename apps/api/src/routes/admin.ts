@@ -391,6 +391,12 @@ admin.post("/accounts/:id/resend", async (c) => {
     sent = await sendOnce(c.env, { accountId: id, template: "invoice", dedupeKey: `invoice-resend:${ulid()}`, msg: emails.invoice(u.email, { ...inv, due: inv.due_date, label }, payUrl(c.env, inv.pay_token)) });
   }
   await audit(c.env, id, c.get("admin"), "resend", body.data.template);
+  if (!sent) {
+    const last = await c.env.DB.prepare("SELECT error FROM notifications WHERE account_id = ? AND template = ? ORDER BY created_at DESC LIMIT 1")
+      .bind(id, body.data.template)
+      .first<{ error: string | null }>();
+    return c.json({ error: "email_not_sent", reason: last?.error ?? "unknown" }, 502);
+  }
   return c.json({ ok: true, sent });
 });
 
