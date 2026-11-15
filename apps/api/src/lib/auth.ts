@@ -113,7 +113,7 @@ let jwksCache: { at: number; team: string; keys: JsonWebKey[] } | null = null;
  * a path or a trailing slash.
  */
 export function accessTeamHost(env: Env): string | null {
-  const t = env.CF_ACCESS_TEAM_DOMAIN?.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0];
+  const t = env.CF_ACCESS_TEAM_DOMAIN?.trim().toLowerCase().replace(/^https?:\/\//, "").split("/")[0]?.replace(/\.+$/, "");
   if (!t) return null;
   return t.includes(".") ? t : `${t}.cloudflareaccess.com`;
 }
@@ -121,7 +121,7 @@ export function accessTeamHost(env: Env): string | null {
 async function accessKeys(team: string): Promise<JsonWebKey[]> {
   if (jwksCache && jwksCache.team === team && Date.now() - jwksCache.at < 3_600_000) return jwksCache.keys;
   const r = await fetch(`https://${team}/cdn-cgi/access/certs`);
-  if (!r.ok) throw new Error("certs");
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
   const j = (await r.json()) as { keys: JsonWebKey[] };
   jwksCache = { at: Date.now(), team, keys: j.keys };
   return j.keys;
@@ -139,7 +139,7 @@ const ACCESS_HOST = /^[a-z0-9-]+\.cloudflareaccess\.com$/;
  * team's application can carry. CF_ACCESS_TEAM_DOMAIN is only a fallback (and a custom domain).
  */
 function signingTeam(env: Env, issuer: string | undefined): string | null {
-  const fromToken = issuer?.toLowerCase().replace(/^https:\/\//, "").replace(/\/+$/, "");
+  const fromToken = issuer?.toLowerCase().replace(/^https:\/\//, "").replace(/\/+$/, "").replace(/\.+$/, "");
   if (fromToken && ACCESS_HOST.test(fromToken)) return fromToken;
   return accessTeamHost(env);
 }
@@ -162,8 +162,8 @@ export async function checkAccessJwt(env: Env, jwt: string): Promise<AccessResul
     let keys: JsonWebKey[];
     try {
       keys = await accessKeys(team);
-    } catch {
-      return { ok: false, reason: `team_domain_unreachable (${team})` };
+    } catch (e) {
+      return { ok: false, reason: `team_domain_unreachable (${team}: ${e instanceof Error ? e.message.slice(0, 60) : "error"})` };
     }
     const jwk = keys.find((k) => (k as { kid?: string }).kid === header.kid);
     if (!jwk) return { ok: false, reason: `unknown_signing_key (${team})` };

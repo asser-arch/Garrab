@@ -75,7 +75,7 @@ describe("misc", () => {
 import { accessTeamHost, checkAccessJwt } from "../src/lib/auth.js";
 describe("Cloudflare Access settings", () => {
   it("accepts the team domain with or without https:// and a trailing slash", () => {
-    for (const v of ["team.cloudflareaccess.com", "https://team.cloudflareaccess.com/", " HTTPS://Team.cloudflareaccess.com ", "team", "https://team.cloudflareaccess.com/cdn-cgi/access/certs"]) {
+    for (const v of ["team.cloudflareaccess.com", "https://team.cloudflareaccess.com/", " HTTPS://Team.cloudflareaccess.com ", "team", "https://team.cloudflareaccess.com/cdn-cgi/access/certs", "team.cloudflareaccess.com."]) {
       expect(accessTeamHost({ CF_ACCESS_TEAM_DOMAIN: v } as never)).toBe("team.cloudflareaccess.com");
     }
   });
