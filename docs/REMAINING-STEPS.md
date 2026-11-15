@@ -1,18 +1,17 @@
 # What's left on your side (updated 15 Nov 2026)
 
-**Done:** domain, Cloudflare, staging, Telegram, Genlook (key, credits, written approval, delete check **PASS**, you replied about the startup program), Google AI (paid tier), Resend (verified), Turnstile, admin login, privacy line **on**, brand files, logo, Arabic wording, prices (5,000 / 8,500 EGP), admin redesign, delete-invitation, AI note on the upload screen, setup fee wording, **uptime monitor (staging)**.
+**Done:** domain, Cloudflare, staging, Telegram, Genlook (key, credits, written approval, delete check **PASS**, you replied about the startup program), Google AI (paid tier), nano-banana chosen, Resend (verified), Turnstile, admin login, privacy line **on**, brand files, logo, Arabic wording, prices (5,000 / 8,500 EGP), admin redesign, delete-invitation, AI note on the upload screen, setup fee wording, **uptime monitor (staging)**.
 
 Staging: `app-staging.garrabb.com` · `api-staging.garrabb.com` · `admin-staging.garrabb.com`
 
 ---
 
-## 1. Test with your friend (today, 30 minutes)
+## 1. Test with your friend (continue)
 
-1. Admin → **Onboarding** → **Invite a brand** with your friend's email → **Create and get sign-in link**.
-2. The welcome email from `hello@garrabb.com` should arrive within a minute (check spam the first time). If it doesn't: the reason shows under **Alerts** and in Telegram; send the link with **Send on WhatsApp** meanwhile.
-3. Your friend signs in, adds 1–3 products, approves them, and tries a preview (website: install the code; no website: use the product link / QR code).
-4. Staging now makes **real** try-ons with Google nano-banana (about 0.04 USD per preview, about 16 seconds each).
-5. Send Claude screenshots of anything confusing or broken.
+1. Your friend opens `app-staging.garrabb.com/portal`, types her email, and enters the **6-digit code** from the email (or taps the email's button, then **Sign in**). She then stays signed in for 60 days on that phone.
+2. **Products** → **Test again** on her products (now made with nano-banana).
+3. **Approve**, then **Install & links** → **Your try-on link**: this one link goes in her Instagram bio and lists every approved product. Open it on a phone and try one on.
+4. Send Claude screenshots of anything confusing or broken.
 
 ## 2. ✅ Bake-off scored and model chosen (15 Nov): nano-banana, with Gemini flash-image as backup
 
