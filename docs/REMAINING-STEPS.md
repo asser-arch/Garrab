@@ -47,10 +47,11 @@ Claude then recommends the main provider and whether to keep a backup.
 
 ## 5. Arabic check by a native speaker (10 minutes of their time)
 
-The main try-on wording is copied from your Pitch Kit. These 7 lines aren't in the Pitch Kit, so Claude wrote them in the same style. Ask a native speaker if they read naturally:
+The main try-on wording is copied from your Pitch Kit. These 8 lines aren't in the Pitch Kit, so Claude wrote them in the same style. Ask a native speaker if they read naturally:
 
 | Where | Arabic |
 |---|---|
+| Before upload: AI note | تُنشأ المعاينة بالذكاء الاصطناعي لمساعدتك على تخيّل الشكل. هي دليل قريب وليست صورة مطابقة تمامًا، لذا من الطبيعي وجود اختلافات بسيطة عن المنتج الحقيقي. |
 | Room photo prompt | ارفع صورة لغرفتك |
 | Close button | إغلاق |
 | "Not now" button | ليس الآن |

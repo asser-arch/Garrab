@@ -29,6 +29,7 @@ export const ar: Record<TryOnKey, string> = {
   closed: "تم حذف صورتك.",
   error: "تعذّر إنشاء معاينة من هذه الصورة. جرّب صورة أوضح.",
   // Not in the Pitch Kit: same register, for native review
+  expectation: "تُنشأ المعاينة بالذكاء الاصطناعي لمساعدتك على تخيّل الشكل. هي دليل قريب وليست صورة مطابقة تمامًا، لذا من الطبيعي وجود اختلافات بسيطة عن المنتج الحقيقي.",
   uploadRoom: "ارفع صورة لغرفتك",
   close: "إغلاق",
   notNow: "ليس الآن",

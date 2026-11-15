@@ -6,6 +6,8 @@ export const en = {
   upload: "Upload a clear photo of yourself",
   uploadRoom: "Upload a photo of your room",
   consent: "By uploading a photo you agree we use it only to create your preview.",
+  /** Before upload: sets expectations calmly. The after-result disclaimer is the Pitch Kit line below. */
+  expectation: "Your preview is created by AI to help you picture the look. It's a close guide rather than an exact photo, so small differences from the real product are normal.",
   /** Gated: shown only when settings.privacy_claim_verified is true. */
   privacy:
     "Your photo is used only to create this preview. We don't save it. It's deleted when you close this page.",
@@ -36,6 +38,7 @@ export const TRY_ON_KEYS = [
   "upload",
   "uploadRoom",
   "consent",
+  "expectation",
   "privacy",
   "aiPreview",
   "disclaimer",

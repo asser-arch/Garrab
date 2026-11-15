@@ -171,6 +171,7 @@ function startScreen(st: State, error?: string): void {
     pick,
     input,
     h("p", { class: "small" }, t.consent),
+    h("p", { class: "small muted" }, t.expectation),
     st.privacyClaim ? h("p", { class: "small muted" }, t.privacy) : null,
     closeButton(st),
   );
