@@ -27,6 +27,18 @@ JS
 if [ "$(cat "$RUNNER_TEMP/secrets.json")" != "{}" ]; then W api secret bulk "$RUNNER_TEMP/secrets.json" --env "$ENV"; fi
 rm -f "$RUNNER_TEMP/secrets.json"
 
+# Provider keys kept as GitHub secrets: synced to the Worker on every deploy (so replacing one in GitHub
+# is all it takes to rotate it). Unset ones are skipped and the app keeps using its mock or fallback.
+node -e '
+const names = ["GENLOOK_API_KEY", "GEMINI_API_KEY", "RESEND_API_KEY"];
+const out = {};
+for (const n of names) if (process.env[n]) out[n] = process.env[n];
+console.error(`provider keys to sync: ${Object.keys(out).join(", ") || "none"}`);
+console.log(JSON.stringify(out));
+' > "$RUNNER_TEMP/keys.json"
+if [ "$(cat "$RUNNER_TEMP/keys.json")" != "{}" ]; then W api secret bulk "$RUNNER_TEMP/keys.json" --env "$ENV"; fi
+rm -f "$RUNNER_TEMP/keys.json"
+
 # Telegram (GitHub secrets TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID): token and chat id are always synced;
 # the webhook secret is replaced together with the webhook itself, so the two always match.
 if [ -n "${TELEGRAM_BOT_TOKEN:-}" ] && [ -n "${TELEGRAM_CHAT_ID:-}" ]; then

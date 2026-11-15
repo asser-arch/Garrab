@@ -186,3 +186,5 @@ One line per decision: **what** — *why* — source if verified. Newest at the 
 - **Until the real Turnstile widget and Genlook key arrive, staging uses Cloudflare's public always-pass Turnstile test keys and Genlook's free mock.** Prod is not deployed until both are real.
 - Removed unused `SESSION_SIGNING_KEY` and `PAY_TOKEN_KEY` from `.env.example`.
 - **Telegram: bot token and chat ID live as GitHub secrets; every deploy syncs them to the Worker and points the bot's webhook at that environment (prod always wins; staging only while prod doesn't hold it). The webhook secret is regenerated in the same step, so it never needs to be known by anyone.** Replaces running `telegram:webhook` by hand.
+- **Provider keys (Genlook, Google AI, Resend) live as GitHub secrets and are synced to the Worker on every deploy.** Rotating = replace the GitHub secret and re-deploy. Never paste keys in chat.
+- **Staging keeps `GENLOOK_MOCK=true` even with the real key: calls go to Genlook with `mock: true` (free) so the key and flow are proven without spending credits.** Real generations on staging start with the bake-off, after Genlook's approval email.
