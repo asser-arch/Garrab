@@ -1,0 +1,59 @@
+name: Checks
+
+# Manual provider checks against real APIs (they cost a little): Actions → Checks → Run workflow.
+on:
+  workflow_dispatch:
+    inputs:
+      check:
+        description: What to run
+        type: choice
+        options: [fixtures-and-delete-check, fixtures-only, delete-check-only]
+        default: fixtures-and-delete-check
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Download stock model photos
+        run: |
+          mkdir -p "$RUNNER_TEMP/fx"
+          node -e '
+          const f = require("./scripts/fixtures.json").fixtures;
+          for (const x of f) console.log(`${x.pexelsId} ${x.key.split("/").pop()}`);
+          ' | while read -r id name; do
+            curl -sSfL -o "$RUNNER_TEMP/fx/$name" "https://images.pexels.com/photos/$id/pexels-photo-$id.jpeg?h=2000&fm=jpg"
+            file "$RUNNER_TEMP/fx/$name"
+          done
+      - name: Save them as the staging test photos (R2 fixtures/)
+        if: inputs.check != 'delete-check-only'
+        working-directory: apps/api
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          for f in "$RUNNER_TEMP"/fx/*.jpg; do
+            pnpm exec wrangler r2 object put "garrab-files-staging/fixtures/$(basename "$f")" --file "$f" --content-type image/jpeg --remote
+          done
+      - name: Genlook delete check (1 real preview, about 0.04 USD)
+        if: inputs.check != 'fixtures-only'
+        working-directory: apps/api
+        env:
+          GENLOOK_API_KEY: ${{ secrets.GENLOOK_API_KEY }}
+        run: pnpm verify:genlook-delete -- "$RUNNER_TEMP/fx/model-a.jpg"
+      - uses: actions/upload-artifact@v4
+        if: always() && inputs.check != 'fixtures-only'
+        with:
+          name: privacy-report
+          path: docs/privacy/
+          if-no-files-found: ignore

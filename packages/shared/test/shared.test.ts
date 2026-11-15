@@ -106,6 +106,14 @@ describe("strings (§4)", () => {
     expect(tryOnStrings("ar").aiPreview).toBe(ar.aiPreview);
   });
 
+  it("Arabic uses the exact Pitch Kit §05 wording", () => {
+    expect(ar.buttonTryOn).toBe("جرّبه على نفسك");
+    expect(ar.aiPreview).toBe("معاينة بالذكاء الاصطناعي");
+    expect(ar.privacy).toBe("نستخدم صورتك فقط لإنشاء هذه المعاينة. لا نحتفظ بها، ويتم حذفها عند إغلاق الصفحة.");
+    expect(ar.closed).toBe("تم حذف صورتك.");
+    expect(AR_IS_DRAFT).toBe(false);
+  });
+
   it("production builds are blocked while Arabic is DRAFT", () => {
     if (AR_IS_DRAFT) expect(() => assertStringsReadyForProduction()).toThrow(/DRAFT/);
     else expect(() => assertStringsReadyForProduction()).not.toThrow();

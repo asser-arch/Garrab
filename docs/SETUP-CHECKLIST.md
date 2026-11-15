@@ -8,14 +8,14 @@ Do them in this order: each part unblocks the next. Dashboard menus move around;
 
 | Done ✅ | Still open ⏳ |
 |---|---|
-| Decisions, domain, Cloudflare, R2, staging | Google project on **paid tier** (23–24): please confirm |
+| Decisions, domain, Cloudflare, R2, staging | Prices: 3,000/6,000 (brief) or 5,000/8,500 (deck)? |
 | Telegram bot connected | Reply to Genlook with your account email (21b) |
 | Genlook key, credits, retention, **written approval** | Try logging into admin-staging |
-| Google AI key (both models available) | Files: Pitch Kit, **two stock photos**, logo (35–37) |
+| Google AI key (both models available) | Native Arabic review of 5 extra strings (DECISIONS.md) |
 | Resend verified, key and operator email | Provider comparison and delete check (38–39) |
-| Turnstile real keys, admin login (Access) | Lawyer, uptime monitor (40–41) |
+| Turnstile site key, admin login, brand files, logo, stock photos | Lawyer, uptime monitor (40–41) |
 
-GitHub secrets in place: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GENLOOK_API_KEY`, `GEMINI_API_KEY`, `RESEND_API_KEY`, `OPERATOR_EMAIL`, `CF_ACCESS_AUD`, `CF_ACCESS_TEAM_DOMAIN`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET`.
+GitHub secrets in place: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GENLOOK_API_KEY`, `GEMINI_API_KEY`, `RESEND_API_KEY`, `OPERATOR_EMAIL`, `CF_ACCESS_AUD`, `CF_ACCESS_TEAM_DOMAIN`, `TURNSTILE_SITE_KEY`. **`TURNSTILE_SECRET` did not reach the 15 Nov deploy: check its name in GitHub.**
 
 ---
 
@@ -78,8 +78,8 @@ GitHub secrets in place: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `TELEG
 ## Part 5: Google AI (15 minutes)
 
 22. ✅ Go to **aistudio.google.com** → sign in → **Get API key** → **Create API key** → in a new project named `garrab`.
-23. Turn on billing for that project: in AI Studio, open the key's project → **Set up billing** (or console.cloud.google.com → **Billing** → link a billing account with your card).
-24. Check AI Studio shows the project on the **paid tier**. This matters: on the paid tier Google doesn't use your data to improve its products.
+23. ✅ Turn on billing for that project: in AI Studio, open the key's project → **Set up billing** (or console.cloud.google.com → **Billing** → link a billing account with your card).
+24. ✅ Check AI Studio shows the project on the **paid tier**. This matters: on the paid tier Google doesn't use your data to improve its products.
 25. ✅ Key in GitHub as `GEMINI_API_KEY`; accepted on staging 15 Nov, both models available.
 26. *(Optional, for the provider comparison only)* console.cloud.google.com → same project → **APIs & Services → Enable APIs** → enable **Vertex AI API**. Send Claude the **project ID**.
 
@@ -105,14 +105,14 @@ GitHub secrets in place: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `TELEG
 
 ## Part 8: Files (send in the chat or commit to `docs/`)
 
-35. **Pitch Kit** (`Garrab_Pitch-Kit.docx`: section 05 has the Arabic UI wording), **Pilot Proposal**, **Brand Guidelines (.pptx)**.
-36. **Two stock photos for automatic product tests**:
+35. ✅ **Pitch Kit** (`Garrab_Pitch-Kit.docx`: section 05 has the Arabic UI wording), **Pilot Proposal**, **Brand Guidelines (.pptx)**.
+36. ✅ **Two stock photos for automatic product tests**:
     - adults who signed consent (template below); one wearing a hijab, one not, if possible;
     - full body, facing the camera, standing straight, arms slightly away from the body;
     - plain light background, daylight or soft light, fitted plain clothes (no logos);
     - JPEG, at least 1600 px on the long side, no filters or beauty mode.
     - Consent template: *"I agree that Garrab may use these photos of me, privately, to test AI try-on of clothing products, and to show the test results to brands deciding whether to use Garrab. They won't be used in advertising without asking me again. I can withdraw this at any time by telling Garrab. Name, date, signature."*
-37. **Logo** as SVG (mark and wordmark), if you have it.
+37. ✅ **Logo** as SVG (mark and wordmark), if you have it.
 
 ## Part 9: Checks (Claude runs them once keys are in)
 
