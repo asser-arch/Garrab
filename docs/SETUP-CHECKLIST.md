@@ -43,7 +43,7 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 ## Part 4: Genlook (15 minutes + their reply)
 
 16. Go to **platform.genlook.app** → sign up (use a business email if you have one).
-17. **API keys** → **Create key** → copy it (starts with `gk_`).
+17. ✅ **API keys** → **Create key** → copy it (starts with `gk_`).
 18. **Billing / Credits** → add about 10 USD (pay as you go is 0.04 USD per preview; failures are refunded).
 19. **Settings** → **customer image retention** → **1 day**.
 20. Send this email to **thibault@genlook.app** (edit freely):
@@ -61,7 +61,7 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
     > Thanks,
     > Asser
 
-21. Forward Genlook's reply to Claude (paste the text). Then tell Claude **"Genlook key ready"**.
+21. Forward Genlook's reply to Claude (paste the text). *(Key: ✅ in GitHub as `GENLOOK_API_KEY`, accepted on staging 15 Nov.)*
 
 ## Part 5: Google AI (15 minutes)
 
