@@ -6,6 +6,7 @@
 import { isLocal, type Env } from "../env.js";
 import { ulid } from "./crypto.js";
 import { log } from "./log.js";
+import { alert } from "./ops.js";
 
 export interface EmailMessage {
   to: string;
@@ -16,7 +17,7 @@ export interface EmailMessage {
 
 export interface EmailProvider {
   readonly name: string;
-  send(msg: EmailMessage, idempotencyKey: string): Promise<{ ok: boolean; id: string | null }>;
+  send(msg: EmailMessage, idempotencyKey: string): Promise<{ ok: boolean; id: string | null; error?: string }>;
 }
 
 export class ResendProvider implements EmailProvider {
@@ -26,7 +27,7 @@ export class ResendProvider implements EmailProvider {
     private readonly from: string,
     private readonly fetcher: typeof fetch = fetch,
   ) {}
-  async send(msg: EmailMessage, idempotencyKey: string): Promise<{ ok: boolean; id: string | null }> {
+  async send(msg: EmailMessage, idempotencyKey: string): Promise<{ ok: boolean; id: string | null; error?: string }> {
     try {
       const r = await this.fetcher("https://api.resend.com/emails", {
         method: "POST",
@@ -37,12 +38,18 @@ export class ResendProvider implements EmailProvider {
         },
         body: JSON.stringify({ from: this.from, to: [msg.to], subject: msg.subject, html: msg.html, text: msg.text }),
       });
-      const j = (await r.json().catch(() => ({}))) as { id?: string };
-      return { ok: r.ok, id: j.id ?? null };
-    } catch {
-      return { ok: false, id: null };
+      const j = (await r.json().catch(() => ({}))) as { id?: string; name?: string; message?: string };
+      if (r.ok) return { ok: true, id: j.id ?? null };
+      return { ok: false, id: null, error: cleanError(`HTTP ${r.status} ${j.name ?? ""}: ${j.message ?? ""}`) };
+    } catch (e) {
+      return { ok: false, id: null, error: cleanError(`network: ${e instanceof Error ? e.message : String(e)}`) };
     }
   }
+}
+
+/** Provider error text without email addresses, capped. */
+export function cleanError(s: string): string {
+  return s.replace(/[^\s@<>"]+@[^\s@<>"]+/g, "[email]").replace(/\s+/g, " ").trim().slice(0, 200);
 }
 
 /** Dev/test: captures emails in the dev_outbox table so links can be clicked locally. */
@@ -81,9 +88,11 @@ export async function sendOnce(
     if (prev?.status !== "failed") return false;
   }
   const r = await emailProvider(env).send(opts.msg, opts.dedupeKey);
-  await env.DB.prepare("UPDATE notifications SET status = ?, provider_id = ? WHERE dedupe_key = ?")
-    .bind(r.ok ? "sent" : "failed", r.id, opts.dedupeKey)
+  await env.DB.prepare("UPDATE notifications SET status = ?, provider_id = ?, error = ? WHERE dedupe_key = ?")
+    .bind(r.ok ? "sent" : "failed", r.id, r.ok ? null : (r.error ?? "unknown"), opts.dedupeKey)
     .run();
-  log("email", { kind: opts.template, ok: r.ok, account: opts.accountId });
+  log("email", { kind: opts.template, ok: r.ok, account: opts.accountId, code: r.ok ? null : (r.error ?? "unknown") });
+  // A brand that never gets its email is stuck: tell Asser at once (dashboard + Telegram), with the reason.
+  if (!r.ok) await alert(env, "email_failed", opts.accountId, `Email "${opts.template}" was not sent: ${r.error ?? "unknown error"}`);
   return r.ok;
 }

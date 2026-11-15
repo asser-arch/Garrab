@@ -170,3 +170,32 @@ describe("Asser's answers (14 Nov): product limits, account name, test budget", 
     expect(await testProduct(env, b.id, pid)).not.toBe("skipped_budget");
   });
 });
+
+import { ResendProvider, cleanError, sendOnce } from "../src/lib/email.js";
+describe("email failures", () => {
+  it("keeps Resend's reason (without addresses) and raises an alert", async () => {
+    const fake = (async () => Response.json({ statusCode: 403, name: "validation_error", message: "The garrab.com domain is not verified for x@y.com" }, { status: 403 })) as typeof fetch;
+    const r = await new ResendProvider("re_test", "Garrab <hello@garrabb.com>", fake).send({ to: "a@b.example", subject: "s", html: "h", text: "t" }, "k");
+    expect(r).toEqual({ ok: false, id: null, error: "HTTP 403 validation_error: The garrab.com domain is not verified for [email]" });
+    expect(cleanError("to friend@mail.example failed")).toBe("to [email] failed");
+  });
+
+  it("an email that fails is recorded with its reason and shows up as an alert", async () => {
+    const key = `test-fail:${uniq()}`;
+    const badEnv = { ...env, RESEND_API_KEY: "re_bad", EMAIL_FROM: "Garrab <hello@garrabb.com>" } as typeof env;
+    const orig = globalThis.fetch;
+    globalThis.fetch = (async (u: RequestInfo | URL, i?: RequestInit) =>
+      String(u).startsWith("https://api.resend.com")
+        ? Response.json({ name: "restricted_api_key", message: "This API key is restricted to only send emails" }, { status: 401 })
+        : orig(u, i)) as typeof fetch;
+    try {
+      expect(await sendOnce(badEnv, { accountId: null, template: "welcome", dedupeKey: key, msg: { to: "a@b.example", subject: "s", html: "h", text: "t" } })).toBe(false);
+    } finally {
+      globalThis.fetch = orig;
+    }
+    const row = await env.DB.prepare("SELECT status, error FROM notifications WHERE dedupe_key = ?").bind(key).first<{ status: string; error: string }>();
+    expect(row).toEqual({ status: "failed", error: "HTTP 401 restricted_api_key: This API key is restricted to only send emails" });
+    const a = await env.DB.prepare("SELECT message FROM alerts WHERE kind = 'email_failed' ORDER BY created_at DESC LIMIT 1").first<{ message: string }>();
+    expect(a?.message).toContain('Email "welcome" was not sent: HTTP 401 restricted_api_key');
+  });
+});
