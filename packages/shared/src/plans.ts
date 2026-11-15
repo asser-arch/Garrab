@@ -41,7 +41,7 @@ export const PLANS: Readonly<Record<PlanId, Plan>> = {
   starter: {
     id: "starter",
     name: "Starter",
-    monthlyPrice: egp(3000),
+    monthlyPrice: egp(5000), // Asser, 15 Nov: Pitch Deck and Pilot Proposal prices
     includedPreviews: 250,
     // Asser, 14 Nov: no product limit on paid plans; previews are the limit.
     maxProducts: null,
@@ -51,7 +51,7 @@ export const PLANS: Readonly<Record<PlanId, Plan>> = {
   growth: {
     id: "growth",
     name: "Growth",
-    monthlyPrice: egp(6000),
+    monthlyPrice: egp(8500), // Asser, 15 Nov: Pitch Deck and Pilot Proposal prices
     includedPreviews: 600,
     // Asser, 14 Nov: no product limit on paid plans; previews are the limit.
     maxProducts: null,

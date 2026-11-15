@@ -127,7 +127,7 @@ describe("invoices", () => {
     expect(pdf.headers.get("content-type")).toBe("application/pdf");
     expect(new TextDecoder().decode((await pdf.arrayBuffer()).slice(0, 5))).toBe("%PDF-");
     const page = (await (await exports.default.fetch(`https://api.test/v1/pay/${inv.pay_token}`)).json()) as { number: string; total: number; instapay: { address: string } };
-    expect(page).toMatchObject({ number: inv.number, total: 300_000, instapay: { address: "asserrostom@instapay" } });
+    expect(page).toMatchObject({ number: inv.number, total: 500_000, instapay: { address: "asserrostom@instapay" } });
     expect((await exports.default.fetch(`https://api.test/v1/pay/${"x".repeat(32)}`)).status).toBe(404);
   });
 });
@@ -139,7 +139,7 @@ describe("pilot → paid, through the InstaPay claim and Telegram", () => {
     const b = await brand({ status: "pilot", pilotDaysAgo: 12, target: "growth" });
     await billingRun(env, new Date());
     const inv = (await env.DB.prepare("SELECT * FROM invoices WHERE account_id = ? AND kind = 'plan'").bind(b.id).first<{ id: string; pay_token: string; total: number; due_date: string; status: string }>())!;
-    expect(inv.total).toBe(600_000); // Growth, 6,000 EGP
+    expect(inv.total).toBe(850_000); // Growth, 8,500 EGP
     expect(inv.due_date).toBe(cairoDay(new Date(Date.now() + 2 * 86_400_000)));
 
     expect((await claim(inv.pay_token)).status).toBe(200);
@@ -154,7 +154,7 @@ describe("pilot → paid, through the InstaPay claim and Telegram", () => {
     const acc = await env.DB.prepare("SELECT status, plan_id, paid_through, onboarding_step FROM accounts WHERE id = ?").bind(b.id).first();
     expect(acc).toEqual({ status: "active", plan_id: "growth", paid_through: addDays(addMonths(today, 1), -1), onboarding_step: "converted" });
     const pays = await env.DB.prepare("SELECT provider, amount, method, reference FROM payments WHERE account_id = ?").bind(b.id).all();
-    expect(pays.results).toEqual([{ provider: "instapay_direct", amount: 600_000, method: "instapay", reference: "IPN-123456" }]);
+    expect(pays.results).toEqual([{ provider: "instapay_direct", amount: 850_000, method: "instapay", reference: "IPN-123456" }]);
     expect(await enabled(b)).toBe(true);
     // Growth previews from now on.
     const me = (await accountFacts(env, b.id))!;
@@ -301,7 +301,7 @@ describe("admin: kill, restore, manual payments, global switch, privacy gate", (
     await applyPayment(env, { invoiceId: inv.id, provider: "manual", txnId: `m-${uniq()}`, amount: inv.total, method: "cash", actor: "admin:test" });
     await env.DB.prepare("INSERT INTO usage_events (id, account_id, kind, provider, ok, cost_micro_usd) VALUES (?, ?, 'tryon', 'genlook', 1, 2000000)").bind(ulid(), b.id).run();
     const d = (await (await exports.default.fetch("https://api.test/admin-api/dashboard", { headers: ADMIN })).json()) as { mrr: number; clients: { id: string; revenue30: number; costUsd30: number; margin30: number }[] };
-    expect(d.mrr).toBeGreaterThanOrEqual(300_000);
+    expect(d.mrr).toBeGreaterThanOrEqual(500_000);
     const row = d.clients.find((x) => x.id === b.id)!;
     expect(row).toMatchObject({ revenue30: 80_000, costUsd30: 2, margin30: 80_000 - 2 * 50 * 100 });
   });

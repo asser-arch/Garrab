@@ -37,7 +37,7 @@ async function claimOnPayPage(page: Page, payUrl: string, reference: string): Pr
   await page.goto(payUrl);
   await expect(page.getByRole("heading", { name: /Invoice/ })).toBeVisible();
   await expect(page.getByText("asserrostom@instapay").first()).toBeVisible();
-  await expect(page.getByText("3,000 EGP").first()).toBeVisible();
+  await expect(page.getByText("5,000 EGP").first()).toBeVisible();
   await page.getByLabel("InstaPay reference (from your receipt)").fill(reference);
   await page.getByRole("button", { name: "I've paid" }).click();
   await expect(page.getByRole("heading", { name: "Thanks, we're checking your transfer" })).toBeVisible();

@@ -26,8 +26,8 @@ import {
 describe("plans.ts matches the brief (§1)", () => {
   it("prices and limits", () => {
     expect(SETUP_FEE).toBe(egp(1500));
-    expect(PLANS.starter.monthlyPrice).toBe(egp(3000));
-    expect(PLANS.growth.monthlyPrice).toBe(egp(6000));
+    expect(PLANS.starter.monthlyPrice).toBe(egp(5000));
+    expect(PLANS.growth.monthlyPrice).toBe(egp(8500));
     expect(PLANS.starter.includedPreviews).toBe(250);
     expect(PLANS.growth.includedPreviews).toBe(600);
     expect(PLANS.starter.sizeFinder).toBe(false);

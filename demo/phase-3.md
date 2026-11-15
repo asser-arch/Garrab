@@ -13,7 +13,7 @@ pnpm e2e    # browser tests incl. the two payment paths and admin Kill/Restore
 What the browser test does:
 
 1. The demo brand is 6 days late. The billing job runs → status `suspended` → the button vanishes from the open shop page (**about 30 s**).
-2. **Path 1, emailed link:** the "switched off" email has the pay link → the pay page shows **3,000 EGP to asserrostom@instapay, note GRB-…** → the brand taps **I've paid** with the InstaPay reference → Asser taps **✅ Confirm** in Telegram → status `active`, `paid_through` +1 month from the old date → button back, invoice shows **Paid ✓** with a PDF.
+2. **Path 1, emailed link:** the "switched off" email has the pay link → the pay page shows **5,000 EGP to asserrostom@instapay, note GRB-…** → the brand taps **I've paid** with the InstaPay reference → Asser taps **✅ Confirm** in Telegram → status `active`, `paid_through` +1 month from the old date → button back, invoice shows **Paid ✓** with a PDF.
 3. **Path 2, portal:** the brand signs in → Billing → **Pay and switch back on** → same pay page → Asser confirms from the admin dashboard → button back.
 4. Admin **Kill** switches a paying brand off at once; **Restore** brings it back.
 

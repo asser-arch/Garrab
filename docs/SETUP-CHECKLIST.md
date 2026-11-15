@@ -8,7 +8,7 @@ Do them in this order: each part unblocks the next. Dashboard menus move around;
 
 | Done ✅ | Still open ⏳ |
 |---|---|
-| Decisions, domain, Cloudflare, R2, staging | Prices: 3,000/6,000 (brief) or 5,000/8,500 (deck)? |
+| Decisions (prices 5,000 / 8,500 EGP), domain, Cloudflare, R2, staging | Fix `TURNSTILE_SECRET` in GitHub (didn't reach the deploy) |
 | Telegram bot connected | Reply to Genlook with your account email (21b) |
 | Genlook key, credits, retention, **written approval** | Try logging into admin-staging |
 | Google AI key (both models available) | Native Arabic review of 5 extra strings (DECISIONS.md) |

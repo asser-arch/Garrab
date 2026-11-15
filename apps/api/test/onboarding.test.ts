@@ -440,7 +440,7 @@ describe("pilot clock", () => {
     await pilotClock(env, new Date());
     const mails = await outbox(a.email);
     expect(mails.map((m) => m.subject)).toEqual(["Week one of your pilot", "Your pilot ends in 2 days", "Your Garrab pilot results"]);
-    expect(mails[1]!.html).toContain("3000 EGP a month");
+    expect(mails[1]!.html).toContain("5000 EGP a month");
     expect(mails[2]!.html).toContain("Completion rate: 75%");
     expect(mails[2]!.html).toContain("Buy clicks from the try-on page: 4");
   });

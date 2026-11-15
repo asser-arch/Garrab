@@ -98,9 +98,9 @@ describe("cost view and setup fee", () => {
     for (const id of [founding.accountId, later.accountId]) await env.DB.prepare("UPDATE accounts SET status = 'pilot' WHERE id = ?").bind(id).run();
     const i1 = await ensurePlanInvoice(env, (await accountFacts(env, founding.accountId))!, new Date());
     const i2 = await ensurePlanInvoice(env, (await accountFacts(env, later.accountId))!, new Date());
-    expect(i1.total).toBe(300_000);
-    expect(i2.total).toBe(450_000); // 3,000 + 1,500 setup (plans.ts)
-    expect(JSON.parse(i2.lines_json)).toEqual([expect.objectContaining({ amount: 300_000 }), { label: "One-off setup", amount: 150_000 }]);
+    expect(i1.total).toBe(500_000);
+    expect(i2.total).toBe(650_000); // 5,000 + 1,500 setup (plans.ts)
+    expect(JSON.parse(i2.lines_json)).toEqual([expect.objectContaining({ amount: 500_000 }), { label: "One-off setup", amount: 150_000 }]);
   });
 });
 
