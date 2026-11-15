@@ -38,6 +38,7 @@ console.log(JSON.stringify(out));
 ' > "$RUNNER_TEMP/keys.json"
 if [ "$(cat "$RUNNER_TEMP/keys.json")" != "{}" ]; then W api secret bulk "$RUNNER_TEMP/keys.json" --env "$ENV"; fi
 rm -f "$RUNNER_TEMP/keys.json"
+node scripts/check-keys.mjs
 
 # Telegram (GitHub secrets TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID): token and chat id are always synced;
 # the webhook secret is replaced together with the webhook itself, so the two always match.
