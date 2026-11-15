@@ -7,13 +7,57 @@ import { b64urlDecode, randomToken, sha256Hex, ulid } from "./crypto.js";
 // The link carries the token in the URL fragment (/portal/login#t=…) so email scanners
 // that pre-fetch links can't burn it; the portal POSTs it to /portal-api/auth/verify.
 
-export async function createMagicLink(env: Env, userId: string, email: string, readonly = false): Promise<string> {
+/** A 6-digit code (000000–999999), from the CSPRNG. */
+function newCode(): string {
+  const n = crypto.getRandomValues(new Uint32Array(1))[0]! % 1_000_000;
+  return String(n).padStart(6, "0");
+}
+
+async function codeHash(email: string, code: string): Promise<string> {
+  return sha256Hex(`signin-code:${email.toLowerCase()}:${code}`);
+}
+
+/**
+ * One sign-in, two ways to use it: a link (opens a page with a "Sign in" button, so link scanners
+ * that open emails can't use it up) and a 6-digit code the brand types on the sign-in page (works
+ * on any device or browser). Using either ends both. 15 minutes, single use, bound to the email.
+ */
+export async function createSignIn(env: Env, userId: string, email: string, readonly = false): Promise<{ link: string; code: string }> {
   const token = randomToken(40);
+  const code = newCode();
   const expires = new Date(Date.now() + TIMINGS.magicLinkMinutes * 60_000).toISOString();
-  await env.DB.prepare("INSERT INTO magic_links (id, user_id, email, token_hash, expires_at, readonly) VALUES (?, ?, ?, ?, ?, ?)")
-    .bind(ulid(), userId, email.toLowerCase(), await sha256Hex(token), expires, readonly ? 1 : 0)
+  await env.DB.prepare("INSERT INTO magic_links (id, user_id, email, token_hash, code_hash, expires_at, readonly) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .bind(ulid(), userId, email.toLowerCase(), await sha256Hex(token), readonly ? null : await codeHash(email, code), expires, readonly ? 1 : 0)
     .run();
-  return `${env.APP_ORIGIN}/portal/login#t=${token}`;
+  return { link: `${env.APP_ORIGIN}/portal/login#t=${token}`, code };
+}
+
+export async function createMagicLink(env: Env, userId: string, email: string, readonly = false): Promise<string> {
+  return (await createSignIn(env, userId, email, readonly)).link;
+}
+
+/**
+ * Check a typed code against the newest unused, unexpired sign-in for this email. Each wrong guess
+ * counts; after TIMINGS.signInCodeAttempts the code stops working (ask for a new one).
+ */
+export async function consumeSignInCode(env: Env, email: string, code: string): Promise<{ userId: string } | null> {
+  if (!/^\d{6}$/.test(code)) return null;
+  const e = email.trim().toLowerCase();
+  const now = new Date().toISOString();
+  const row = await env.DB.prepare(
+    "SELECT id, user_id, code_hash, attempts FROM magic_links WHERE email = ? AND used_at IS NULL AND expires_at > ? AND code_hash IS NOT NULL ORDER BY created_at DESC LIMIT 1",
+  )
+    .bind(e, now)
+    .first<{ id: string; user_id: string; code_hash: string; attempts: number }>();
+  if (!row || row.attempts >= TIMINGS.signInCodeAttempts) return null;
+  if ((await codeHash(e, code)) !== row.code_hash) {
+    await env.DB.prepare("UPDATE magic_links SET attempts = attempts + 1 WHERE id = ?").bind(row.id).run();
+    return null;
+  }
+  const r = await env.DB.prepare("UPDATE magic_links SET used_at = ? WHERE id = ? AND used_at IS NULL").bind(now, row.id).run();
+  if (r.meta.changes !== 1) return null;
+  const ok = await env.DB.prepare("SELECT 1 FROM users WHERE id = ? AND email = ?").bind(row.user_id, e).first();
+  return ok ? { userId: row.user_id } : null;
 }
 
 /** Consume a magic link. Returns the user id, or null if unknown, used, expired or the email changed. */
@@ -39,7 +83,7 @@ export async function consumeMagicLink(env: Env, token: string): Promise<{ userI
 
 export const SESSION_COOKIE = "__Host-garrab_s";
 
-/** Brand sessions last 14 days; admin read-only views last 1 hour and don't count as a brand login. */
+/** Brand sessions last 60 days (renewed while in use); admin read-only views last 1 hour and don't count as a brand login. */
 export async function createSession(env: Env, userId: string, readonly = false): Promise<string> {
   const token = randomToken(40);
   const ttl = readonly ? 3_600_000 : TIMINGS.portalSessionDays * 86_400_000;
@@ -54,6 +98,20 @@ export async function createSession(env: Env, userId: string, readonly = false):
 
 export function sessionCookie(token: string, maxAgeSec = TIMINGS.portalSessionDays * 86_400): string {
   return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAgeSec}`;
+}
+
+/**
+ * Keep active brands signed in: once a day at most, push the session's expiry back to the full
+ * TIMINGS.portalSessionDays. Returns the token to re-send in the cookie, or null if nothing changed.
+ */
+export async function renewSession(env: Env, u: SessionUser, cookieHeader: string | undefined): Promise<string | null> {
+  if (u.readonly) return null;
+  const full = TIMINGS.portalSessionDays * 86_400_000;
+  if (Date.parse(u.expiresAt) - Date.now() > full - 86_400_000) return null;
+  const token = readCookie(cookieHeader, SESSION_COOKIE);
+  if (!token) return null;
+  await env.DB.prepare("UPDATE sessions SET expires_at = ? WHERE token_hash = ?").bind(new Date(Date.now() + full).toISOString(), u.sessionHash).run();
+  return token;
 }
 
 export function readCookie(header: string | undefined, name: string): string | null {
@@ -72,6 +130,7 @@ export interface SessionUser {
   sessionHash: string;
   /** Admin "view as brand": may read everything, change nothing. */
   readonly: boolean;
+  expiresAt: string;
 }
 
 export async function sessionUser(env: Env, cookieHeader: string | undefined): Promise<SessionUser | null> {
@@ -79,12 +138,14 @@ export async function sessionUser(env: Env, cookieHeader: string | undefined): P
   if (!token || !/^[A-Za-z0-9]{40}$/.test(token)) return null;
   const hash = await sha256Hex(token);
   const row = await env.DB.prepare(
-    `SELECT u.id AS user_id, u.account_id, u.email, s.readonly FROM sessions s JOIN users u ON u.id = s.user_id
+    `SELECT u.id AS user_id, u.account_id, u.email, s.readonly, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id
       WHERE s.token_hash = ? AND s.expires_at > ?`,
   )
     .bind(hash, new Date().toISOString())
-    .first<{ user_id: string; account_id: string; email: string; readonly: number }>();
-  return row ? { userId: row.user_id, accountId: row.account_id, email: row.email, sessionHash: hash, readonly: row.readonly === 1 } : null;
+    .first<{ user_id: string; account_id: string; email: string; readonly: number; expires_at: string }>();
+  return row
+    ? { userId: row.user_id, accountId: row.account_id, email: row.email, sessionHash: hash, readonly: row.readonly === 1, expiresAt: row.expires_at }
+    : null;
 }
 
 /**

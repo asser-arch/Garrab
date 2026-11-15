@@ -224,6 +224,18 @@ describe("/v1/hosted and /v1/events", () => {
     expect(await r2.json()).toEqual({ enabled: false });
   });
 
+  it("brand page (bio link) lists live products and hides a suspended brand", async () => {
+    const s = await seedAccount();
+    const r = await exports.default.fetch(`https://api.test/v1/hosted/${s.slug}`);
+    const body = (await r.json()) as { enabled: boolean; brand: { name: string }; products: { id: string; title: string }[] };
+    expect(body.enabled).toBe(true);
+    expect(body.products.map((p) => p.id)).toContain(s.productId);
+    expect(JSON.stringify(body)).not.toMatch(/ctx|external_ref|description/);
+    await setStatus(s.accountId, "suspended");
+    invalidateStatus();
+    expect(await (await exports.default.fetch(`https://api.test/v1/hosted/${s.slug}`)).json()).toEqual({ enabled: false });
+  });
+
   it("counts anonymous events per account per day", async () => {
     const s = await seedAccount();
     const ctx = (await getConfig(s)).body.ctx as string;

@@ -35,4 +35,5 @@ export const ar: Record<TryOnKey, string> = {
   notNow: "ليس الآن",
   unavailable: "غير متاح مؤقتًا",
   buy: "اشترِ الآن",
+  pickProduct: "اختر قطعة لتجربتها",
 };

@@ -27,7 +27,9 @@ test("invite → import → tests → approve → install → pilot live, with n
   expect(link).toMatch(/^http:\/\/localhost:8788\/portal\/login#t=[A-Za-z0-9]{40}$/);
 
   // 2. The brand opens the link: signed in, no password.
+  // The link never signs in by itself (email scanners would use it up): one tap on "Sign in".
   await page.goto(link);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("heading", { name: /Welcome, E2E Linen Co/ })).toBeVisible();
 
   // 3. Products are imported and tested automatically (queue). Wait for the previews.
@@ -83,8 +85,11 @@ test("invite → import → tests → approve → install → pilot live, with n
   await page.waitForTimeout(2_000);
   await expect(page.locator("garrab-try-on")).toHaveCount(0);
 
-  // 8. The brand's hosted link and QR are ready to share.
+  // 8. The brand's one bio link is ready to share; the QR (for print) opens on request.
   await page.goto(`${APP}/portal/install`);
+  await expect(page.getByRole("heading", { name: "Your try-on link" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /\/t\/[a-z0-9-]+$/ })).toBeVisible();
+  await page.getByText("QR code for print").first().click();
   await expect(page.getByRole("img", { name: "QR code for Olive linen dress" })).toBeVisible();
 });
 
@@ -106,5 +111,6 @@ test("the public /start form creates a lead and an account", async ({ page }) =>
 
 test("a sign-in link works once", async ({ page }) => {
   await page.goto(`${APP}/portal/login#t=${"x".repeat(40)}`);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("alert")).toHaveText(/expired or was already used/);
 });

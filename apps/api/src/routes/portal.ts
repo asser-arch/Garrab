@@ -11,8 +11,10 @@ import { widgetKey } from "../lib/accounts.js";
 import {
   SESSION_COOKIE,
   consumeMagicLink,
-  createMagicLink,
+  consumeSignInCode,
   createSession,
+  createSignIn,
+  renewSession,
   sameOriginWrite,
   sessionCookie,
   sessionUser,
@@ -48,8 +50,8 @@ portal.post("/auth/request", async (c) => {
   if (c.env.RL_CONFIG_IP && !(await c.env.RL_CONFIG_IP.limit({ key: `login:${ip}` })).success) return c.json({ error: "rate_limited" }, 429);
   const u = await c.env.DB.prepare("SELECT id, account_id FROM users WHERE email = ?").bind(body.data.email).first<{ id: string; account_id: string }>();
   if (u) {
-    const link = await createMagicLink(c.env, u.id, body.data.email);
-    await sendOnce(c.env, { accountId: u.account_id, template: "login", dedupeKey: `login:${ulid()}`, msg: emails.login(body.data.email, link) });
+    const { link, code } = await createSignIn(c.env, u.id, body.data.email);
+    await sendOnce(c.env, { accountId: u.account_id, template: "login", dedupeKey: `login:${ulid()}`, msg: emails.login(body.data.email, link, code) });
   }
   return c.json({ ok: true }); // same answer either way: no account probing
 });
@@ -61,6 +63,19 @@ portal.post("/auth/verify", async (c) => {
   if (!link) return c.json({ error: "link_invalid" }, 401);
   const token = await createSession(c.env, link.userId, link.readonly);
   c.header("Set-Cookie", sessionCookie(token, link.readonly ? 3600 : undefined));
+  return c.json({ ok: true });
+});
+
+/** Sign in with the 6-digit code from the email (works on any device; scanners can't use it up). */
+portal.post("/auth/code", async (c) => {
+  const body = z.object({ email: z.string().trim().toLowerCase().email().max(254), code: z.string().trim().max(12) }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  const ip = c.req.header("cf-connecting-ip") ?? "unknown";
+  if (c.env.RL_CONFIG_IP && !(await c.env.RL_CONFIG_IP.limit({ key: `code:${ip}` })).success) return c.json({ error: "rate_limited" }, 429);
+  const r = await consumeSignInCode(c.env, body.data.email, body.data.code.replace(/\s/g, ""));
+  if (!r) return c.json({ error: "code_invalid" }, 401);
+  const token = await createSession(c.env, r.userId);
+  c.header("Set-Cookie", sessionCookie(token));
   return c.json({ ok: true });
 });
 
@@ -79,7 +94,10 @@ portal.use("*", async (c, next) => {
   // Admin read-only view: reads only.
   if (u.readonly && c.req.method !== "GET" && c.req.method !== "HEAD") return c.json({ error: "read_only" }, 403);
   c.set("user", u);
+  // Active brands stay signed in: the 60-day session restarts (at most once a day).
+  const renewed = await renewSession(c.env, u, c.req.header("cookie"));
   await next();
+  if (renewed) c.header("Set-Cookie", sessionCookie(renewed));
 });
 
 const acct = (c: C): string => c.get("user").accountId;
@@ -139,6 +157,7 @@ portal.get("/me", async (c) => {
     snippet: key ? `<script src="${cdnOrigin(c.env)}/w.js" data-key="${key}" async></script>` : null,
     install,
     usage,
+    brandLink: live.results.length > 0 ? { url: `${c.env.APP_ORIGIN}/t/${a.slug}`, urlAr: `${c.env.APP_ORIGIN}/t/${a.slug}?lang=ar` } : null,
     hostedLinks: live.results.map((p) => ({
       productId: p.id,
       title: p.title,

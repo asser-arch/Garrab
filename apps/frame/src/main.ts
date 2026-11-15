@@ -272,13 +272,50 @@ function unavailable(lang: Lang): void {
   show(h("h1", { tabindex: "-1", class: "title" }, t.unavailable));
 }
 
+/** /t/<slug>: the brand page (one link for an Instagram bio). Lists every live product. */
+async function brandPage(slug: string, lang: Lang): Promise<void> {
+  const t = tryOnStrings(lang);
+  let j: { enabled: boolean; brand?: { name: string }; products?: { id: string; title: string; image: string | null }[] };
+  try {
+    j = (await (await fetch(`${cfg.api}/v1/hosted/${slug}`, { credentials: "omit" })).json()) as typeof j;
+  } catch {
+    return unavailable(lang);
+  }
+  if (!j.enabled || !j.brand || !j.products?.length) return unavailable(lang);
+  document.title = `${j.brand.name} · ${t.buttonTryOn}`;
+  const q = new URLSearchParams(location.search).get("lang") ? `?lang=${lang}` : "";
+  show(
+    h("header", {}, h("p", { class: "brand" }, j.brand.name), h("h1", { tabindex: "-1" }, t.pickProduct)),
+    h(
+      "ul",
+      { class: "picks" },
+      ...j.products.map((p) =>
+        h(
+          "li",
+          {},
+          h(
+            "a",
+            { href: `/t/${slug}/${p.id}${q}`, class: "pick" },
+            p.image ? h("img", { src: p.image, alt: "", class: "thumb", loading: "lazy" }) : h("span", { class: "thumb" }),
+            h("span", { class: "pick-title" }, p.title),
+            h("span", { class: "pick-go", "aria-hidden": "true" }, t.buttonTryOn),
+          ),
+        ),
+      ),
+    ),
+    h("p", { class: "small muted" }, t.expectation),
+  );
+}
+
 async function boot(): Promise<void> {
   const hash = new URLSearchParams(location.hash.slice(1));
   const query = new URLSearchParams(location.search);
   const hostedMatch = /^\/t\/([a-z0-9-]{1,60})\/([A-Za-z0-9]{1,40})\/?$/.exec(location.pathname);
-  const lang: Lang = langFromPage(hash.get("lang") ?? query.get("lang") ?? (hostedMatch ? navigator.language : "en"));
+  const brandMatch = /^\/t\/([a-z0-9-]{1,60})\/?$/.exec(location.pathname);
+  const lang: Lang = langFromPage(hash.get("lang") ?? query.get("lang") ?? (hostedMatch || brandMatch ? navigator.language : "en"));
   document.documentElement.lang = lang;
   document.documentElement.dir = dir(lang);
+  if (brandMatch) return brandPage(brandMatch[1]!, lang);
   // The ctx token is in the fragment; remove it from the address bar and history.
   if (location.hash) history.replaceState(null, "", location.pathname + location.search);
 

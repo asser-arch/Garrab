@@ -100,6 +100,28 @@ widget.get("/config", async (c) => {
   }
 });
 
+/** GET /v1/hosted/:slug  (the brand page: one link for an Instagram bio, listing every live product) */
+widget.get("/hosted/:slug", async (c) => {
+  c.header("Cache-Control", "no-store");
+  corsFor(c, c.env.APP_ORIGIN);
+  try {
+    if (await getSetting(c.env, "global_kill", false)) return c.json(DISABLED);
+    const bySlug = await accountBySlug(c.env, c.req.param("slug"));
+    if (!bySlug) return c.json(DISABLED);
+    const account = await accountCached(c.env, bySlug.id);
+    if (!account || !isServing(account.status)) return c.json(DISABLED);
+    const products = (await servableProducts(c.env, account.id)).filter((p) => p.kind !== "decor");
+    if (products.length === 0) return c.json(DISABLED);
+    return c.json({
+      enabled: true,
+      brand: { name: account.name },
+      products: products.map((p) => ({ id: p.id, title: p.title, image: (JSON.parse(p.images_json) as string[])[0] ?? null })),
+    });
+  } catch {
+    return c.json(DISABLED);
+  }
+});
+
 /** GET /v1/hosted/:slug/:productId  (our hosted try-on page for Instagram / WhatsApp brands) */
 widget.get("/hosted/:slug/:productId", async (c) => {
   c.header("Cache-Control", "no-store");

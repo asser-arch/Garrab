@@ -329,6 +329,58 @@ describe("magic links and sessions", () => {
     expect(await outbox("nobody@nowhere.example")).toHaveLength(0);
   });
 
+  it("6-digit code: signs in, single use, 5 wrong tries lock it, and a link scanner can't burn it", async () => {
+    const email = `code-${uniq()}@brand.example`;
+    await createAccount(env, { brandName: "Code", email, plan: "starter" });
+    const post = (path: string, body: unknown) =>
+      exports.default.fetch(`https://api.test/portal-api${path}`, { method: "POST", headers: { origin: APP, "content-type": "application/json" }, body: JSON.stringify(body) });
+    await post("/auth/request", { email });
+    const mail = (await outbox(email)).at(-1)!;
+    const code = /(\d{6})$/.exec(mail.subject)![1]!;
+    expect(mail.html).toContain(`${code.slice(0, 3)} ${code.slice(3)}`);
+    // Opening the link page (what Outlook Safe Links does) uses nothing: only POST /auth/verify does.
+    const wrong = code === "000000" ? "111111" : "000000";
+    expect((await post("/auth/code", { email, code: wrong })).status).toBe(401);
+    const ok = await post("/auth/code", { email: email.toUpperCase(), code: `${code.slice(0, 3)} ${code.slice(3)}` });
+    expect(ok.status).toBe(200);
+    const cookie = ok.headers.get("set-cookie")!.split(";")[0]!;
+    expect((await portalGet("/me", cookie)).status).toBe(200);
+    expect((await post("/auth/code", { email, code })).status).toBe(401); // used
+
+    // Five wrong tries lock that code, even the right one after.
+    await post("/auth/request", { email });
+    const c2 = /(\d{6})$/.exec((await outbox(email)).at(-1)!.subject)![1]!;
+    const bad = c2 === "000000" ? "111111" : "000000";
+    for (let i = 0; i < 5; i++) await post("/auth/code", { email, code: bad });
+    expect((await post("/auth/code", { email, code: c2 })).status).toBe(401);
+    // A fresh code works again.
+    await post("/auth/request", { email });
+    const c3 = /(\d{6})$/.exec((await outbox(email)).at(-1)!.subject)![1]!;
+    expect((await post("/auth/code", { email, code: c3 })).status).toBe(200);
+    // Expired codes fail.
+    await post("/auth/request", { email });
+    const c4 = /(\d{6})$/.exec((await outbox(email)).at(-1)!.subject)![1]!;
+    await env.DB.prepare("UPDATE magic_links SET expires_at = '2000-01-01T00:00:00Z' WHERE email = ? AND used_at IS NULL").bind(email).run();
+    expect((await post("/auth/code", { email, code: c4 })).status).toBe(401);
+  });
+
+  it("sessions last 60 days and renew while the brand uses the portal", async () => {
+    const email = `renew-${uniq()}@brand.example`;
+    await createAccount(env, { brandName: "Renew", email, plan: "starter" });
+    const cookie = await login(email);
+    const row = () => env.DB.prepare("SELECT s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE u.email = ?").bind(email).first<{ expires_at: string }>();
+    const days = (iso: string) => (Date.parse(iso) - Date.now()) / 86_400_000;
+    expect(days((await row())!.expires_at)).toBeGreaterThan(59);
+    // Fresh session: no renewal, no new cookie.
+    expect((await portalGet("/me", cookie)).headers.get("set-cookie")).toBeNull();
+    // 10 days later: the next visit restarts the 60 days.
+    await env.DB.prepare("UPDATE sessions SET expires_at = ? WHERE user_id = (SELECT id FROM users WHERE email = ?)").bind(new Date(Date.now() + 50 * 86_400_000).toISOString(), email).run();
+    const r = await portalGet("/me", cookie);
+    expect(r.status).toBe(200);
+    expect(r.headers.get("set-cookie")).toMatch(/Max-Age=5184000/);
+    expect(days((await row())!.expires_at)).toBeGreaterThan(59);
+  });
+
   it("no session → 401; cross-site writes refused", async () => {
     expect((await portalGet("/me", "")).status).toBe(401);
     const email = `csrf-${uniq()}@brand.example`;

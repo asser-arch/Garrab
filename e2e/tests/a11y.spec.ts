@@ -31,6 +31,7 @@ const pages: [string, string][] = [
   ["privacy", "http://localhost:8788/privacy"],
   ["terms", "http://localhost:8788/terms"],
   ["portal sign-in", "http://localhost:8788/portal"],
+  ["brand page (bio link)", "http://localhost:8788/t/demo-brand"],
   ["hosted try-on (English)", "http://localhost:8788/t/demo-brand/prodRedDress01"],
   ["hosted try-on (Arabic)", "http://localhost:8788/t/demo-brand/prodRedDress01?lang=ar"],
   ["admin dashboard", "http://localhost:8789/"],

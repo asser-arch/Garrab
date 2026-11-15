@@ -90,3 +90,15 @@ th { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spa
 @media (max-width: 600px) { h1 { font-size: 26px; } .card { padding: 16px; } }
 @media (prefers-reduced-motion: no-preference) { .fade { animation: fade 200ms ease; } @keyframes fade { from { opacity: 0 } to { opacity: 1 } } }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* A button that reads as an inline text link (secondary actions inside a sentence). */
+button.linkish {
+  background: none;
+  border: 0;
+  padding: 0;
+  min-height: 0;
+  font: inherit;
+  color: var(--forest);
+  text-decoration: underline;
+  cursor: pointer;
+}

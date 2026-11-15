@@ -3,6 +3,7 @@
  *  - /w.js, /frame.*            widget and try-on flow assets
  *  - /frame                     try-on flow inside brand pages' iframes (embeddable anywhere)
  *  - /t/<slug>/<product>        hosted try-on page (not embeddable)
+ *  - /t/<slug>                  brand page listing those products (the Instagram bio link)
  *  - /portal, /portal/*         brand portal (single-page app)
  *  - /start, /privacy, /terms   public pages
  *  - /portal-api/*, /api/start  forwarded to the API Worker (same origin: first-party cookies, no CORS)
@@ -20,7 +21,7 @@ interface Env {
 }
 
 const FRAME_RE = /^\/frame\/?$/;
-const HOSTED_RE = /^\/t\/[a-z0-9-]{1,60}\/[A-Za-z0-9]{1,40}\/?$/;
+const HOSTED_RE = /^\/t\/[a-z0-9-]{1,60}(\/[A-Za-z0-9]{1,40})?\/?$/;
 
 const BASE_HEADERS: Record<string, string> = {
   "referrer-policy": "no-referrer",

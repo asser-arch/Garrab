@@ -92,13 +92,14 @@ test("path 2: suspended → brand uses portal Pay now → Asser confirms in the 
   const secs = await goUnpaid(page);
   expect(secs).toBeLessThan(60);
 
-  // Brand signs in with a magic link.
+  // Brand signs in with the 6-digit code from the email.
   await page.goto(`${APP}/portal/login`);
   await page.getByLabel("Your email").fill("owner@demo-brand.example");
-  await page.getByRole("button", { name: "Email me a sign-in link" }).click();
+  await page.getByRole("button", { name: "Email me a code" }).click();
   await expect(page.getByRole("status")).toBeVisible();
-  const login = query<{ html: string }>("SELECT html FROM dev_outbox WHERE to_addr = 'owner@demo-brand.example' AND subject = 'Your Garrab sign-in link' ORDER BY created_at DESC LIMIT 1")[0]!;
-  await page.goto(/href="([^"]+#t=[A-Za-z0-9]{40})"/.exec(login.html)![1]!);
+  const login = query<{ subject: string }>("SELECT subject FROM dev_outbox WHERE to_addr = 'owner@demo-brand.example' AND subject LIKE 'Your Garrab sign-in code%' ORDER BY created_at DESC LIMIT 1")[0]!;
+  await page.getByLabel("6-digit code").fill(/(\d{6})$/.exec(login.subject)![1]!);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page.getByRole("heading", { name: /Welcome/ })).toBeVisible();
 
   await page.goto(`${APP}/portal/billing`);

@@ -121,7 +121,10 @@ export const SERVING_STATUSES = ["pilot", "active", "past_due"] as const;
 export const TIMINGS = {
   ctxTokenMinutes: 10,
   magicLinkMinutes: 15,
-  portalSessionDays: 14,
+  /** Brands stay signed in this long; renewed whenever they use the portal (Asser, 15 Nov). */
+  portalSessionDays: 60,
+  /** Wrong sign-in code attempts before that code stops working. */
+  signInCodeAttempts: 5,
   /** Widget keeps /v1/config in memory at most this long (never localStorage). */
   widgetConfigTtlSeconds: 30,
   /** Per-instance server cache of account status. */

@@ -35,6 +35,7 @@ export interface Me {
   snippet: string | null;
   install: { install_status: string; last_checked_at: string | null } | null;
   usage: { used: number; included: number; extra: number } | null;
+  brandLink: { url: string; urlAr: string } | null;
   hostedLinks: { productId: string; title: string; image: string | null; url: string; urlAr: string }[];
 }
 

@@ -12,7 +12,7 @@ import { PILOT } from "@garrab/shared/plans";
 import { emails } from "../emails.js";
 import type { Env } from "../env.js";
 import { widgetKey } from "../lib/accounts.js";
-import { createMagicLink } from "../lib/auth.js";
+import { createSignIn } from "../lib/auth.js";
 import { ulid } from "../lib/crypto.js";
 import { invalidateStatus } from "../lib/db.js";
 import { sendOnce } from "../lib/email.js";
@@ -168,8 +168,8 @@ export async function advance(env: Env, accountId: string, deps: AdvanceDeps = {
       case "invited": {
         const u = await userId(env, acc.id);
         if (!u) return acc.onboarding_step;
-        const link = await createMagicLink(env, u.id, u.email);
-        await sendOnce(env, { accountId: acc.id, template: "welcome", dedupeKey: `welcome:${acc.id}`, msg: emails.welcome(u.email, acc.name, link) });
+        const { link, code } = await createSignIn(env, u.id, u.email);
+        await sendOnce(env, { accountId: acc.id, template: "welcome", dedupeKey: `welcome:${acc.id}`, msg: emails.welcome(u.email, acc.name, link, code) });
         await moveStep(env, acc, "account_created");
         break;
       }

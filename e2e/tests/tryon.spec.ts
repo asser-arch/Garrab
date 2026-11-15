@@ -105,12 +105,22 @@ test("kill switch: the button disappears within 60 s on an open page, and comes 
   console.log(`widget removed ${seconds.toFixed(1)} s after suspension`);
   expect(seconds).toBeLessThan(60);
 
-  // Hosted link shows the neutral page.
+  // Hosted link and brand page show the neutral page.
   await page.goto(`${APP}/t/demo-brand/prodRedDress01?lang=en`);
+  await expect(page.getByRole("heading", { name: "Temporarily unavailable" })).toBeVisible({ timeout: 20_000 });
+  await page.goto(`${APP}/t/demo-brand?lang=en`);
   await expect(page.getByRole("heading", { name: "Temporarily unavailable" })).toBeVisible({ timeout: 20_000 });
 
   setDemoStatus("active");
   await page.waitForTimeout(16_000); // server status cache is 15 s
   await page.goto(`${SHOP}/products/red-dress`);
   await expect(page.locator("garrab-try-on button")).toBeVisible();
+});
+
+test("brand page (Instagram bio link) lists products and opens one", async ({ page }) => {
+  await page.goto(`${APP}/t/demo-brand?lang=en`);
+  await expect(page.getByRole("heading", { name: "Choose a piece to try on" })).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("link", { name: /Red linen dress/ }).click();
+  await expect(page).toHaveURL(/\/t\/demo-brand\/prodRedDress01\?lang=en$/);
+  await expect(page.getByRole("button", { name: "Upload a clear photo of yourself" }).first()).toBeVisible();
 });

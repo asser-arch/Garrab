@@ -40,6 +40,7 @@ test("portal and admin screens", async ({ page, request }) => {
   const link = (await page.getByRole("status").locator("p").nth(1).textContent())!.trim();
   await page.screenshot({ path: out("5-admin-invite"), fullPage: true });
   await page.goto(link);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await page.getByRole("heading", { name: /Welcome/ }).waitFor();
   await expect_(async () => {
     await page.goto("http://localhost:8788/portal/approve");
@@ -88,8 +89,9 @@ test("billing screens", async ({ page }) => {
   await page.screenshot({ path: out("10-pay-page"), fullPage: true });
   await page.request.post(`http://localhost:8788/pay-api/${token}/claim`, { data: { reference: "IPN-778812", payerName: "Mona" }, headers: { origin: "http://localhost:8788" } });
   await page.request.post("http://localhost:8788/portal-api/auth/request", { data: { email: "owner@demo-brand.example" }, headers: { origin: "http://localhost:8788" } });
-  const html = query<{ html: string }>("SELECT html FROM dev_outbox WHERE subject = 'Your Garrab sign-in link' AND to_addr = 'owner@demo-brand.example' ORDER BY created_at DESC LIMIT 1")[0]!.html;
+  const html = query<{ html: string }>("SELECT html FROM dev_outbox WHERE subject LIKE 'Your Garrab sign-in code%' AND to_addr = 'owner@demo-brand.example' ORDER BY created_at DESC LIMIT 1")[0]!.html;
   await page.goto(/href="([^"]+#t=[A-Za-z0-9]{40})"/.exec(html)![1]!);
+  await page.getByRole("button", { name: "Sign in" }).click();
   await page.getByRole("heading", { name: /Welcome/ }).waitFor();
   await page.goto("http://localhost:8788/portal/billing");
   await page.getByRole("heading", { name: /Billing/ }).waitFor();

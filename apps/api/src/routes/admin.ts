@@ -10,7 +10,7 @@ import { z } from "zod";
 import { emails } from "../emails.js";
 import { cdnOrigin, type Env } from "../env.js";
 import { createAccount, newWidgetKey } from "../lib/accounts.js";
-import { adminIdentity, checkAccessJwt, createMagicLink } from "../lib/auth.js";
+import { adminIdentity, checkAccessJwt, createMagicLink, createSignIn } from "../lib/auth.js";
 import { sha256Hex, ulid } from "../lib/crypto.js";
 import { sendOnce } from "../lib/email.js";
 import { cairoDay } from "../lib/time.js";
@@ -491,7 +491,8 @@ admin.post("/accounts/:id/resend", async (c) => {
   if (!u) return c.json({ error: "no_user" }, 404);
   let sent = false;
   if (body.data.template === "login") {
-    sent = await sendOnce(c.env, { accountId: id, template: "login", dedupeKey: `login:${ulid()}`, msg: emails.login(u.email, await createMagicLink(c.env, u.id, u.email)) });
+    const { link, code } = await createSignIn(c.env, u.id, u.email);
+    sent = await sendOnce(c.env, { accountId: id, template: "login", dedupeKey: `login:${ulid()}`, msg: emails.login(u.email, link, code) });
   } else {
     const inv = await openPlanInvoice(c.env, id);
     if (!inv) return c.json({ error: "no_open_invoice" }, 404);

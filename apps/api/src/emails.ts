@@ -33,24 +33,34 @@ function msg(to: string, subject: string, title: string, paras: string[], cta?: 
 export const egpText = (piastres: number): string => `${(piastres / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })} EGP`;
 
 export const emails = {
-  welcome: (to: string, brand: string, link: string): EmailMessage =>
+  welcome: (to: string, brand: string, link: string, code?: string): EmailMessage =>
     msg(
       to,
       `Welcome to Garrab, ${brand}`,
       `Welcome, ${brand}`,
       [
         "We're setting up AI try-on for your shop. Right now we're reading your products and testing how they look on our test models.",
-        "Use the button below to sign in. It works once and expires in 15 minutes; you can always ask for a new one on the sign-in page.",
+        code
+          ? `Tap the button below to sign in, or enter this code on the sign-in page: ${code.slice(0, 3)} ${code.slice(3)}. Both work once within 15 minutes; after that you stay signed in for 60 days on that device.`
+          : "Tap the button below to sign in. It works once within 15 minutes; after that you stay signed in for 60 days on that device.",
         "You'll approve every product before anything goes live.",
       ],
       { label: "Open my Garrab portal", url: link },
     ),
 
-  login: (to: string, link: string): EmailMessage =>
-    msg(to, "Your Garrab sign-in link", "Sign in to Garrab", ["This link works once and expires in 15 minutes. If you didn't ask for it, ignore this email."], {
-      label: "Sign in",
-      url: link,
-    }),
+  login: (to: string, link: string, code?: string): EmailMessage =>
+    msg(
+      to,
+      code ? `Your Garrab sign-in code: ${code}` : "Your Garrab sign-in link",
+      "Sign in to Garrab",
+      [
+        code
+          ? `Your code is ${code.slice(0, 3)} ${code.slice(3)}. Type it on the sign-in page, or tap the button below.`
+          : "Tap the button below to sign in.",
+        "It works once within 15 minutes. After that you stay signed in for 60 days on that device. If you didn't ask for it, ignore this email.",
+      ],
+      { label: "Sign in", url: link },
+    ),
 
   addProducts: (to: string, brand: string, portal: string): EmailMessage =>
     msg(

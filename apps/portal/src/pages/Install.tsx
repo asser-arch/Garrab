@@ -112,31 +112,59 @@ export function Install({ me, refresh }: { me: Me; refresh: () => Promise<void> 
       </div>
 
       <div className="card">
-        <h2>Try-on links for Instagram and WhatsApp</h2>
-        {me.hostedLinks.length === 0 ? (
-          <p className="muted">Your links appear here once you approve products.</p>
+        <h2>Your try-on link</h2>
+        {!me.brandLink ? (
+          <p className="muted">Your link appears here once you approve products.</p>
         ) : (
-          me.hostedLinks.map((l) => (
-            <div key={l.productId} className="row" style={{ alignItems: "flex-start", borderTop: "1px solid var(--mist)", paddingTop: 16, marginTop: 16, gap: 16 }}>
-              <Qr text={l.url} label={l.title} />
-              <div style={{ flex: 1, minWidth: 220 }}>
-                <h2>{l.title}</h2>
-                <p className="small" style={{ wordBreak: "break-all" }}>
-                  <a href={l.url} target="_blank" rel="noopener">
-                    {l.url}
-                  </a>
-                </p>
-                <div className="row">
-                  <Copy text={l.url} label="Copy link" />
-                  <Copy text={captions.en(l.title, l.url)} label="Copy caption (EN)" />
-                  <Copy text={captions.ar(l.title, l.urlAr)} label="Copy caption (AR)" />
-                  <Copy text={captions.whatsappAr(l.title, l.urlAr)} label="WhatsApp reply (AR)" />
-                </div>
-              </div>
+          <>
+            <p>
+              One link for all your products. Put it in your Instagram bio, your TikTok profile or your WhatsApp Business catalogue. Shoppers
+              pick a piece and try it on.
+            </p>
+            <p className="small" style={{ wordBreak: "break-all" }}>
+              <a href={me.brandLink.url} target="_blank" rel="noopener">
+                {me.brandLink.url}
+              </a>
+            </p>
+            <div className="row">
+              <Copy text={me.brandLink.url} label="Copy link" />
+              <Copy text={me.brandLink.urlAr} label="Copy Arabic link" />
+              <a className="btn small ghost" href={`https://wa.me/?text=${encodeURIComponent(me.brandLink.url)}`} target="_blank" rel="noopener">
+                Share on WhatsApp
+              </a>
             </div>
-          ))
+          </>
         )}
       </div>
+
+      {me.hostedLinks.length > 0 && (
+        <div className="card">
+          <h2>Links for single products</h2>
+          <p className="muted">For a post, a story or a reply to a customer about one piece.</p>
+          {me.hostedLinks.map((l) => (
+            <div key={l.productId} style={{ borderTop: "1px solid var(--mist)", paddingTop: 16, marginTop: 16 }}>
+              <h3 style={{ margin: "0 0 4px" }}>{l.title}</h3>
+              <p className="small" style={{ wordBreak: "break-all" }}>
+                <a href={l.url} target="_blank" rel="noopener">
+                  {l.url}
+                </a>
+              </p>
+              <div className="row">
+                <Copy text={l.url} label="Copy link" />
+                <Copy text={captions.en(l.title, l.url)} label="Copy caption (EN)" />
+                <Copy text={captions.ar(l.title, l.urlAr)} label="Copy caption (AR)" />
+                <Copy text={captions.whatsappAr(l.title, l.urlAr)} label="WhatsApp reply (AR)" />
+              </div>
+              <details style={{ marginTop: 8 }}>
+                <summary className="small">QR code for print (flyers, shop counter, packaging)</summary>
+                <div style={{ marginTop: 8 }}>
+                  <Qr text={l.url} label={l.title} />
+                </div>
+              </details>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }
