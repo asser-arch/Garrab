@@ -2,9 +2,20 @@
 
 Do them in this order: each part unblocks the next. Dashboard menus move around; if a name differs slightly, look for the closest match or send Claude a screenshot.
 
-**Never paste a key or token into the chat.** When one is ready, tell Claude "<name> key ready" and Claude sends a secure form; or set it yourself with `wrangler secret put NAME`.
+**Never paste a key or token into the chat.** Put it in GitHub → repo **Settings → Secrets and variables → Actions → New repository secret**, then tell Claude the secret's name. Every deploy carries it into the Worker.
 
-Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Cloudflare deploy token and Account ID in GitHub · ✅ `main` is the default branch.
+**Status (15 Nov 2026):** staging is live at `app-staging.garrabb.com` / `api-staging.garrabb.com` / `admin-staging.garrabb.com`. Every push to `main` that passes all checks deploys there.
+
+| Done ✅ | Still open ⏳ |
+|---|---|
+| Decisions, domain, Cloudflare, R2, staging | Google project on **paid tier** (23–24): please confirm |
+| Telegram bot connected | Reply to Genlook with your account email (21b) |
+| Genlook key, credits, retention, **written approval** | Try logging into admin-staging |
+| Google AI key (both models available) | Files: Pitch Kit, **two stock photos**, logo (35–37) |
+| Resend verified, key and operator email | Provider comparison and delete check (38–39) |
+| Turnstile real keys, admin login (Access) | Lawyer, uptime monitor (40–41) |
+
+GitHub secrets in place: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GENLOOK_API_KEY`, `GEMINI_API_KEY`, `RESEND_API_KEY`, `OPERATOR_EMAIL`, `CF_ACCESS_AUD`, `CF_ACCESS_TEAM_DOMAIN`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET`.
 
 ---
 
@@ -61,7 +72,8 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
     > Thanks,
     > Asser
 
-21. ✅ Forward Genlook's reply to Claude (paste the text). *(Key: ✅ in GitHub as `GENLOOK_API_KEY`, accepted on staging 15 Nov.)*
+21. ✅ Forward Genlook's reply to Claude (paste the text). *(Key: ✅ in GitHub as `GENLOOK_API_KEY`, accepted on staging 15 Nov. Approval received 15 Nov, saved in `docs/vendors/genlook-approval.md`.)*
+21b. Reply to Thibault with your **Genlook account email** to get the startup program: free test credits now, and a free first month on a plan at launch.
 
 ## Part 5: Google AI (15 minutes)
 
@@ -74,15 +86,15 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 ## Part 6: Resend email (20 minutes, after Part 2)
 
 27. ✅ Sign up at **resend.com**.
-28. ✅ **Domains → Add domain** → `mail.<your-domain>` → region **Ireland (eu-west-1)** (closest to Egypt).
+28. ✅ **Domains → Add domain** → `garrabb.com` → region **Ireland (eu-west-1)** (closest to Egypt).
 29. ✅ Resend shows DNS records (MX, TXT/SPF, DKIM). If it offers **"Sign in to Cloudflare"**, use it (adds them automatically). Otherwise: Cloudflare → your domain → **DNS → Add record** → copy each one exactly (set Proxy to **DNS only** / grey cloud).
 30. ✅ Back in Resend → **Verify**. Wait until it says **Verified** (minutes to an hour).
-31. ✅ **API Keys → Create** → permission **Sending access** → domain `mail.<your-domain>`.
+31. ✅ **API Keys → Create** → permission **Sending access** → domain `garrabb.com`.
 32. ✅ Sending domain is `garrabb.com` (DNS records added); sender `Garrab <hello@garrabb.com>`. Add GitHub secrets `RESEND_API_KEY` and `OPERATOR_EMAIL` (where the daily summary goes), then tell Claude **"Resend secrets added"**.
 
 ## Part 7: Bot check and admin login (20 minutes, after Part 2)
 
-33. ✅ **Turnstile**: Cloudflare dashboard → **Turnstile** → **Add widget** → name `Garrab app` → hostnames `app.garrabb.com` and `app-staging.garrabb.com` → mode **Managed** → create. Copy the **site key** and **secret key**. Tell Claude **"Turnstile ready"**.
+33. ✅ **Turnstile**: Cloudflare dashboard → **Turnstile** → **Add widget** → name `Garrab app` → hostnames `app.garrabb.com` and `app-staging.garrabb.com` → mode **Managed** → create. Site key and secret are in GitHub as `TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET`.
 34. ✅ **Admin login (Cloudflare Access)**:
     1. Dashboard → **Zero Trust** → pick a team name (e.g. `garrab`) → **Free** plan (it may ask for a card; free up to 50 users).
     2. **Access → Applications → Add an application → Self-hosted**.
@@ -104,10 +116,10 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 
 ## Part 9: Checks (Claude runs them once keys are in)
 
-38. **Provider comparison**: tell Claude one target brand's Shopify website. About 4 USD. You get a grid of results to score 1–5.
-39. **Genlook delete check**: must say PASS. Then Claude switches on "We don't save it" for shoppers.
+38. **Provider comparison** (needs the stock photos): tell Claude one target brand's Shopify website. About 4 USD (the Genlook startup credits can cover part of it). You get a grid of results to score 1–5.
+39. **Genlook delete check** (needs a stock photo): must say PASS. Then Claude switches on "We don't save it" for shoppers.
 
 ## Part 10: Before the first real brand
 
 40. **Lawyer**: send them `/privacy` and `/terms` (Claude can export them) and ask for a review against Egypt's Personal Data Protection Law (Law 151 of 2020), plus whether you need to register with the Data Protection Center.
-41. **Uptime monitor** (after staging is live): uptimerobot.com → free account → **New monitor** → HTTP(s) → `https://api.<your-domain>/healthz` → every 5 minutes → alerts to your phone (app or email).
+41. **Uptime monitor** (after staging is live): uptimerobot.com → free account → **New monitor** → HTTP(s) → `https://api-staging.garrabb.com/healthz` now (add `https://api.garrabb.com/healthz` when live) → every 5 minutes → alerts to your phone (app or email).
