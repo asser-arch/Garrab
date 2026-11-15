@@ -23,7 +23,8 @@ export interface TryOnRequest {
 
 export type TryOnResult =
   | { ok: true; image: Uint8Array; contentType: string; costMicroUsd: number; productSynced: boolean }
-  | { ok: false; code: TryOnErrorCode; costMicroUsd: 0; retryable: boolean };
+  /** detail: provider status and error code only (never photos or shopper data), for logs and checks. */
+  | { ok: false; code: TryOnErrorCode; costMicroUsd: 0; retryable: boolean; detail?: string };
 
 export type TryOnErrorCode =
   | "content_policy"
@@ -143,7 +144,8 @@ export class GenlookProvider implements TryOnProvider {
     }
 
     let resultUrl: string | undefined;
-    if (res.status === 200) {
+    // Success is 200 or 201 (Genlook answers 201 Created; seen in the 15 Nov delete check and bake-off).
+    if (res.status === 200 || res.status === 201) {
       resultUrl = ((await res.json()) as { resultImageUrl?: string }).resultImageUrl;
     } else if (res.status === 202) {
       const { generationId } = (await res.json()) as { generationId: string };
@@ -152,9 +154,9 @@ export class GenlookProvider implements TryOnProvider {
       resultUrl = polled.url;
     } else {
       const err = (await res.json().catch(() => ({}))) as GenlookError;
-      return { ok: false, ...mapGenlookError(err.code, res.status), costMicroUsd: 0 };
+      return { ok: false, ...mapGenlookError(err.code, res.status), costMicroUsd: 0, detail: `HTTP ${res.status} ${err.code ?? ""}`.trim() };
     }
-    if (!resultUrl) return { ok: false, code: "provider_error", costMicroUsd: 0, retryable: true };
+    if (!resultUrl) return { ok: false, code: "provider_error", costMicroUsd: 0, retryable: true, detail: `HTTP ${res.status} without resultImageUrl` };
 
     // Fetch the result into memory; the signed provider URL never reaches the browser.
     const img = await this.fetcher(resultUrl);

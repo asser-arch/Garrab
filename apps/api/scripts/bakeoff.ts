@@ -161,7 +161,7 @@ outer: for (const [pi, p] of products.entries()) {
         cell.error = r.code;
       }
       results.push(cell);
-      console.log(`${r.ok ? "ok  " : "FAIL"} ${e.provider.name.padEnd(36)} ${p.title.slice(0, 30).padEnd(30)} ${basename(photoPath)} ${seconds.toFixed(1)}s ${r.ok ? "" : cell.error}`);
+      console.log(`${r.ok ? "ok  " : "FAIL"} ${e.provider.name.padEnd(36)} ${p.title.slice(0, 30).padEnd(30)} ${basename(photoPath)} ${seconds.toFixed(1)}s ${r.ok ? "" : `${cell.error} ${r.detail ?? ""}`}`);
     }
   }
 }

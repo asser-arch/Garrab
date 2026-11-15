@@ -77,6 +77,13 @@ describe("Genlook request", () => {
     expect(second.products[0].title).toBe("Red linen dress");
   });
 
+  it("treats 201 Created (what Genlook really returns) as success", async () => {
+    const { fetcher } = fakeFetch((url) =>
+      url.endsWith("/try-on/sync") ? Response.json({ resultImageUrl: "https://storage.example/r.jpg" }, { status: 201 }) : new Response(PNG),
+    );
+    expect(await new GenlookProvider("k", 0.04, false, fetcher).tryOn(req())).toMatchObject({ ok: true });
+  });
+
   it("maps content-policy errors and charges nothing", async () => {
     const { fetcher } = fakeFetch(() => Response.json({ code: "CONTENT_POLICY_VIOLATION" }, { status: 422 }));
     expect(await new GenlookProvider("k", 0.04, false, fetcher).tryOn(req())).toMatchObject({ ok: false, code: "content_policy", costMicroUsd: 0 });
