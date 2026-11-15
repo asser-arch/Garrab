@@ -4,6 +4,7 @@
  * Prints only the outcome, never the key. Problems are warnings: they never block a deploy.
  *  - Genlook: DELETE /customers/<random id> (deleting a customer that never existed is free)
  *  - Resend: GET /domains (a sending-only key is refused there with restricted_api_key, which still proves the key is real)
+ *  - Turnstile: siteverify with a dummy token (a real secret answers invalid-input-response, a wrong one invalid-input-secret)
  *  - Google AI: GET /v1beta/models (listing models is free) and confirm the configured models exist
  */
 const out = [];
@@ -38,6 +39,19 @@ if (process.env.RESEND_API_KEY) {
     }
   } catch (e) {
     out.push(`::warning::Resend: could not reach the service (${e.message})`);
+  }
+}
+if (process.env.TURNSTILE_SECRET) {
+  try {
+    const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+      method: "POST",
+      body: new URLSearchParams({ secret: process.env.TURNSTILE_SECRET, response: "garrab-keycheck" }),
+    });
+    const codes = (await r.json())["error-codes"] ?? [];
+    const bad = codes.includes("invalid-input-secret");
+    out.push(`${bad ? "::warning::" : ""}Turnstile: ${bad ? "SECRET REJECTED" : "secret accepted"}`);
+  } catch (e) {
+    out.push(`::warning::Turnstile: could not reach the service (${e.message})`);
   }
 }
 if (process.env.GEMINI_API_KEY) {

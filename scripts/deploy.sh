@@ -30,7 +30,7 @@ rm -f "$RUNNER_TEMP/secrets.json"
 # Provider keys kept as GitHub secrets: synced to the Worker on every deploy (so replacing one in GitHub
 # is all it takes to rotate it). Unset ones are skipped and the app keeps using its mock or fallback.
 node -e '
-const names = ["GENLOOK_API_KEY", "GEMINI_API_KEY", "RESEND_API_KEY", "OPERATOR_EMAIL", "CF_ACCESS_TEAM_DOMAIN", "CF_ACCESS_AUD"];
+const names = ["GENLOOK_API_KEY", "GEMINI_API_KEY", "RESEND_API_KEY", "OPERATOR_EMAIL", "CF_ACCESS_TEAM_DOMAIN", "CF_ACCESS_AUD", "TURNSTILE_SECRET"];
 const out = {};
 for (const n of names) if (process.env[n]) out[n] = process.env[n];
 console.error(`provider keys to sync: ${Object.keys(out).join(", ") || "none"}`);
@@ -53,6 +53,13 @@ else
   echo "Telegram not configured (no TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID GitHub secrets): skipping"
 fi
 
+# Turnstile site key (public; GitHub secret TURNSTILE_SITE_KEY): replaces the test key for this run.
+if [ -n "${TURNSTILE_SITE_KEY:-}" ]; then
+  node -e '
+const fs = require("node:fs"); const p = "apps/site/wrangler.jsonc"; const c = JSON.parse(fs.readFileSync(p, "utf8"));
+c.env[process.argv[1]].vars.TURNSTILE_SITE_KEY = process.env.TURNSTILE_SITE_KEY; fs.writeFileSync(p, JSON.stringify(c, null, 2));
+console.log("Turnstile: real site key set");' "$ENV"
+fi
 W site deploy --env "$ENV"
 W admin deploy --env "$ENV"
 

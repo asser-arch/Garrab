@@ -61,7 +61,7 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
     > Thanks,
     > Asser
 
-21. Forward Genlook's reply to Claude (paste the text). *(Key: ✅ in GitHub as `GENLOOK_API_KEY`, accepted on staging 15 Nov.)*
+21. ✅ Forward Genlook's reply to Claude (paste the text). *(Key: ✅ in GitHub as `GENLOOK_API_KEY`, accepted on staging 15 Nov.)*
 
 ## Part 5: Google AI (15 minutes)
 
@@ -76,13 +76,13 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 27. ✅ Sign up at **resend.com**.
 28. ✅ **Domains → Add domain** → `mail.<your-domain>` → region **Ireland (eu-west-1)** (closest to Egypt).
 29. ✅ Resend shows DNS records (MX, TXT/SPF, DKIM). If it offers **"Sign in to Cloudflare"**, use it (adds them automatically). Otherwise: Cloudflare → your domain → **DNS → Add record** → copy each one exactly (set Proxy to **DNS only** / grey cloud).
-30. Back in Resend → **Verify**. Wait until it says **Verified** (minutes to an hour).
+30. ✅ Back in Resend → **Verify**. Wait until it says **Verified** (minutes to an hour).
 31. ✅ **API Keys → Create** → permission **Sending access** → domain `mail.<your-domain>`.
 32. ✅ Sending domain is `garrabb.com` (DNS records added); sender `Garrab <hello@garrabb.com>`. Add GitHub secrets `RESEND_API_KEY` and `OPERATOR_EMAIL` (where the daily summary goes), then tell Claude **"Resend secrets added"**.
 
 ## Part 7: Bot check and admin login (20 minutes, after Part 2)
 
-33. **Turnstile**: Cloudflare dashboard → **Turnstile** → **Add widget** → name `Garrab app` → hostnames `app.garrabb.com` and `app-staging.garrabb.com` → mode **Managed** → create. Copy the **site key** and **secret key**. Tell Claude **"Turnstile ready"**.
+33. ✅ **Turnstile**: Cloudflare dashboard → **Turnstile** → **Add widget** → name `Garrab app` → hostnames `app.garrabb.com` and `app-staging.garrabb.com` → mode **Managed** → create. Copy the **site key** and **secret key**. Tell Claude **"Turnstile ready"**.
 34. ✅ **Admin login (Cloudflare Access)**:
     1. Dashboard → **Zero Trust** → pick a team name (e.g. `garrab`) → **Free** plan (it may ask for a card; free up to 50 users).
     2. **Access → Applications → Add an application → Self-hosted**.

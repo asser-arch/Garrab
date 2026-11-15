@@ -188,3 +188,11 @@ One line per decision: **what** — *why* — source if verified. Newest at the 
 - **Telegram: bot token and chat ID live as GitHub secrets; every deploy syncs them to the Worker and points the bot's webhook at that environment (prod always wins; staging only while prod doesn't hold it). The webhook secret is regenerated in the same step, so it never needs to be known by anyone.** Replaces running `telegram:webhook` by hand.
 - **Provider keys (Genlook, Google AI, Resend) live as GitHub secrets and are synced to the Worker on every deploy.** Rotating = replace the GitHub secret and re-deploy. Never paste keys in chat.
 - **Staging keeps `GENLOOK_MOCK=true` even with the real key: calls go to Genlook with `mock: true` (free) so the key and flow are proven without spending credits.** Real generations on staging start with the bake-off, after Genlook's approval email.
+
+## Genlook approval (15 Nov 2026)
+
+- **Thibault (Genlook) confirmed in writing that a managed try-on service for many brands under one Genlook account, billed with our own monthly fee, is allowed; now explicit in their Terms §6 ("Building on and reselling the Try-On API").** Limits: never share or resell API keys; never resell raw API access as a pass-through API. Our setup (own backend, widget, brand) is the intended case. Reply kept in `docs/vendors/genlook-approval.md`.
+- **Data roles: brands are controllers, Garrab is their processor, Genlook is our subprocessor under its DPA (genlook.app/dpa).** Privacy page updated; lawyer to confirm.
+- **Genlook pricing for planning: Scale = 300 USD/month for 20,000 credits, then 0.015 USD per try-on (≈ 675 USD/month at 45k try-ons). Start on pay-as-you-go/Starter/Growth and move up as brands join.** Cost tracking stays at 0.04 USD/credit (pay-as-you-go) until a plan is bought; change `GENLOOK_USD_PER_CREDIT` then.
+- **Startup program offered: free credits to test quality on brands' catalogues and a free first month on a plan at launch.** Asser to send his Genlook account email to Thibault.
+- **Turnstile: real site key and secret live as GitHub secrets (`TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET`); every deploy uses them in place of Cloudflare's test keys.**
