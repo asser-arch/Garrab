@@ -14,7 +14,7 @@ import { adminIdentity, checkAccessJwt, createMagicLink } from "../lib/auth.js";
 import { sha256Hex, ulid } from "../lib/crypto.js";
 import { sendOnce } from "../lib/email.js";
 import { cairoDay } from "../lib/time.js";
-import { getSetting, originHost, setSetting } from "../lib/db.js";
+import { getSetting, invalidateStatus, originHost, setSetting } from "../lib/db.js";
 import { alert, transitionStatus } from "../lib/ops.js";
 import { log } from "../lib/log.js";
 import { cycleStartOf } from "../lib/metering.js";
@@ -59,8 +59,27 @@ admin.post("/invite", async (c) => {
   const { accountId, userId, created } = await createAccount(c.env, body.data);
   const link = await createMagicLink(c.env, userId, body.data.email);
   await audit(c.env, accountId, c.get("admin"), "invite", created ? "new account" : "existing account");
-  if (created) await c.env.JOBS.send({ t: "advance", a: accountId });
-  return c.json({ ok: true, accountId, created, link });
+  if (created) {
+    await c.env.JOBS.send({ t: "advance", a: accountId });
+    return c.json({ ok: true, accountId, created, link });
+  }
+  // Same email again: no duplicate account. Re-send the welcome only if it never went out
+  // (sendOnce retries a failed send and skips one that succeeded), so nothing is sent twice.
+  const acc = await c.env.DB.prepare("SELECT name, status FROM accounts WHERE id = ?").bind(accountId).first<{ name: string; status: string }>();
+  let welcome: "sent_now" | "already_sent" | "failed" | "not_applicable" = "not_applicable";
+  if (acc?.status === "onboarding") {
+    const prev = await c.env.DB.prepare("SELECT status FROM notifications WHERE dedupe_key = ?").bind(`welcome:${accountId}`).first<{ status: string }>();
+    if (prev?.status === "sent") welcome = "already_sent";
+    else {
+      const ok = await sendOnce(c.env, { accountId, template: "welcome", dedupeKey: `welcome:${accountId}`, msg: emails.welcome(body.data.email, acc.name, link) });
+      welcome = ok ? "sent_now" : "failed";
+    }
+  }
+  const reason =
+    welcome === "failed"
+      ? ((await c.env.DB.prepare("SELECT error FROM notifications WHERE dedupe_key = ?").bind(`welcome:${accountId}`).first<{ error: string | null }>())?.error ?? null)
+      : null;
+  return c.json({ ok: true, accountId, created, link, existing: { name: acc?.name ?? null, status: acc?.status ?? null, welcome, reason } });
 });
 
 admin.get("/funnel", async (c) => {
@@ -375,6 +394,56 @@ admin.post("/accounts/:id/notes", async (c) => {
 });
 
 /** Resend an email: a fresh sign-in link, or the open invoice. */
+/**
+ * Delete an invitation (typo, test brand, wrong email). Only before any money exists: a brand
+ * that has an invoice, payment or payment claim is never deleted (use Kill or Pause instead).
+ * The brand's name must be typed to confirm. AI usage rows are kept for cost totals; the
+ * audit log keeps a record of the deletion.
+ */
+admin.post("/accounts/:id/delete", async (c) => {
+  const body = z.object({ confirmName: z.string(), reason: z.string().trim().min(3).max(300) }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid", reason: "Type the brand name and a reason." }, 400);
+  const id = c.req.param("id");
+  const acc = await c.env.DB.prepare("SELECT id, name, status FROM accounts WHERE id = ?").bind(id).first<{ id: string; name: string; status: string }>();
+  if (!acc) return c.json({ error: "not_found" }, 404);
+  if (body.data.confirmName.trim().toLowerCase() !== acc.name.trim().toLowerCase()) return c.json({ error: "name_mismatch", reason: "The name you typed doesn't match." }, 400);
+  if (acc.status !== "onboarding") return c.json({ error: "not_deletable", reason: "Only brands still in onboarding can be deleted. Use Kill or Pause instead." }, 409);
+  const money = await c.env.DB.prepare(
+    "SELECT (SELECT COUNT(*) FROM invoices WHERE account_id = ?1) + (SELECT COUNT(*) FROM payments WHERE account_id = ?1) + (SELECT COUNT(*) FROM payment_claims WHERE account_id = ?1) AS n",
+  )
+    .bind(id)
+    .first<{ n: number }>();
+  if ((money?.n ?? 0) > 0) return c.json({ error: "not_deletable", reason: "This brand has invoices or payments, so it can't be deleted. Use Kill or Pause instead." }, 409);
+
+  const users = "(SELECT id FROM users WHERE account_id = ?1)";
+  await c.env.DB.batch([
+    c.env.DB.prepare(`DELETE FROM sessions WHERE user_id IN ${users}`).bind(id),
+    c.env.DB.prepare(`DELETE FROM magic_links WHERE user_id IN ${users}`).bind(id),
+    c.env.DB.prepare("DELETE FROM product_tests WHERE account_id = ?1").bind(id),
+    c.env.DB.prepare("DELETE FROM products WHERE account_id = ?1").bind(id),
+    c.env.DB.prepare("DELETE FROM onboarding_steps WHERE account_id = ?1").bind(id),
+    c.env.DB.prepare("DELETE FROM domains WHERE account_id = ?1").bind(id),
+    c.env.DB.prepare("DELETE FROM api_keys WHERE account_id = ?1").bind(id),
+    c.env.DB.prepare("DELETE FROM notifications WHERE account_id = ?1").bind(id),
+    c.env.DB.prepare("DELETE FROM daily_counters WHERE account_id = ?1").bind(id),
+    c.env.DB.prepare("DELETE FROM cycle_usage WHERE account_id = ?1").bind(id),
+    c.env.DB.prepare("UPDATE leads SET account_id = NULL WHERE account_id = ?1").bind(id),
+    c.env.DB.prepare("UPDATE alerts SET resolved_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE account_id = ?1 AND resolved_at IS NULL").bind(id),
+    c.env.DB.prepare("DELETE FROM users WHERE account_id = ?1").bind(id),
+    c.env.DB.prepare("DELETE FROM accounts WHERE id = ?1").bind(id),
+  ]);
+  // Test result images in R2.
+  let cursor: string | undefined;
+  do {
+    const l = await c.env.FILES.list(cursor ? { prefix: `tests/${id}/`, cursor } : { prefix: `tests/${id}/` });
+    if (l.objects.length) await c.env.FILES.delete(l.objects.map((o) => o.key));
+    cursor = l.truncated ? l.cursor : undefined;
+  } while (cursor);
+  invalidateStatus(id);
+  await audit(c.env, id, c.get("admin"), "delete_invitation", `${acc.name}: ${body.data.reason}`);
+  return c.json({ ok: true });
+});
+
 admin.post("/accounts/:id/resend", async (c) => {
   const body = z.object({ template: z.enum(["login", "invoice"]) }).safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json({ error: "invalid" }, 400);

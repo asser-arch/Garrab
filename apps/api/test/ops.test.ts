@@ -199,3 +199,47 @@ describe("email failures", () => {
     expect(a?.message).toContain('Email "welcome" was not sent: HTTP 401 restricted_api_key');
   });
 });
+
+describe("invite again and delete an invitation", () => {
+  it("inviting the same email twice makes no duplicate and says what happened to the welcome email", async () => {
+    const email = `again-${uniq()}@brand.example`;
+    const first = (await (await post("/invite", { brandName: `Again ${uniq()}`, email, plan: "starter" })).json()) as { accountId: string; created: boolean };
+    expect(first.created).toBe(true);
+    const second = (await (await post("/invite", { brandName: "Typo name", email, plan: "starter" })).json()) as {
+      accountId: string;
+      created: boolean;
+      link: string;
+      existing: { welcome: string };
+    };
+    expect(second).toMatchObject({ accountId: first.accountId, created: false });
+    expect(second.link).toContain("/portal/login#t=");
+    expect(["sent_now", "already_sent"]).toContain(second.existing.welcome);
+    const n = await env.DB.prepare("SELECT COUNT(*) AS n FROM users WHERE email = ?").bind(email).first<{ n: number }>();
+    expect(n?.n).toBe(1);
+  });
+
+  it("deletes an onboarding brand only with its exact name, then the email can be invited fresh", async () => {
+    const email = `del-${uniq()}@brand.example`;
+    const name = `Delete Me ${uniq()}`;
+    const { accountId } = (await (await post("/invite", { brandName: name, email, plan: "starter" })).json()) as { accountId: string };
+    expect((await post(`/accounts/${accountId}/delete`, { confirmName: "wrong", reason: "test" })).status).toBe(400);
+    const ok = await post(`/accounts/${accountId}/delete`, { confirmName: name.toLowerCase(), reason: "wrong email" });
+    expect(ok.status).toBe(200);
+    expect(await env.DB.prepare("SELECT 1 FROM accounts WHERE id = ?").bind(accountId).first()).toBeNull();
+    expect(await env.DB.prepare("SELECT 1 FROM users WHERE email = ?").bind(email).first()).toBeNull();
+    const audit = await env.DB.prepare("SELECT action FROM audit_log WHERE account_id = ? AND action = 'delete_invitation'").bind(accountId).first();
+    expect(audit).not.toBeNull();
+    const again = (await (await post("/invite", { brandName: name, email, plan: "starter" })).json()) as { created: boolean };
+    expect(again.created).toBe(true);
+  });
+
+  it("never deletes a brand that has money attached", async () => {
+    const b = await liveBrand();
+    await env.DB.prepare("UPDATE accounts SET status = 'onboarding' WHERE id = ?").bind(b.id).run();
+    await ensurePlanInvoice(env, (await accountFacts(env, b.id))!, new Date());
+    const name = (await env.DB.prepare("SELECT name FROM accounts WHERE id = ?").bind(b.id).first<{ name: string }>())!.name;
+    const r = await post(`/accounts/${b.id}/delete`, { confirmName: name, reason: "should fail" });
+    expect(r.status).toBe(409);
+    expect(await env.DB.prepare("SELECT 1 FROM accounts WHERE id = ?").bind(b.id).first()).not.toBeNull();
+  });
+});

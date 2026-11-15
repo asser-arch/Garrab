@@ -34,6 +34,7 @@ interface Stage {
 function Invite({ onDone }: { onDone: () => void }) {
   const [f, setF] = useState({ brandName: "", email: "", plan: "starter", website: "", setupFee: "default" });
   const [link, setLink] = useState<string | null>(null);
+  const [again, setAgain] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   return (
     <div className="card">
@@ -44,7 +45,8 @@ function Invite({ onDone }: { onDone: () => void }) {
           e.preventDefault();
           setErr(null);
           try {
-            const r = await api<{ link: string }>("/invite", {
+            type Existing = { name: string | null; status: string | null; welcome: string; reason: string | null };
+            const r = await api<{ link: string; created: boolean; existing?: Existing }>("/invite", {
               brandName: f.brandName,
               email: f.email,
               plan: f.plan,
@@ -52,6 +54,18 @@ function Invite({ onDone }: { onDone: () => void }) {
               setupFee: f.setupFee === "default" ? undefined : f.setupFee === "yes",
             });
             setLink(r.link);
+            const x = r.existing;
+            setAgain(
+              r.created || !x
+                ? null
+                : x.welcome === "sent_now"
+                  ? `This email was already invited (${x.name}). The welcome email hadn't gone out, so it was sent now. No duplicate was created.`
+                  : x.welcome === "already_sent"
+                    ? `This email was already invited (${x.name}) and the welcome email was delivered to Resend before. Nothing was sent twice: send the fresh link below, or use "Resend sign-in link" on the brand.`
+                    : x.welcome === "failed"
+                      ? `This email was already invited (${x.name}). The welcome email failed again: ${x.reason ?? "unknown reason"}. Send the link below on WhatsApp for now.`
+                      : `This email already belongs to ${x.name} (${nice(STATUS_NAME, x.status)}). No duplicate was created; here is a fresh sign-in link.`,
+            );
             onDone();
           } catch (x) {
             setErr(x instanceof Error ? x.message : "error");
@@ -96,7 +110,13 @@ function Invite({ onDone }: { onDone: () => void }) {
       {err && <p className="warn">{err}</p>}
       {link && (
         <div className="note" role="status">
-          <p className="small"><strong>Invite created.</strong> The welcome email is on its way. You can also send this sign-in link yourself (single use, valid for 15 minutes):</p>
+          <p className="small">
+            {again ?? (
+              <>
+                <strong>Invite created.</strong> The welcome email is on its way. You can also send this sign-in link yourself (single use, valid for 15 minutes):
+              </>
+            )}
+          </p>
           <p className="small" style={{ wordBreak: "break-all" }}>
             {link}
           </p>
@@ -235,6 +255,34 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
         ))}
       </ul>
       </div>
+      {String(d.account.status) === "onboarding" && (
+        <div className="section">
+          <h3>Delete this invitation</h3>
+          <p className="small muted">
+            For a wrong email, a typo or a test brand. Removes the account, its sign-in links, products and test results. Only possible before the brand has any invoice or payment. You can invite the right email afterwards.
+          </p>
+          <button
+            className="btn small ghost"
+            onClick={async () => {
+              const name = String(d.account.name);
+              const typed = prompt(`To delete "${name}", type the brand name exactly:`);
+              if (typed === null) return;
+              const reason = prompt("Reason (for the history):", "Wrong email, inviting again");
+              if (!reason || reason.trim().length < 3) return;
+              try {
+                await api(`/accounts/${id}/delete`, { confirmName: typed, reason });
+                alert(`${name} was deleted.`);
+                onChange();
+                onClose();
+              } catch (e) {
+                alert(e instanceof Error ? e.message.replace(/^[a-z_]+: /, "") : "Couldn't delete.");
+              }
+            }}
+          >
+            Delete invitation
+          </button>
+        </div>
+      )}
     </div>
   );
 }
