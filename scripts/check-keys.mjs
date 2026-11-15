@@ -3,6 +3,7 @@
  * Post-deploy: confirm each provider key that is set is accepted, without spending anything.
  * Prints only the outcome, never the key. Problems are warnings: they never block a deploy.
  *  - Genlook: DELETE /customers/<random id> (deleting a customer that never existed is free)
+ *  - Resend: GET /domains (a sending-only key is refused there with restricted_api_key, which still proves the key is real)
  *  - Google AI: GET /v1beta/models (listing models is free) and confirm the configured models exist
  */
 const out = [];
@@ -22,6 +23,22 @@ if (process.env.GENLOOK_API_KEY) {
       headers: { "x-api-key": process.env.GENLOOK_API_KEY },
     }),
   );
+}
+if (process.env.RESEND_API_KEY) {
+  try {
+    const r = await fetch("https://api.resend.com/domains", { headers: { authorization: `Bearer ${process.env.RESEND_API_KEY}` } });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) {
+      const d = (j.data ?? []).find((x) => x.name === "garrabb.com");
+      out.push(`Resend: key accepted; garrabb.com ${d ? d.status : "not added"}`);
+    } else if (j.name === "restricted_api_key") {
+      out.push("Resend: key accepted (sending only)");
+    } else {
+      out.push(`::warning::Resend: KEY REJECTED (HTTP ${r.status} ${j.name ?? ""})`);
+    }
+  } catch (e) {
+    out.push(`::warning::Resend: could not reach the service (${e.message})`);
+  }
 }
 if (process.env.GEMINI_API_KEY) {
   let models = [];

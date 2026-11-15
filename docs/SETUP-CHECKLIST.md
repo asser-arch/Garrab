@@ -73,12 +73,12 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 
 ## Part 6: Resend email (20 minutes, after Part 2)
 
-27. Sign up at **resend.com**.
+27. ✅ Sign up at **resend.com**.
 28. **Domains → Add domain** → `mail.<your-domain>` → region **Ireland (eu-west-1)** (closest to Egypt).
 29. Resend shows DNS records (MX, TXT/SPF, DKIM). If it offers **"Sign in to Cloudflare"**, use it (adds them automatically). Otherwise: Cloudflare → your domain → **DNS → Add record** → copy each one exactly (set Proxy to **DNS only** / grey cloud).
 30. Back in Resend → **Verify**. Wait until it says **Verified** (minutes to an hour).
 31. **API Keys → Create** → permission **Sending access** → domain `mail.<your-domain>`.
-32. Tell Claude **"Resend key ready"** and the sender you want, e.g. `Garrab <hello@mail.your-domain>`.
+32. Sending domain is `garrabb.com` (DNS records added); sender `Garrab <hello@garrabb.com>`. Add GitHub secrets `RESEND_API_KEY` and `OPERATOR_EMAIL` (where the daily summary goes), then tell Claude **"Resend secrets added"**.
 
 ## Part 7: Bot check and admin login (20 minutes, after Part 2)
 

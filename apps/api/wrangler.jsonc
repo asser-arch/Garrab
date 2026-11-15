@@ -97,7 +97,9 @@
         "ADMIN_ORIGIN": "https://admin-staging.garrabb.com",
         "APP_ORIGIN": "https://app-staging.garrabb.com",
         "GENLOOK_MOCK": "true",
-        "GENLOOK_USD_PER_CREDIT": "0.04"
+        "GENLOOK_USD_PER_CREDIT": "0.04",
+        "EMAIL_FROM": "Garrab <hello@garrabb.com>",
+        "BILLING_CONTACT": "Garrab \u00b7 hello@garrabb.com"
       },
       "d1_databases": [
         {
@@ -183,7 +185,9 @@
         "APP_ORIGIN": "https://app.garrabb.com",
         "GENLOOK_MOCK": "false",
         "GENLOOK_USD_PER_CREDIT": "0.04",
-        "CDN_ORIGIN": "https://cdn.garrabb.com"
+        "CDN_ORIGIN": "https://cdn.garrabb.com",
+        "EMAIL_FROM": "Garrab <hello@garrabb.com>",
+        "BILLING_CONTACT": "Garrab \u00b7 hello@garrabb.com"
       },
       "d1_databases": [
         {
