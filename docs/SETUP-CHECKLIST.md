@@ -86,10 +86,10 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 34. **Admin login (Cloudflare Access)**:
     1. Dashboard → **Zero Trust** → pick a team name (e.g. `garrab`) → **Free** plan (it may ask for a card; free up to 50 users).
     2. **Access → Applications → Add an application → Self-hosted**.
-    3. Name `Garrab admin`, domain `admin.<your-domain>`.
+    3. Name `Garrab admin`. Under **Destinations**, remove the empty Private IP row and click **+ Add public hostname** twice: subdomain `admin-staging` + domain `garrabb.com`, and subdomain `admin` + domain `garrabb.com` (path empty).
     4. Policy: name `Asser only`, action **Allow**, include **Emails** → your email.
     5. Login methods: **One-time PIN**. Save.
-    6. Open the application → copy the **Application Audience (AUD) tag**. Your **team domain** is `<team>.cloudflareaccess.com`. Send both to Claude (they aren't secret).
+    6. Open the application → copy the **Application Audience (AUD) tag**. Your **team domain** is `<team>.cloudflareaccess.com`. Add both as GitHub secrets `CF_ACCESS_AUD` and `CF_ACCESS_TEAM_DOMAIN` (just `<team>.cloudflareaccess.com`, no https://), then tell Claude **"Access secrets added"**.
 
 ## Part 8: Files (send in the chat or commit to `docs/`)
 
