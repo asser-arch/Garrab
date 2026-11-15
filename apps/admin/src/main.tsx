@@ -174,6 +174,17 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
   const [reason, setReason] = useState("");
   const load = useCallback(async () => setD(await api<D>(`/accounts/${id}`)), [id]);
   useEffect(() => void load(), [load]);
+  const removeProduct = async (p: { id: string; title: string }): Promise<void> => {
+    if (!confirm(`Remove "${p.title}"?\n\nAdded by hand: deleted with its test results (and its photo, unless another product uses it).\nImported from the shop: hidden, so the nightly sync doesn't bring it back.`)) return;
+    try {
+      const r = await api<{ hidden: boolean }>(`/products/${p.id}/delete`, {});
+      alert(r.hidden ? `"${p.title}" is hidden.` : `"${p.title}" was removed.`);
+    } catch (e) {
+      alert(`Couldn't remove it: ${e instanceof Error ? e.message : "error"}`);
+    }
+    await load();
+    onChange();
+  };
   if (!d) return <div className="card">Loading…</div>;
   const site = (d.account.website ?? (d.account.instagram ? `https://instagram.com/${String(d.account.instagram)}` : null)) as string | null;
   return (
@@ -313,11 +324,7 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
                 <button
                   className="btn small ghost"
                   title="Delete this product, e.g. a duplicate"
-                  onClick={async () => {
-                    if (!confirm(`Remove "${p.title}"? Its photo and test results are deleted too.`)) return;
-                    await api(`/products/${p.id}/delete`, {});
-                    await load();
-                  }}
+                  onClick={() => void removeProduct(p)}
                 >
                   Remove
                 </button>
@@ -337,6 +344,23 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
             </div>
           ))}
       </div>
+      {d.products.filter((p) => !p.selected && p.brand_decision !== "hidden").length > 0 && (
+        <details style={{ marginTop: 12 }}>
+          <summary className="small">Other products, not selected ({d.products.filter((p) => !p.selected && p.brand_decision !== "hidden").length})</summary>
+          <ul className="list">
+            {d.products
+              .filter((p) => !p.selected && p.brand_decision !== "hidden")
+              .map((p) => (
+                <li key={p.id}>
+                  <span>{p.title}</span>
+                  <button className="btn small ghost" onClick={() => void removeProduct(p)}>
+                    Remove
+                  </button>
+                </li>
+              ))}
+          </ul>
+        </details>
+      )}
       </div>
       <Money id={id} status={String(d.account.status)} hold={Number(d.account.manual_hold) === 1} notes={String(d.account.notes ?? "")} onChange={async () => (await load(), onChange())} />
       <div className="section">

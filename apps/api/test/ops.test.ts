@@ -259,18 +259,49 @@ describe("product re-test", () => {
 });
 
 describe("remove a product", () => {
-  it("deletes the product, its tests and its uploaded photo", async () => {
-    const b = await liveBrand();
+  const photo = (): string => `${uniq()}${"0".repeat(26)}`.toLowerCase().replace(/[^a-z0-9]/g, "0").slice(0, 26) + ".jpg";
+  const addProduct = async (accountId: string, source: string, images: string[]): Promise<string> => {
     const pid = `p${uniq()}`;
-    const file = `${"0".repeat(20)}${uniq().padEnd(6, "0").slice(0, 6)}`.toLowerCase().slice(0, 26) + ".jpg";
-    await env.FILES.put(`products/${b.id}/${file}`, new Uint8Array([1, 2, 3]));
-    await env.DB.prepare(`INSERT INTO products (id, account_id, external_ref, title, images_json, selected) VALUES (?, ?, ?, 'Dup', ?, 1)`)
-      .bind(pid, b.id, `manual:${pid}`, JSON.stringify([`https://app.test/pi/${b.id}/${file}`]))
+    await env.DB.prepare(`INSERT INTO products (id, account_id, external_ref, source, title, images_json, selected) VALUES (?, ?, ?, ?, 'Dup', ?, 1)`)
+      .bind(pid, accountId, `${source}:${pid}`, source, JSON.stringify(images))
       .run();
-    await env.DB.prepare("INSERT INTO product_tests (id, account_id, product_id, fixture, score) VALUES (?, ?, ?, 'f', 3)").bind(`t${uniq()}`, b.id, pid).run();
-    expect((await post(`/products/${pid}/delete`, {})).status).toBe(200);
+    return pid;
+  };
+
+  it("deletes a hand-added product, its tests and test images, and its unused photo", async () => {
+    const b = await liveBrand();
+    const file = photo();
+    await env.FILES.put(`products/${b.id}/${file}`, new Uint8Array([1]));
+    const pid = await addProduct(b.id, "manual", [`https://app.test/pi/${b.id}/${file}`]);
+    await env.FILES.put(`tests/${b.id}/${pid}/t1.jpg`, new Uint8Array([1]));
+    await env.DB.prepare("INSERT INTO product_tests (id, account_id, product_id, fixture, r2_key, score) VALUES (?, ?, ?, 'f', ?, 3)").bind(`t${uniq()}`, b.id, pid, `tests/${b.id}/${pid}/t1.jpg`).run();
+    const r = (await (await post(`/products/${pid}/delete`, {})).json()) as { hidden: boolean };
+    expect(r.hidden).toBe(false);
     expect(await env.DB.prepare("SELECT 1 FROM products WHERE id = ?").bind(pid).first()).toBeNull();
     expect(await env.DB.prepare("SELECT 1 FROM product_tests WHERE product_id = ?").bind(pid).first()).toBeNull();
     expect(await env.FILES.get(`products/${b.id}/${file}`)).toBeNull();
+    expect(await env.FILES.get(`tests/${b.id}/${pid}/t1.jpg`)).toBeNull();
+    const a = await env.DB.prepare("SELECT meta_json FROM audit_log WHERE account_id = ? AND action = 'product_delete'").bind(b.id).first<{ meta_json: string }>();
+    expect(JSON.parse(a!.meta_json)).toMatchObject({ product: pid, title: "Dup" });
+  });
+
+  it("keeps a photo that another product still uses", async () => {
+    const b = await liveBrand();
+    const file = photo();
+    await env.FILES.put(`products/${b.id}/${file}`, new Uint8Array([1]));
+    const url = `https://app.test/pi/${b.id}/${file}`;
+    const dup = await addProduct(b.id, "manual", [url]);
+    await addProduct(b.id, "manual", [url]);
+    await post(`/products/${dup}/delete`, {});
+    expect(await env.FILES.get(`products/${b.id}/${file}`)).not.toBeNull();
+  });
+
+  it("hides an imported product instead of deleting it, so the nightly sync can't bring it back", async () => {
+    const b = await liveBrand();
+    const pid = await addProduct(b.id, "shopify", ["https://shop.example/a.jpg"]);
+    const r = (await (await post(`/products/${pid}/delete`, {})).json()) as { hidden: boolean };
+    expect(r.hidden).toBe(true);
+    const row = await env.DB.prepare("SELECT selected, enabled, brand_decision FROM products WHERE id = ?").bind(pid).first();
+    expect(row).toEqual({ selected: 0, enabled: 0, brand_decision: "hidden" });
   });
 });

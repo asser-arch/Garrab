@@ -3,6 +3,7 @@ import { WidgetEvent } from "@garrab/shared";
 import { Hono, type Context } from "hono";
 import { ctxKey, type Env } from "../env.js";
 import { signCtx, verifyCtx } from "../lib/crypto.js";
+import { PHOTO_FILE_RE } from "../lib/products.js";
 import {
   accountByKey,
   accountBySlug,
@@ -50,7 +51,7 @@ export const widget = new Hono<{ Bindings: Env }>();
 /** Product photos uploaded by brands (public: they are the brand's own product pictures). */
 widget.get("/product-image/:acct/:file", async (c) => {
   const { acct, file } = c.req.param();
-  if (!/^[A-Z0-9]{26}$/.test(acct) || !/^[a-z0-9]{26}\.(jpg|png|webp)$/.test(file)) return c.text("Not found", 404);
+  if (!/^[A-Z0-9]{26}$/.test(acct) || !PHOTO_FILE_RE.test(file)) return c.text("Not found", 404);
   const obj = await c.env.FILES.get(`products/${acct}/${file}`);
   if (!obj) return c.text("Not found", 404);
   return new Response(obj.body, {

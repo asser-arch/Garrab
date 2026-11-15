@@ -20,6 +20,7 @@ import {
 } from "../lib/auth.js";
 import { ulid } from "../lib/crypto.js";
 import { sniffImage, stripJpegMetadata } from "../lib/photo.js";
+import { productPhotoUrl } from "../lib/products.js";
 import { sendOnce } from "../lib/email.js";
 import { saveProducts, guessKind } from "../onboarding/import.js";
 import { accountFacts, billingPlan, createInvoice, ensurePlanInvoice, payUrl, pdfUrl } from "../billing/ledger.js";
@@ -284,7 +285,7 @@ portal.post("/products/upload", async (c) => {
   const id = acct(c);
   const name = `${ulid().toLowerCase()}.${type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg"}`;
   await c.env.FILES.put(`products/${id}/${name}`, bytes, { httpMetadata: { contentType: type, cacheControl: "public, max-age=31536000, immutable" } });
-  const imageUrl = `${c.env.APP_ORIGIN}/pi/${id}/${name}`;
+  const imageUrl = productPhotoUrl(c.env, id, name);
   const added = await addManual(c.env, id, [{ title, imageUrl, productUrl }]);
   if (!added) {
     await c.env.FILES.delete(`products/${id}/${name}`);

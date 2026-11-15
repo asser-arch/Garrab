@@ -16,6 +16,7 @@ import { sendOnce } from "../lib/email.js";
 import { cairoDay } from "../lib/time.js";
 import { getSetting, invalidateStatus, originHost, setSetting } from "../lib/db.js";
 import { alert, transitionStatus } from "../lib/ops.js";
+import { clearProductTests, deletePrefix, deleteUnusedPhotos } from "../lib/products.js";
 import { log } from "../lib/log.js";
 import { cycleStartOf } from "../lib/metering.js";
 import { addDays } from "../billing/dates.js";
@@ -167,23 +168,30 @@ admin.post("/accounts/:id/remind", async (c) => {
   return c.json({ ok: true, sent });
 });
 
-/** Decide a "needs review" product (score 3): enable it for the brand to approve, or disable it. */
-/** Remove a product (duplicates, mistakes): its tests, test images and uploaded photo go too. */
+/**
+ * Remove a product (duplicates, mistakes). Products added by hand are deleted with their tests and
+ * any uploaded photo no other product uses. Imported products (Shopify, Woo, website) are hidden
+ * instead: deleting them would only bring them back at the next nightly re-sync.
+ */
 admin.post("/products/:id/delete", async (c) => {
   const pid = c.req.param("id");
-  const p = await c.env.DB.prepare("SELECT account_id, title, images_json FROM products WHERE id = ?").bind(pid).first<{ account_id: string; title: string; images_json: string }>();
+  const p = await c.env.DB.prepare("SELECT account_id, title, source, images_json FROM products WHERE id = ?")
+    .bind(pid)
+    .first<{ account_id: string; title: string; source: string; images_json: string }>();
   if (!p) return c.json({ error: "not_found" }, 404);
-  const keys = (await c.env.DB.prepare("SELECT r2_key FROM product_tests WHERE product_id = ? AND r2_key IS NOT NULL").bind(pid).all<{ r2_key: string }>()).results.map((r) => r.r2_key);
-  // Photos the brand uploaded live at <APP_ORIGIN>/pi/<account>/<file> → R2 products/<account>/<file>.
-  for (const u of JSON.parse(p.images_json) as string[]) {
-    const m = /\/pi\/([A-Z0-9]{26})\/([a-z0-9]{26}\.(?:jpg|png|webp))$/.exec(u);
-    if (m && m[1] === p.account_id) keys.push(`products/${m[1]}/${m[2]}`);
+  const meta = { product: pid, title: p.title, source: p.source };
+  if (p.source !== "manual") {
+    await c.env.DB.prepare("UPDATE products SET selected = 0, enabled = 0, approved = 0, needs_review = 0, brand_decision = 'hidden' WHERE id = ?").bind(pid).run();
+    await audit(c.env, p.account_id, c.get("admin"), "product_hide", p.title, meta);
+    await c.env.JOBS.send({ t: "advance", a: p.account_id });
+    return c.json({ ok: true, hidden: true });
   }
-  if (keys.length) await c.env.FILES.delete(keys);
-  await c.env.DB.batch([c.env.DB.prepare("DELETE FROM product_tests WHERE product_id = ?").bind(pid), c.env.DB.prepare("DELETE FROM products WHERE id = ?").bind(pid)]);
-  await audit(c.env, p.account_id, c.get("admin"), "product_delete", p.title);
+  await clearProductTests(c.env, p.account_id, pid);
+  await c.env.DB.prepare("DELETE FROM products WHERE id = ?").bind(pid).run();
+  await deleteUnusedPhotos(c.env, p.account_id, JSON.parse(p.images_json) as string[]);
+  await audit(c.env, p.account_id, c.get("admin"), "product_delete", p.title, meta);
   await c.env.JOBS.send({ t: "advance", a: p.account_id });
-  return c.json({ ok: true });
+  return c.json({ ok: true, hidden: false });
 });
 
 /** Clear a product's test so it runs again (e.g. after switching from test mode to real try-ons). */
@@ -191,17 +199,16 @@ admin.post("/products/:id/retest", async (c) => {
   const p = await c.env.DB.prepare("SELECT account_id FROM products WHERE id = ?").bind(c.req.param("id")).first<{ account_id: string }>();
   if (!p) return c.json({ error: "not_found" }, 404);
   // Old results go, so the card only ever shows the latest run (one result per stock model).
-  const old = await c.env.DB.prepare("SELECT r2_key FROM product_tests WHERE product_id = ? AND r2_key IS NOT NULL").bind(c.req.param("id")).all<{ r2_key: string }>();
-  if (old.results.length) await c.env.FILES.delete(old.results.map((r) => r.r2_key));
-  await c.env.DB.batch([
-    c.env.DB.prepare("DELETE FROM product_tests WHERE product_id = ?").bind(c.req.param("id")),
-    c.env.DB.prepare("UPDATE products SET test_score = NULL, enabled = 0, needs_review = 0, disabled_reason = NULL, selected = 1 WHERE id = ?").bind(c.req.param("id")),
-  ]);
+  await clearProductTests(c.env, p.account_id, c.req.param("id"));
+  await c.env.DB.prepare("UPDATE products SET test_score = NULL, enabled = 0, needs_review = 0, disabled_reason = NULL, selected = 1 WHERE id = ?")
+    .bind(c.req.param("id"))
+    .run();
   await audit(c.env, p.account_id, c.get("admin"), "product_retest", null, { product: c.req.param("id") });
   await c.env.JOBS.send({ t: "advance", a: p.account_id });
   return c.json({ ok: true });
 });
 
+/** Decide a "needs review" product (score 3): enable it for the brand to approve, or disable it. */
 admin.post("/products/:id/review", async (c) => {
   const body = z.object({ enable: z.boolean(), reason: z.string().trim().min(3).max(300) }).safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json({ error: "invalid" }, 400);
@@ -470,14 +477,7 @@ admin.post("/accounts/:id/delete", async (c) => {
     c.env.DB.prepare("DELETE FROM accounts WHERE id = ?1").bind(id),
   ]);
   // Test result images and uploaded product photos in R2.
-  for (const prefix of [`tests/${id}/`, `products/${id}/`]) {
-    let cursor: string | undefined;
-    do {
-      const l = await c.env.FILES.list(cursor ? { prefix, cursor } : { prefix });
-      if (l.objects.length) await c.env.FILES.delete(l.objects.map((o) => o.key));
-      cursor = l.truncated ? l.cursor : undefined;
-    } while (cursor);
-  }
+  for (const prefix of [`tests/${id}/`, `products/${id}/`]) await deletePrefix(c.env, prefix);
   invalidateStatus(id);
   await audit(c.env, id, c.get("admin"), "delete_invitation", `${acc.name}: ${body.data.reason}`);
   return c.json({ ok: true });
