@@ -1,0 +1,14 @@
+{
+  "startedAt": "2026-11-15T11:29:22.176Z",
+  "externalUserId": "verify-426bad16-51c0-482d-981e-3b7e5db8bc7d",
+  "photo": "model-a.jpg",
+  "upload": { "status": 201, "code": null },
+  "tryOn": { "status": 201, "code": null, "keepHeadCoveringAccepted": true },
+  "before": [200, 200],
+  "deleteStatus": 204,
+  "after": [404, 404],
+  "urlsChecked": 2,
+  "result": "PASS",
+  "finishedAt": "2026-11-15T11:29:30.852Z",
+  "ranBy": "GitHub Actions, Checks workflow run 43709118517 (real Genlook API, stock photo fixtures/model-a.jpg)"
+}

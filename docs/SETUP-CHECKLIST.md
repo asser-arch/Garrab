@@ -12,7 +12,7 @@ Do them in this order: each part unblocks the next. Dashboard menus move around;
 | Telegram bot connected | Reply to Genlook with your account email (21b) |
 | Genlook key, credits, retention, **written approval** | Try logging into admin-staging |
 | Google AI key (both models available) | Native Arabic review of 5 extra strings (DECISIONS.md) |
-| Resend verified, key and operator email | Provider comparison and delete check (38–39) |
+| Resend verified, key and operator email | Switch on the privacy line in admin-staging; provider comparison (38) |
 | Turnstile site key, admin login, brand files, logo, stock photos | Lawyer, uptime monitor (40–41) |
 
 GitHub secrets in place: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GENLOOK_API_KEY`, `GEMINI_API_KEY`, `RESEND_API_KEY`, `OPERATOR_EMAIL`, `CF_ACCESS_AUD`, `CF_ACCESS_TEAM_DOMAIN`, `TURNSTILE_SITE_KEY`. **`TURNSTILE_SECRET` did not reach the 15 Nov deploy: check its name in GitHub.**
@@ -117,7 +117,7 @@ GitHub secrets in place: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `TELEG
 ## Part 9: Checks (Claude runs them once keys are in)
 
 38. **Provider comparison** (needs the stock photos): tell Claude one target brand's Shopify website. About 4 USD (the Genlook startup credits can cover part of it). You get a grid of results to score 1–5.
-39. **Genlook delete check** (needs a stock photo): must say PASS. Then Claude switches on "We don't save it" for shoppers.
+39. ✅ **Genlook delete check**: **PASS** on 15 Nov (photo and result both 404 within seconds of DELETE; `docs/privacy/genlook-delete-2026-11-15.json`). Then Claude switches on "We don't save it" for shoppers.
 
 ## Part 10: Before the first real brand
 
