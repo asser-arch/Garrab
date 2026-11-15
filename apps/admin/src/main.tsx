@@ -165,8 +165,8 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
   type D = {
     account: Record<string, unknown>;
     steps: { step: string; state: string; entered_at: string; actor: string; note: string | null }[];
-    products: { id: string; title: string; selected: number; test_score: number | null; enabled: number; needs_review: number; disabled_reason: string | null; brand_decision: string | null }[];
-    tests: { id: string; product_id: string; score: number | null; reason: string | null }[];
+    products: { id: string; title: string; images_json: string; selected: number; test_score: number | null; enabled: number; needs_review: number; disabled_reason: string | null; brand_decision: string | null }[];
+    tests: { id: string; product_id: string; fixture: string; score: number | null; reason: string | null }[];
     audit: { actor: string; action: string; reason: string | null; created_at: string }[];
   };
   const [d, setD] = useState<D | null>(null);
@@ -270,16 +270,34 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
               <p className="small">
                 Score {p.test_score ?? "–"} · {p.enabled ? "Enabled" : p.needs_review ? "Needs your review" : p.test_score === null ? "Testing…" : "Disabled"} · Brand: {p.brand_decision ? cap(p.brand_decision) : "not decided"}
               </p>
-              <div className="thumbs">
-                {d.tests
-                  .filter((t) => t.product_id === p.id)
-                  .map((t) => (
-                    <div className="preview" key={t.id} title={t.reason ?? ""}>
-                      <span className="chip">{t.score ?? "?"}</span>
-                      <img src={`/admin-api/test-image/${t.id}`} alt={`Test result, score ${t.score}`} />
-                    </div>
-                  ))}
-              </div>
+              {(() => {
+                // Only the latest result per stock model (older runs may still be stored).
+                const latest = new Map<string, (typeof d.tests)[number]>();
+                for (const t of d.tests.filter((x) => x.product_id === p.id)) latest.set(t.fixture, t);
+                const runs = [...latest.values()];
+                const photo = (JSON.parse(p.images_json || "[]") as string[])[0];
+                return (
+                  <div className="thumbs">
+                    {photo && (
+                      <figure style={{ margin: 0 }}>
+                        <div className="preview">
+                          <img src={photo} alt={`Uploaded photo of ${p.title}`} referrerPolicy="no-referrer" />
+                        </div>
+                        <figcaption className="small muted">Product photo</figcaption>
+                      </figure>
+                    )}
+                    {runs.map((t, i) => (
+                      <figure style={{ margin: 0 }} key={t.id} title={t.reason ?? ""}>
+                        <div className="preview">
+                          <span className="chip">{t.score ?? "?"}</span>
+                          <img src={`/admin-api/test-image/${t.id}`} alt={`Try-on on model ${String.fromCharCode(65 + i)}, score ${t.score}`} />
+                        </div>
+                        <figcaption className="small muted">On model {String.fromCharCode(65 + i)}</figcaption>
+                      </figure>
+                    ))}
+                  </div>
+                );
+              })()}
               {p.disabled_reason && <p className="small muted" style={{ margin: "6px 0 0" }}>Why: {p.disabled_reason}</p>}
               <div className="row" style={{ marginTop: 8 }}>
                 {!p.enabled && (

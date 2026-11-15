@@ -129,7 +129,7 @@ admin.get("/accounts/:id", async (c) => {
   const [steps, products, tests, audit_log] = await Promise.all([
     c.env.DB.prepare("SELECT step, state, entered_at, done_at, actor, note FROM onboarding_steps WHERE account_id = ? ORDER BY entered_at").bind(id).all(),
     c.env.DB.prepare(
-      "SELECT id, title, kind, selected, test_score, enabled, needs_review, disabled_reason, brand_decision, approved FROM products WHERE account_id = ? ORDER BY selected DESC, title LIMIT 300",
+      "SELECT id, title, kind, images_json, selected, test_score, enabled, needs_review, disabled_reason, brand_decision, approved FROM products WHERE account_id = ? ORDER BY selected DESC, title LIMIT 300",
     )
       .bind(id)
       .all(),
@@ -172,9 +172,13 @@ admin.post("/accounts/:id/remind", async (c) => {
 admin.post("/products/:id/retest", async (c) => {
   const p = await c.env.DB.prepare("SELECT account_id FROM products WHERE id = ?").bind(c.req.param("id")).first<{ account_id: string }>();
   if (!p) return c.json({ error: "not_found" }, 404);
-  await c.env.DB.prepare("UPDATE products SET test_score = NULL, enabled = 0, needs_review = 0, disabled_reason = NULL, selected = 1 WHERE id = ?")
-    .bind(c.req.param("id"))
-    .run();
+  // Old results go, so the card only ever shows the latest run (one result per stock model).
+  const old = await c.env.DB.prepare("SELECT r2_key FROM product_tests WHERE product_id = ? AND r2_key IS NOT NULL").bind(c.req.param("id")).all<{ r2_key: string }>();
+  if (old.results.length) await c.env.FILES.delete(old.results.map((r) => r.r2_key));
+  await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM product_tests WHERE product_id = ?").bind(c.req.param("id")),
+    c.env.DB.prepare("UPDATE products SET test_score = NULL, enabled = 0, needs_review = 0, disabled_reason = NULL, selected = 1 WHERE id = ?").bind(c.req.param("id")),
+  ]);
   await audit(c.env, p.account_id, c.get("admin"), "product_retest", null, { product: c.req.param("id") });
   await c.env.JOBS.send({ t: "advance", a: p.account_id });
   return c.json({ ok: true });

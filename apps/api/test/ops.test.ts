@@ -249,7 +249,9 @@ describe("product re-test", () => {
     const b = await liveBrand();
     const p = await env.DB.prepare("SELECT id FROM products WHERE account_id = ?").bind(b.id).first<{ id: string }>();
     await env.DB.prepare("UPDATE products SET test_score = 1, enabled = 0, disabled_reason = 'bad' WHERE id = ?").bind(p!.id).run();
+    await env.DB.prepare("INSERT INTO product_tests (id, account_id, product_id, fixture, score, reason) VALUES (?, ?, ?, 'fixtures/model-a.jpg', 1, 'old')").bind(`t${uniq()}`, b.id, p!.id).run();
     expect((await post(`/products/${p!.id}/retest`, {})).status).toBe(200);
+    expect(await env.DB.prepare("SELECT 1 FROM product_tests WHERE product_id = ?").bind(p!.id).first()).toBeNull();
     const row = await env.DB.prepare("SELECT test_score, enabled, needs_review, disabled_reason, selected FROM products WHERE id = ?").bind(p!.id).first();
     expect(row).toEqual({ test_score: null, enabled: 0, needs_review: 0, disabled_reason: null, selected: 1 });
     expect((await env.DB.prepare("SELECT action FROM audit_log WHERE account_id = ? AND action = 'product_retest'").bind(b.id).first())).not.toBeNull();
