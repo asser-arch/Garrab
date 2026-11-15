@@ -96,7 +96,7 @@
         "INSTAPAY_ACCOUNT_NAME": "Asser Rostom",
         "ADMIN_ORIGIN": "https://admin-staging.garrabb.com",
         "APP_ORIGIN": "https://app-staging.garrabb.com",
-        "GENLOOK_MOCK": "true",
+        "GENLOOK_MOCK": "false",
         "GENLOOK_USD_PER_CREDIT": "0.04",
         "EMAIL_FROM": "Garrab <hello@garrabb.com>",
         "BILLING_CONTACT": "Garrab \u00b7 hello@garrabb.com"

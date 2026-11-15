@@ -168,6 +168,18 @@ admin.post("/accounts/:id/remind", async (c) => {
 });
 
 /** Decide a "needs review" product (score 3): enable it for the brand to approve, or disable it. */
+/** Clear a product's test so it runs again (e.g. after switching from test mode to real try-ons). */
+admin.post("/products/:id/retest", async (c) => {
+  const p = await c.env.DB.prepare("SELECT account_id FROM products WHERE id = ?").bind(c.req.param("id")).first<{ account_id: string }>();
+  if (!p) return c.json({ error: "not_found" }, 404);
+  await c.env.DB.prepare("UPDATE products SET test_score = NULL, enabled = 0, needs_review = 0, disabled_reason = NULL, selected = 1 WHERE id = ?")
+    .bind(c.req.param("id"))
+    .run();
+  await audit(c.env, p.account_id, c.get("admin"), "product_retest", null, { product: c.req.param("id") });
+  await c.env.JOBS.send({ t: "advance", a: p.account_id });
+  return c.json({ ok: true });
+});
+
 admin.post("/products/:id/review", async (c) => {
   const body = z.object({ enable: z.boolean(), reason: z.string().trim().min(3).max(300) }).safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json({ error: "invalid" }, 400);

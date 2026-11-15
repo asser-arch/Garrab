@@ -280,16 +280,31 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
                     </div>
                   ))}
               </div>
-              {p.needs_review === 1 && (
-                <div className="row" style={{ marginTop: 8 }}>
+              {p.disabled_reason && <p className="small muted" style={{ margin: "6px 0 0" }}>Why: {p.disabled_reason}</p>}
+              <div className="row" style={{ marginTop: 8 }}>
+                {!p.enabled && (
                   <button className="btn small" onClick={async () => (await api(`/products/${p.id}/review`, { enable: true, reason: "Checked by hand: good enough" }), load())}>
-                    Enable
+                    {p.needs_review ? "Enable" : "Enable anyway"}
                   </button>
+                )}
+                {(p.enabled === 1 || p.needs_review === 1) && (
                   <button className="btn small ghost" onClick={async () => (await api(`/products/${p.id}/review`, { enable: false, reason: "Checked by hand: not good enough" }), load())}>
                     Disable
                   </button>
-                </div>
-              )}
+                )}
+                {p.test_score !== null && (
+                  <button
+                    className="btn small ghost"
+                    title="Run the automatic test again on the stock photos (about 0.09 USD)"
+                    onClick={async () => {
+                      await api(`/products/${p.id}/retest`, {});
+                      await load();
+                    }}
+                  >
+                    Test again
+                  </button>
+                )}
+              </div>
             </div>
           ))}
       </div>

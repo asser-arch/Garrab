@@ -96,6 +96,16 @@ export async function testProduct(
     }
     const key = `tests/${accountId}/${productId}/${testId}.${r.contentType.includes("png") ? "png" : "jpg"}`;
     await env.FILES.put(key, r.image, { httpMetadata: { contentType: r.contentType } });
+    if (env.GENLOOK_API_KEY && env.GENLOOK_MOCK === "true" && !deps.tryon) {
+      // Genlook's free test mode returns the model photo without the product, so a real score
+      // would always reject it. Send it to a person instead of rejecting it.
+      lastReason = "Test mode: the try-on is simulated, so check this product by hand.";
+      scores.push(3);
+      await env.DB.prepare("INSERT INTO product_tests (id, account_id, product_id, fixture, r2_key, score, reason, cost_micro_usd) VALUES (?, ?, ?, ?, ?, 3, ?, 0)")
+        .bind(testId, accountId, productId, fixture, key, lastReason)
+        .run();
+      continue;
+    }
     const s = await scorer.score({ title: product.title, productImageUrl: images[0] ?? "", result: r.image, resultType: r.contentType });
     await recordUsage(env, accountId, "score", scorer.name, s.score !== null, s.costMicroUsd);
     const overall = s.score?.overall ?? 3; // scorer down → human review, never auto-enable

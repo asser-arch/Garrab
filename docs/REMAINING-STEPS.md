@@ -11,7 +11,7 @@ Staging: `app-staging.garrabb.com` · `api-staging.garrabb.com` · `admin-stagin
 1. Admin → **Onboarding** → **Invite a brand** with your friend's email → **Create and get sign-in link**.
 2. The welcome email from `hello@garrabb.com` should arrive within a minute (check spam the first time). If it doesn't: the reason shows under **Alerts** and in Telegram; send the link with **Send on WhatsApp** meanwhile.
 3. Your friend signs in, adds 1–3 products, approves them, and tries a preview (website: install the code; no website: use the product link / QR code).
-4. Staging uses Genlook's free test mode: the "preview" is the uploaded photo returned unchanged. Tell Claude before you start if you want real try-ons (one deploy, about 0.04 USD each).
+4. Staging now makes **real** Genlook try-ons (about 0.04 USD per preview, about 0.09 USD per product test).
 5. Send Claude screenshots of anything confusing or broken.
 
 ## 2. Score the bake-off and choose the try-on model (30 minutes)

@@ -243,3 +243,15 @@ describe("invite again and delete an invitation", () => {
     expect(await env.DB.prepare("SELECT 1 FROM accounts WHERE id = ?").bind(b.id).first()).not.toBeNull();
   });
 });
+
+describe("product re-test", () => {
+  it("clears the old result and sends the product back to testing", async () => {
+    const b = await liveBrand();
+    const p = await env.DB.prepare("SELECT id FROM products WHERE account_id = ?").bind(b.id).first<{ id: string }>();
+    await env.DB.prepare("UPDATE products SET test_score = 1, enabled = 0, disabled_reason = 'bad' WHERE id = ?").bind(p!.id).run();
+    expect((await post(`/products/${p!.id}/retest`, {})).status).toBe(200);
+    const row = await env.DB.prepare("SELECT test_score, enabled, needs_review, disabled_reason, selected FROM products WHERE id = ?").bind(p!.id).first();
+    expect(row).toEqual({ test_score: null, enabled: 0, needs_review: 0, disabled_reason: null, selected: 1 });
+    expect((await env.DB.prepare("SELECT action FROM audit_log WHERE account_id = ? AND action = 'product_retest'").bind(b.id).first())).not.toBeNull();
+  });
+});
