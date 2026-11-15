@@ -61,7 +61,7 @@ describe("plans.ts matches the brief (§1)", () => {
   it("no price or limit is hard-coded outside plans.ts", () => {
     // Guard: the money amounts from the brief must only appear in plans.ts.
     const root = join(__dirname, "..", "..", "..");
-    const forbidden = /\b(1[,_]?500|3[,_]?000|6[,_]?000|800)\s*(EGP|egp|piastres)?\b/;
+    const forbidden = /\b(1[,_]?500|3[,_]?000|5[,_]?000|6[,_]?000|8[,_]?500|800)\s*(EGP|egp|piastres)?\b/;
     const offenders: string[] = [];
     const walk = (dir: string): void => {
       for (const name of readdirSync(dir)) {

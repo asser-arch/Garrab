@@ -39,7 +39,7 @@ function Invite({ onDone }: { onDone: () => void }) {
   const [offer, setOffer] = useState<{ foundingOfferOn: boolean; setupFee: number } | null>(null);
   const loadOffer = useCallback(async () => setOffer(await api<{ foundingOfferOn: boolean; setupFee: number }>("/offer")), []);
   useEffect(() => void loadOffer().catch(() => undefined), [loadOffer]);
-  const fee = offer ? egp(offer.setupFee) : "1,500 EGP";
+  const fee = offer ? egp(offer.setupFee) : "the setup fee";
   return (
     <div className="card">
       <h2>Invite a brand</h2>

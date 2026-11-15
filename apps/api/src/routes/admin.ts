@@ -25,6 +25,9 @@ import { runJobNow } from "../jobs.js";
 import { buildDigest } from "../ops/digest.js";
 import { STEP_LABEL, advance, overrideStep, portalUrl, type Step } from "../onboarding/machine.js";
 
+/** Private notes on a brand: up to about five thousand characters. */
+const NOTES_MAX_CHARS = 5 * 1024;
+
 type Vars = { admin: string };
 export const admin = new Hono<{ Bindings: Env; Variables: Vars }>();
 
@@ -387,7 +390,7 @@ admin.post("/accounts/:id/invoice", async (c) => {
 });
 
 admin.post("/accounts/:id/notes", async (c) => {
-  const body = z.object({ notes: z.string().max(5000) }).safeParse(await c.req.json().catch(() => null));
+  const body = z.object({ notes: z.string().max(NOTES_MAX_CHARS) }).safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json({ error: "invalid" }, 400);
   await c.env.DB.prepare("UPDATE accounts SET notes = ? WHERE id = ?").bind(body.data.notes, c.req.param("id")).run();
   return c.json({ ok: true });
