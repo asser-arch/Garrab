@@ -130,12 +130,32 @@ async function accessKeys(team: string): Promise<JsonWebKey[]> {
 /** Why an Access login was refused: short codes, safe to show to the admin. */
 export type AccessResult = { ok: true; email: string } | { ok: false; reason: string };
 
+const ACCESS_HOST = /^[a-z0-9-]+\.cloudflareaccess\.com$/;
+
+/**
+ * The team that signs our logins. The token's own issuer is used when it is a Cloudflare Access
+ * team (*.cloudflareaccess.com): safe because the signature is then checked against that team's
+ * published keys and the audience must equal our application's unique AUD tag, which no other
+ * team's application can carry. CF_ACCESS_TEAM_DOMAIN is only a fallback (and a custom domain).
+ */
+function signingTeam(env: Env, issuer: string | undefined): string | null {
+  const fromToken = issuer?.toLowerCase().replace(/^https:\/\//, "").replace(/\/+$/, "");
+  if (fromToken && ACCESS_HOST.test(fromToken)) return fromToken;
+  return accessTeamHost(env);
+}
+
 export async function checkAccessJwt(env: Env, jwt: string): Promise<AccessResult> {
-  const team = accessTeamHost(env);
   const aud = env.CF_ACCESS_AUD?.trim();
-  if (!team || !aud) return { ok: false, reason: "access_not_configured" };
+  if (!aud) return { ok: false, reason: "access_not_configured" };
   const [h, p, s] = jwt.split(".");
   if (!h || !p || !s) return { ok: false, reason: "malformed_token" };
+  let team: string | null;
+  try {
+    team = signingTeam(env, (JSON.parse(new TextDecoder().decode(b64urlDecode(p))) as { iss?: string }).iss);
+  } catch {
+    return { ok: false, reason: "malformed_token" };
+  }
+  if (!team) return { ok: false, reason: "access_not_configured" };
   try {
     const header = JSON.parse(new TextDecoder().decode(b64urlDecode(h))) as { kid?: string; alg?: string };
     if (header.alg !== "RS256") return { ok: false, reason: "bad_algorithm" };
@@ -146,7 +166,7 @@ export async function checkAccessJwt(env: Env, jwt: string): Promise<AccessResul
       return { ok: false, reason: `team_domain_unreachable (${team})` };
     }
     const jwk = keys.find((k) => (k as { kid?: string }).kid === header.kid);
-    if (!jwk) return { ok: false, reason: "unknown_signing_key (check CF_ACCESS_TEAM_DOMAIN)" };
+    if (!jwk) return { ok: false, reason: `unknown_signing_key (${team})` };
     const key = await crypto.subtle.importKey("jwk", jwk, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
     const ok = await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, b64urlDecode(s), new TextEncoder().encode(`${h}.${p}`));
     if (!ok) return { ok: false, reason: "bad_signature" };
@@ -154,7 +174,7 @@ export async function checkAccessJwt(env: Env, jwt: string): Promise<AccessResul
     const auds = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
     if (!auds.includes(aud)) return { ok: false, reason: "wrong_audience (check CF_ACCESS_AUD)" };
     if (!claims.exp || claims.exp * 1000 < Date.now()) return { ok: false, reason: "expired" };
-    if (claims.iss !== `https://${team}`) return { ok: false, reason: "wrong_issuer (check CF_ACCESS_TEAM_DOMAIN)" };
+    if ((claims.iss ?? "").toLowerCase().replace(/\/+$/, "") !== `https://${team}`) return { ok: false, reason: `wrong_issuer (${team})` };
     return { ok: true, email: claims.email ?? "admin" };
   } catch {
     return { ok: false, reason: "malformed_token" };

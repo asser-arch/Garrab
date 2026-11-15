@@ -84,3 +84,36 @@ describe("Cloudflare Access settings", () => {
     expect(await checkAccessJwt({ CF_ACCESS_TEAM_DOMAIN: "t.cloudflareaccess.com", CF_ACCESS_AUD: "x" } as never, "nope")).toEqual({ ok: false, reason: "malformed_token" });
   });
 });
+
+describe("Cloudflare Access login token", () => {
+  const b64u = (b: ArrayBuffer | Uint8Array): string =>
+    btoa(String.fromCharCode(...new Uint8Array(b instanceof Uint8Array ? b : new Uint8Array(b)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const enc = (o: unknown): string => b64u(new TextEncoder().encode(JSON.stringify(o)));
+
+  async function token(claims: Record<string, unknown>): Promise<{ jwt: string; jwk: JsonWebKey }> {
+    const kp = (await crypto.subtle.generateKey(
+      { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+      true,
+      ["sign", "verify"],
+    )) as CryptoKeyPair;
+    const jwk = { ...((await crypto.subtle.exportKey("jwk", kp.publicKey)) as JsonWebKey), kid: "k1" };
+    const head = `${enc({ alg: "RS256", kid: "k1" })}.${enc(claims)}`;
+    const sig = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", kp.privateKey, new TextEncoder().encode(head));
+    return { jwt: `${head}.${b64u(sig)}`, jwk };
+  }
+
+  it("verifies against the issuing team's keys even when the configured team name is wrong", async () => {
+    const iss = "https://real-team-123.cloudflareaccess.com";
+    const { jwt, jwk } = await token({ iss, aud: ["AUD1"], email: "owner@example.com", exp: Math.floor(Date.now() / 1000) + 600 });
+    const seen: string[] = [];
+    vi.stubGlobal("fetch", async (u: string) => (seen.push(String(u)), Response.json({ keys: [jwk] })));
+    try {
+      const env = { CF_ACCESS_AUD: "AUD1", CF_ACCESS_TEAM_DOMAIN: "garrab" } as never;
+      expect(await checkAccessJwt(env, jwt)).toEqual({ ok: true, email: "owner@example.com" });
+      expect(seen[0]).toBe(`${iss}/cdn-cgi/access/certs`);
+      expect(await checkAccessJwt({ CF_ACCESS_AUD: "OTHER" } as never, jwt)).toMatchObject({ ok: false, reason: expect.stringMatching(/^wrong_audience/) });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});
