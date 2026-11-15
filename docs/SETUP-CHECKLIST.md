@@ -65,10 +65,10 @@ Done so far: ✅ InstaPay decision (direct to `asserrostom@instapay`) · ✅ Clo
 
 ## Part 5: Google AI (15 minutes)
 
-22. Go to **aistudio.google.com** → sign in → **Get API key** → **Create API key** → in a new project named `garrab`.
+22. ✅ Go to **aistudio.google.com** → sign in → **Get API key** → **Create API key** → in a new project named `garrab`.
 23. Turn on billing for that project: in AI Studio, open the key's project → **Set up billing** (or console.cloud.google.com → **Billing** → link a billing account with your card).
 24. Check AI Studio shows the project on the **paid tier**. This matters: on the paid tier Google doesn't use your data to improve its products.
-25. Tell Claude **"Gemini key ready"**.
+25. ✅ Key in GitHub as `GEMINI_API_KEY`; accepted on staging 15 Nov, both models available.
 26. *(Optional, for the provider comparison only)* console.cloud.google.com → same project → **APIs & Services → Enable APIs** → enable **Vertex AI API**. Send Claude the **project ID**.
 
 ## Part 6: Resend email (20 minutes, after Part 2)
