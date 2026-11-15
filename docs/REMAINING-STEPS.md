@@ -6,14 +6,14 @@ Staging: `app-staging.garrabb.com` · `api-staging.garrabb.com` · `admin-stagin
 
 ---
 
-## 1. Log into the admin (2 minutes)
+## 1. ✅ Log into the admin (done 15 Nov)
 
 1. Open **https://admin-staging.garrabb.com**.
 2. Enter your email → type the 6-digit code Cloudflare emails you.
 3. You should see the Garrab admin (empty: no brands yet).
 4. Tell Claude **"admin works"**, or send a screenshot of any error.
 
-## 2. Switch on the privacy line (2 minutes, after step 1)
+## 2. ✅ Switch on the privacy line (done 15 Nov)
 
 Shoppers then see: *"Your photo is used only to create this preview. We don't save it. It's deleted when you close this page."*
 
@@ -28,7 +28,9 @@ Shoppers then see: *"Your photo is used only to create this preview. We don't sa
 
 ## 3. Score the bake-off (20–30 minutes)
 
-1. GitHub → **Actions** → **Checks** → open run **#2** → download **bakeoff** (Google). Then run **#3** → download **bakeoff** (Genlook).
+1. Open each run page and scroll to the bottom, to **Artifacts** → click **bakeoff** to download the zip:
+   - Google: https://github.com/asser-arch/Garrab/actions/runs/43711464354
+   - Genlook: https://github.com/asser-arch/Garrab/actions/runs/43712878638
 2. Unzip each, open `index.html` in your browser.
 3. For every result pick **1–5**: 5 = I'd show this to a shopper; 1 = unusable. Look at: the garment is right (colour, shape, details), the person is unchanged (face, hijab, body), no glitches, the fit looks believable.
 4. Press **Download my scores (CSV)** on each page and send both CSV files to Claude.
