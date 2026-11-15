@@ -30,6 +30,17 @@ async function tg(method, body) {
 
 if (mode === "plan") {
   const me = await tg("getMe"); // fails fast on a wrong token
+  try {
+    await tg("getChat", { chat_id: chat });
+  } catch (e) {
+    // Unhook so the next good run counts as a move and sends the "connected" message.
+    await tg("deleteWebhook").catch(() => {});
+    console.error(
+      `::warning::Telegram chat ID not usable (${e.message}). Open @${me.username} in Telegram, press Start, send "hi", ` +
+        `then put the number from getUpdates "chat":{"id":…} in the TELEGRAM_CHAT_ID GitHub secret.`,
+    );
+    process.exit(3);
+  }
   const info = await tg("getWebhookInfo");
   const own = env === "prod" || info.url !== prodTarget;
   const out = { TELEGRAM_BOT_TOKEN: token, TELEGRAM_CHAT_ID: chat };
