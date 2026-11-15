@@ -1,4 +1,5 @@
 import "@garrab/shared/ui.css";
+import "./admin.css";
 import { StrictMode, useCallback, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 
@@ -37,6 +38,7 @@ function Invite({ onDone }: { onDone: () => void }) {
   return (
     <div className="card">
       <h2>Invite a brand</h2>
+      <p className="sub">Creates the brand's account, emails them a welcome with a sign-in link, and starts their free 14-day pilot.</p>
       <form
         onSubmit={async (e) => {
           e.preventDefault();
@@ -94,7 +96,7 @@ function Invite({ onDone }: { onDone: () => void }) {
       {err && <p className="warn">{err}</p>}
       {link && (
         <div className="note" role="status">
-          <p className="small">Hand this to the brand now (works once, 15 minutes). The welcome email goes out too.</p>
+          <p className="small"><strong>Invite created.</strong> The welcome email is on its way. You can also send this sign-in link yourself (single use, valid for 15 minutes):</p>
           <p className="small" style={{ wordBreak: "break-all" }}>
             {link}
           </p>
@@ -126,22 +128,38 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
   const load = useCallback(async () => setD(await api<D>(`/accounts/${id}`)), [id]);
   useEffect(() => void load(), [load]);
   if (!d) return <div className="card">Loading…</div>;
+  const site = (d.account.website ?? (d.account.instagram ? `https://instagram.com/${String(d.account.instagram)}` : null)) as string | null;
   return (
-    <div className="card" aria-label="Account detail">
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <h2>{String(d.account.name)}</h2>
+    <div className="card detail" aria-label="Account detail">
+      <div className="detail-head">
+        <div>
+          <h2>{String(d.account.name)}</h2>
+          <p className="small muted" style={{ margin: "6px 0 0" }}>
+            <StatusChip status={String(d.account.status)} /> <span className="chip">{nice(STEP_NAME, String(d.account.onboarding_step))}</span>{" "}
+            {String(d.account.email ?? "")}
+            {site && (
+              <>
+                {" · "}
+                <a href={site} target="_blank" rel="noopener">{site.replace(/^https?:\/\//, "")}</a>
+              </>
+            )}
+          </p>
+        </div>
         <button className="btn small ghost" onClick={onClose}>
           Close
         </button>
       </div>
-      <p className="small muted">
-        {String(d.account.status)} · {String(d.account.onboarding_step)} · {String(d.account.email)} · {String(d.account.website ?? d.account.instagram ?? "")}
-      </p>
-      <h2>Steps</h2>
-      <ul className="small">
+      <div className="section">
+      <h3>Onboarding steps</h3>
+      <ul className="list">
         {d.steps.map((s) => (
           <li key={s.step}>
-            {s.step}: {s.state} ({s.actor}) {s.note ? `— ${s.note}` : ""}
+            <span>
+              {nice(STEP_NAME, s.step)} {s.note ? <span className="muted">· {s.note}</span> : null}
+            </span>
+            <span className="small muted">
+              {cap(s.state)} · {s.actor}
+            </span>
           </li>
         ))}
       </ul>
@@ -157,15 +175,18 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
       >
         <select aria-label="Move to step" value={to} onChange={(e) => setTo(e.target.value)} style={{ width: "auto" }}>
           {STEPS.map((s) => (
-            <option key={s}>{s}</option>
+            <option key={s} value={s}>{nice(STEP_NAME, s)}</option>
           ))}
         </select>
         <input aria-label="Reason" placeholder="Reason (required)" required minLength={3} value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: 260 }} />
-        <button className="btn small" type="submit">
-          Override step
+        <button className="btn small ghost" type="submit">
+          Move to this step
         </button>
       </form>
-      <h2 style={{ marginTop: 16 }}>Selected products</h2>
+      </div>
+      <div className="section">
+      <h3>Selected products</h3>
+      {d.products.filter((p) => p.selected).length === 0 && <p className="small muted">No products selected yet.</p>}
       <div className="grid">
         {d.products
           .filter((p) => p.selected)
@@ -173,7 +194,7 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
             <div key={p.id} className="card" style={{ margin: 0 }}>
               <strong>{p.title}</strong>
               <p className="small">
-                Score {p.test_score ?? "–"} · {p.enabled ? "enabled" : p.needs_review ? "needs review" : p.test_score === null ? "testing" : "disabled"} · brand: {p.brand_decision ?? "–"}
+                Score {p.test_score ?? "–"} · {p.enabled ? "Enabled" : p.needs_review ? "Needs your review" : p.test_score === null ? "Testing…" : "Disabled"} · Brand: {p.brand_decision ? cap(p.brand_decision) : "not decided"}
               </p>
               <div className="thumbs">
                 {d.tests
@@ -198,21 +219,76 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
             </div>
           ))}
       </div>
+      </div>
       <Money id={id} status={String(d.account.status)} hold={Number(d.account.manual_hold) === 1} notes={String(d.account.notes ?? "")} onChange={async () => (await load(), onChange())} />
-      <h2 style={{ marginTop: 16 }}>Timeline</h2>
-      <ul className="small">
+      <div className="section">
+      <h3>History</h3>
+      <ul className="timeline">
         {d.audit.map((a, i) => (
           <li key={i}>
-            {a.created_at.slice(0, 16).replace("T", " ")} · {a.actor} · {a.action} {a.reason ? `— ${a.reason}` : ""}
+            <time>{cairo(a.created_at)}</time>
+            <span>
+              {cap(a.action.replace(/_/g, " "))} <span className="muted">by {a.actor.replace(/^admin:/, "")}</span>
+              {a.reason ? <span className="muted"> · {a.reason}</span> : null}
+            </span>
           </li>
         ))}
       </ul>
+      </div>
     </div>
   );
 }
 
 
 const egp = (p: number): string => `${(p / 100).toLocaleString("en-US", { maximumFractionDigits: 2 })} EGP`;
+
+const cap = (t: string): string => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
+const nice = (map: Record<string, string>, k: string | null | undefined): string => (k ? (map[k] ?? cap(k.replace(/_/g, " "))) : "–");
+const STATUS_NAME: Record<string, string> = {
+  onboarding: "Onboarding",
+  pilot: "Pilot",
+  active: "Active",
+  past_due: "Payment due",
+  suspended: "Switched off",
+  paused: "Paused",
+  killed: "Killed",
+  cancelled: "Cancelled",
+  archived: "Archived",
+  expired: "Pilot ended",
+};
+const PLAN_NAME: Record<string, string> = { pilot: "Pilot", starter: "Starter", growth: "Growth" };
+const STEP_NAME: Record<string, string> = {
+  invited: "Invited",
+  account_created: "Account created",
+  products_imported: "Products added",
+  products_tested: "Products tested",
+  products_approved: "Products approved",
+  installed: "Installed",
+  pilot_live: "Pilot live",
+  converted: "Converted to paid",
+  expired: "Pilot ended",
+};
+const JOB_NAME: Record<string, string> = {
+  billing_run: "Billing",
+  digest: "Daily summary email",
+  install_crawler: "Install check",
+  onboarding_sweep: "Onboarding sweep",
+  payment_claims: "Payment claims",
+  product_resync: "Product sync",
+  stuck_detector: "Stuck brands check",
+  pilot_clock: "Pilot clock",
+};
+/** Times are shown in Cairo time, like everything else in Garrab. */
+const cairo = (ts: string | null | undefined): string => {
+  if (!ts) return "–";
+  const d = new Date(/[zZ]|[+-]\d\d:?\d\d$/.test(ts) ? ts : `${ts.replace(" ", "T")}Z`);
+  if (Number.isNaN(d.getTime())) return ts;
+  return d.toLocaleString("en-GB", { timeZone: "Africa/Cairo", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+};
+const statusClass = (st: string): string => (st === "suspended" || st === "killed" ? "bad" : st === "past_due" ? "peach" : st === "active" ? "mint" : st === "pilot" ? "lavender" : "");
+function StatusChip({ status }: { status: string }) {
+  return <span className={`chip ${statusClass(status)}`}>{nice(STATUS_NAME, status)}</span>;
+}
 
 function Access({ id }: { id: string }) {
   const [domains, setDomains] = useState<{ id: string; host: string; install_status: string }[]>([]);
@@ -223,7 +299,8 @@ function Access({ id }: { id: string }) {
   useEffect(() => void load(), [load]);
   return (
     <>
-      <h2 style={{ marginTop: 16 }}>Portal, key and domains</h2>
+      <div className="section">
+      <h3>Portal, widget key and domains</h3>
       <div className="row">
         <button
           className="btn small ghost"
@@ -232,7 +309,7 @@ function Access({ id }: { id: string }) {
             window.open(r.link, "_blank", "noopener");
           }}
         >
-          Open portal (read-only)
+          Open their portal (read-only)
         </button>
         <button
           className="btn small ghost"
@@ -261,11 +338,13 @@ function Access({ id }: { id: string }) {
           Set product limit
         </button>
       </div>
-      <ul className="small">
+      <ul className="list">
         {domains.map((d) => (
           <li key={d.id}>
-            {d.host} <span className="chip">{d.install_status}</span>{" "}
-            <a href="#" onClick={async (e) => (e.preventDefault(), await api(`/accounts/${id}/domains/${d.id}/remove`, {}), load())}>remove</a>
+            <span>
+              {d.host} <span className="chip">{cap(d.install_status.replace(/_/g, " "))}</span>
+            </span>
+            <a href="#" onClick={async (e) => (e.preventDefault(), await api(`/accounts/${id}/domains/${d.id}/remove`, {}), load())}>Remove</a>
           </li>
         ))}
       </ul>
@@ -287,6 +366,7 @@ function Access({ id }: { id: string }) {
         <button className="btn small ghost" type="submit">Add domain</button>
       </form>
       {msg && <p className="warn small">{msg}</p>}
+      </div>
     </>
   );
 }
@@ -297,7 +377,8 @@ function Costs({ id }: { id: string }) {
   if (!d || d.days.length === 0) return null;
   return (
     <>
-      <h2 style={{ marginTop: 16 }}>AI cost per day</h2>
+      <div className="section">
+      <h3>AI cost per day</h3>
       <table>
         <thead>
           <tr><th>Day</th><th>Calls</th><th>USD</th><th>EGP</th></tr>
@@ -308,6 +389,7 @@ function Costs({ id }: { id: string }) {
           ))}
         </tbody>
       </table>
+      </div>
     </>
   );
 }
@@ -337,15 +419,16 @@ function Money({ id, status, hold, notes, onChange }: { id: string; status: stri
   if (!b) return null;
   return (
     <>
-      <h2 style={{ marginTop: 16 }}>Kill switch</h2>
+      <div className="section">
+      <h3>On / off</h3>
       <p className="small muted">
-        Status: <strong>{status}</strong>
-        {hold ? " · held by you (billing won't change it)" : ""}
+        Now: <StatusChip status={status} />
+        {hold ? " · held by you (billing won't change it)" : ""}. Kill switches the try-on off at once; Restore puts it back to what billing says.
       </p>
       <div className="row">
         <input aria-label="Reason for kill, pause or restore" placeholder="Reason (required)" value={reason} onChange={(e) => setReason(e.target.value)} style={{ width: 260 }} />
         <button className="btn small" disabled={reason.trim().length < 3} onClick={() => act(`/accounts/${id}/kill`, { reason }, "Killed: switched off now.")}>
-          Kill
+          Kill now
         </button>
         <button className="btn small ghost" disabled={reason.trim().length < 3} onClick={() => act(`/accounts/${id}/pause`, { reason }, "Paused.")}>
           Pause
@@ -355,10 +438,12 @@ function Money({ id, status, hold, notes, onChange }: { id: string; status: stri
         </button>
       </div>
       {msg && <p className="note small" role="status">{msg}</p>}
+      </div>
 
       <Access id={id} />
       <Costs id={id} />
-      <h2 style={{ marginTop: 16 }}>Invoices</h2>
+      <div className="section">
+      <h3>Invoices</h3>
       <div className="row">
         <button className="btn small ghost" onClick={() => act(`/accounts/${id}/invoice`, {}, "Invoice ready.")}>
           Create / get open invoice
@@ -372,14 +457,19 @@ function Money({ id, status, hold, notes, onChange }: { id: string; status: stri
       </div>
       <table>
         <tbody>
+          {b.invoices.length === 0 && (
+            <tr>
+              <td className="muted">No invoices yet.</td>
+            </tr>
+          )}
           {b.invoices.map((i) => (
             <tr key={i.id}>
               <td>{i.number}</td>
-              <td>{i.kind}</td>
+              <td>{cap(i.kind.replace(/_/g, " "))}</td>
               <td>{egp(i.total)}</td>
-              <td>{i.status === "open" ? `due ${i.due_date}` : i.status}</td>
+              <td>{i.status === "open" ? `Due ${i.due_date}` : cap(i.status)}</td>
               <td className="row">
-                <a className="small" href={i.payUrl} target="_blank" rel="noopener">pay page</a>
+                <a className="small" href={i.payUrl} target="_blank" rel="noopener">Pay page</a>
                 <a className="small" href={i.pdfUrl} target="_blank" rel="noopener">PDF</a>
                 {i.whatsapp && <a className="small" href={i.whatsapp} target="_blank" rel="noopener">WhatsApp</a>}
                 {i.status === "open" && (
@@ -401,24 +491,35 @@ function Money({ id, status, hold, notes, onChange }: { id: string; status: stri
       </table>
       {b.claims.filter((c) => c.status === "pending").map((c) => (
         <p key={c.id} className="note row">
-          "I've paid" claim, ref {c.reference}
+          Brand says "I've paid" · reference {c.reference}
           <button className="btn small" onClick={() => act(`/claims/${c.id}/decide`, { confirm: true }, "Confirmed.")}>Confirm</button>
           <button className="btn small ghost" onClick={() => act(`/claims/${c.id}/decide`, { confirm: false }, "Marked not received.")}>Not received</button>
         </p>
       ))}
-      <h2 style={{ marginTop: 16 }}>Payments</h2>
-      <ul className="small">
+      </div>
+      <div className="section">
+      <h3>Payments</h3>
+      {b.payments.length === 0 && <p className="small muted">No payments yet.</p>}
+      <ul className="list">
         {b.payments.map((p, i) => (
           <li key={i}>
-            {p.created_at.slice(0, 10)} · {egp(p.amount)} · {p.provider} ({p.method}) {p.reference ? `ref ${p.reference}` : ""} · {p.actor}
+            <span>
+              <strong>{egp(p.amount)}</strong> · {p.method === "instapay" ? "InstaPay" : cap(p.method)} {p.reference ? <span className="muted">· ref {p.reference}</span> : null}
+            </span>
+            <span className="small muted">
+              {cairo(p.created_at)} · {p.actor.replace(/^admin:/, "")}
+            </span>
           </li>
         ))}
       </ul>
-      <h2 style={{ marginTop: 16 }}>Notes</h2>
+      </div>
+      <div className="section">
+      <h3>Private notes</h3>
       <textarea aria-label="Notes" value={note} onChange={(e) => setNote(e.target.value)} />
       <p>
         <button className="btn small ghost" onClick={() => act(`/accounts/${id}/notes`, { notes: note }, "Notes saved.")}>Save notes</button>
       </p>
+      </div>
     </>
   );
 }
@@ -439,7 +540,7 @@ interface Dash {
 function Dashboard({ open }: { open: (id: string) => void }) {
   const [d, setD] = useState<Dash | null>(null);
   const [q, setQ] = useState("");
-  const [hits, setHits] = useState<{ id: string; name: string; status: string }[]>([]);
+  const [hits, setHits] = useState<{ id: string; name: string; status: string }[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const load = useCallback(async () => {
     try {
@@ -461,46 +562,70 @@ function Dashboard({ open }: { open: (id: string) => void }) {
   if (!d) return <p className="muted">Loading…</p>;
   return (
     <>
-      <div className="row" style={{ justifyContent: "space-between" }}>
-        <h1>
-          Today <span className="soft">at a glance</span>
-        </h1>
+      <div className="page-head">
+        <div>
+          <h1>
+            Today <span className="soft">at a glance</span>
+          </h1>
+          <p className="small muted">{new Date().toLocaleDateString("en-GB", { timeZone: "Africa/Cairo", weekday: "long", day: "numeric", month: "long" })} · Cairo time</p>
+        </div>
         <form
-          className="row"
+          className="search"
+          role="search"
           onSubmit={async (e) => {
             e.preventDefault();
-            setHits((await api<{ results: typeof hits }>(`/search?q=${encodeURIComponent(q)}`)).results);
+            if (!q.trim()) return setHits(null);
+            setHits((await api<{ results: NonNullable<typeof hits> }>(`/search?q=${encodeURIComponent(q)}`)).results);
           }}
         >
-          <input aria-label="Search brands" placeholder="Search brand, email, site" value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 240 }} />
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--grey)" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <input aria-label="Search brands" placeholder="Search by brand, email or website" value={q} onChange={(e) => setQ(e.target.value)} />
         </form>
       </div>
-      {hits.length > 0 && (
+      {hits && (
         <div className="card">
-          {hits.map((h) => (
-            <p key={h.id}>
-              <a href="#" onClick={(e) => (e.preventDefault(), open(h.id))}>{h.name}</a> <span className="chip">{h.status}</span>
-            </p>
-          ))}
+          <h2>Search results</h2>
+          {hits.length === 0 ? (
+            <p className="small muted">No brand matches "{q}".</p>
+          ) : (
+            <ul className="list">
+              {hits.map((h) => (
+                <li key={h.id}>
+                  <a href="#" onClick={(e) => (e.preventDefault(), open(h.id))}>{h.name}</a> <StatusChip status={h.status} />
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
-      <div className="grid" aria-label="Key numbers">
-        <div className="card" style={{ margin: 0 }}>
-          <p className="small muted">MRR</p>
+      <div className="stats" aria-label="Key numbers">
+        <div className="card">
+          <p className="label">Monthly revenue</p>
           <p className="stat">{egp(d.mrr)}</p>
+          <p className="hint">MRR from paying brands</p>
         </div>
-        {["pilot", "active", "past_due", "suspended"].map((s) => (
-          <div className="card" style={{ margin: 0 }} key={s}>
-            <p className="small muted">{s.replace("_", " ")}</p>
-            <p className="stat">{d.statusCounts[s] ?? 0}</p>
+        {(
+          [
+            ["pilot", "In free pilot"],
+            ["active", "Paying"],
+            ["past_due", "Payment due"],
+            ["suspended", "Switched off"],
+          ] as const
+        ).map(([k, l]) => (
+          <div className="card" key={k}>
+            <p className="label">{l}</p>
+            <p className="stat">{d.statusCounts[k] ?? 0}</p>
           </div>
         ))}
-        <div className="card" style={{ margin: 0 }}>
-          <p className="small muted">due in 3 days</p>
+        <div className="card">
+          <p className="label">Invoices due soon</p>
           <p className="stat">{d.dueSoon}</p>
+          <p className="hint">In the next 3 days</p>
         </div>
       </div>
-      <div style={{ height: 16 }} />
       {d.pendingClaims.length > 0 && (
         <div className="card dark">
           <h2>Payments to confirm</h2>
@@ -514,7 +639,8 @@ function Dashboard({ open }: { open: (id: string) => void }) {
         </div>
       )}
       <div className="card">
-        <h2>Clients</h2>
+        <h2>Brands</h2>
+        <p className="sub">Brands in a pilot or on a paid plan. Click a name for details, billing and the on/off switch.</p>
         {d.egpPerUsd === null && (
           <p className="small warn">
             Set the EGP/USD rate to see margins.{" "}
@@ -532,6 +658,13 @@ function Dashboard({ open }: { open: (id: string) => void }) {
             </button>
           </p>
         )}
+        {d.clients.length === 0 ? (
+          <div className="empty">
+            <strong>No brands yet</strong>
+            Invite your first brand from the Onboarding tab. It shows up here once its pilot starts.
+          </div>
+        ) : (
+        <div className="table-wrap">
         <table>
           <thead>
             <tr>
@@ -540,9 +673,9 @@ function Dashboard({ open }: { open: (id: string) => void }) {
               <th>Plan</th>
               <th>Paid until</th>
               <th>Previews</th>
-              <th>Revenue 30 d</th>
-              <th>AI cost 30 d</th>
-              <th>Margin 30 d</th>
+              <th>Revenue (30 days)</th>
+              <th>AI cost (30 days)</th>
+              <th>Margin (30 days)</th>
             </tr>
           </thead>
           <tbody>
@@ -552,10 +685,10 @@ function Dashboard({ open }: { open: (id: string) => void }) {
                   <a href="#" onClick={(e) => (e.preventDefault(), open(c.id))}>{c.name}</a>
                 </td>
                 <td>
-                  <span className={`chip ${c.status === "suspended" ? "bad" : c.status === "past_due" ? "peach" : ""}`}>{c.status}</span>
-                  {c.manualHold ? " ⛔" : ""}
+                  <StatusChip status={c.status} />
+                  {c.manualHold ? <span title="Held by you"> ⛔</span> : ""}
                 </td>
-                <td>{c.plan}</td>
+                <td>{nice(PLAN_NAME, c.plan)}</td>
                 <td>{c.paidThrough ?? "–"}</td>
                 <td>{c.previews}</td>
                 <td>{egp(c.revenue30)}</td>
@@ -565,33 +698,46 @@ function Dashboard({ open }: { open: (id: string) => void }) {
             ))}
           </tbody>
         </table>
+        </div>
+        )}
       </div>
-      <div className="grid">
+      <div className="cols">
         <div className="card">
           <h2>Alerts</h2>
           {d.alerts.length === 0 ? (
-            <p className="muted">None.</p>
+            <p className="small muted">All clear. Anything that needs you shows up here and in Telegram.</p>
           ) : (
-            d.alerts.map((a) => (
-              <p key={a.id} className="small">
-                <span className="chip">{a.kind}</span> {a.message}{" "}
-                <a href="#" onClick={async (e) => (e.preventDefault(), await api(`/alerts/${a.id}/resolve`, {}), load())}>dismiss</a>
-              </p>
-            ))
+            <ul className="list">
+              {d.alerts.map((a) => (
+                <li key={a.id} style={{ display: "block" }}>
+                  <span className="chip peach">{cap(a.kind.replace(/_/g, " "))}</span> <span className="small muted">{cairo(a.created_at)}</span>
+                  <div className="small" style={{ margin: "4px 0" }}>{a.message}</div>
+                  <a href="#" className="small" onClick={async (e) => (e.preventDefault(), await api(`/alerts/${a.id}/resolve`, {}), load())}>Dismiss</a>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
         <div className="card">
-          <h2>Jobs</h2>
-          {d.crons.map((c) => (
-            <p key={c.job} className="small">
-              {c.ok ? "✓" : "✗"} {c.job}: {String(c.last_run).slice(0, 16).replace("T", " ")} UTC
-            </p>
-          ))}
-          <button className="btn small ghost" onClick={async () => (await api("/jobs/billing_run/run", {}), load())}>Run billing now</button>
+          <h2>Background jobs</h2>
+          <p className="sub">Last run, Cairo time.</p>
+          <ul className="list">
+            {d.crons.map((c) => (
+              <li key={c.job}>
+                <span>
+                  <span className={c.ok ? "ok" : "bad-text"}>{c.ok ? "✓" : "✗"}</span> {nice(JOB_NAME, c.job)}
+                </span>
+                <span className="small muted">{cairo(c.last_run)}</span>
+              </li>
+            ))}
+          </ul>
+          <p style={{ marginBottom: 0 }}>
+            <button className="btn small ghost" onClick={async () => (await api("/jobs/billing_run/run", {}), load())}>Run billing now</button>
+          </p>
         </div>
         <div className={`card ${d.globalKill ? "dark" : ""}`}>
           <h2>Emergency switch</h2>
-          <p className="small">{d.globalKill ? "ON: every preview is disabled." : "Off. Turning it on disables every preview everywhere within a minute."}</p>
+          <p className="small">{d.globalKill ? "ON: try-on is switched off for every brand." : "Off. Turning it on switches try-on off for every brand within a minute."}</p>
           <button
             className={`btn small ${d.globalKill ? "accent" : ""}`}
             onClick={async () => {
@@ -608,7 +754,7 @@ function Dashboard({ open }: { open: (id: string) => void }) {
           <h2>Privacy line</h2>
           <p className="small">
             {d.privacyClaim
-              ? "ON: shoppers see \"We don't save it. It's deleted when you close this page.\""
+              ? "On. Shoppers see: \"We don't save it. It's deleted when you close this page.\""
               : "Off. Needs a PASS report from the Genlook delete check (docs/privacy/), less than 90 days old."}
           </p>
           <button
@@ -637,6 +783,8 @@ function Dashboard({ open }: { open: (id: string) => void }) {
   );
 }
 
+const ENV = /^admin\.garrabb\.com$/.test(location.hostname) ? "Live" : /staging/.test(location.hostname) ? "Staging" : "Local";
+
 function App() {
   const [rows, setRows] = useState<Row[]>([]);
   const [funnel, setFunnel] = useState<Stage[]>([]);
@@ -655,44 +803,60 @@ function App() {
   }, []);
 
   return (
-    <div className="shell" style={{ maxWidth: 1200 }}>
-      <header className="top">
-        <span className="logo">
-          <span className="tile">G</span> Garrab admin
-        </span>
-      </header>
-      <nav className="tabs" aria-label="Admin">
-        <a href="#" aria-current={tab === "dashboard" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("dashboard"))}>Dashboard</a>
-        <a href="#" aria-current={tab === "onboarding" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("onboarding"))}>Onboarding</a>
-      </nav>
+    <>
+    <header className="bar">
+      <div className="bar-inner">
+        <a className="brand" href="/" onClick={(e) => (e.preventDefault(), setTab("dashboard"), setOpen(null))}>
+          <img src="/mark-dark.svg" alt="" width="34" height="34" />
+          Garrab <small>Admin</small>
+        </a>
+        <span className={`env ${ENV === "Live" ? "live" : ""}`}>{ENV}</span>
+        <nav aria-label="Admin">
+          <a href="#" aria-current={tab === "dashboard" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("dashboard"))}>Dashboard</a>
+          <a href="#" aria-current={tab === "onboarding" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("onboarding"))}>Onboarding</a>
+        </nav>
+      </div>
+    </header>
+    <main className="page">
       {open && <Detail id={open} onClose={() => setOpen(null)} onChange={load} />}
       {tab === "dashboard" && <Dashboard open={setOpen} />}
       {tab === "onboarding" && (
       <>
-      <h1>
-        Onboarding <span className="soft">at a glance</span>
-      </h1>
-      <div className="grid" aria-label="Funnel">
+      <div className="page-head">
+        <div>
+          <h1>
+            Onboarding <span className="soft">from invite to live</span>
+          </h1>
+          <p className="small muted">Every brand moves through these steps on its own; you only step in when something is stuck.</p>
+        </div>
+      </div>
+      <div className="stats" aria-label="Funnel">
         {funnel.map((s) => (
-          <div className="card" key={s.stage} style={{ margin: 0 }}>
-            <p className="small muted">{s.stage.replace("_", " ")}</p>
+          <div className="card" key={s.stage}>
+            <p className="label">{nice(STEP_NAME, s.stage)}</p>
             <p className="stat">{s.count}</p>
-            {s.conversion !== null && <p className="small muted">{s.conversion}% from previous</p>}
+            {s.conversion !== null && <p className="hint">{s.conversion}% of the step before</p>}
           </div>
         ))}
       </div>
-      <div style={{ height: 16 }} />
       <Invite onDone={load} />
       {msg && <p className="note">{msg}</p>}
       <div className="card">
-        <h2>Brands</h2>
+        <h2>Brands being onboarded</h2>
+        {rows.length === 0 ? (
+          <div className="empty">
+            <strong>No brands yet</strong>
+            Use the form above to invite your first brand.
+          </div>
+        ) : (
+        <div className="table-wrap">
         <table>
           <thead>
             <tr>
               <th>Brand</th>
               <th>Status</th>
-              <th>Step</th>
-              <th>Hours in step</th>
+              <th>Current step</th>
+              <th>Time in step</th>
               <th />
             </tr>
           </thead>
@@ -705,17 +869,27 @@ function App() {
                   </a>
                 </td>
                 <td>
-                  <span className="chip">{r.status}</span>
+                  <StatusChip status={r.status} />
                 </td>
                 <td>{r.stepLabel}</td>
-                <td>{r.hoursInStep !== null && r.hoursInStep > 48 && r.status === "onboarding" ? <span className="chip bad">{r.hoursInStep} h stuck</span> : r.hoursInStep}</td>
+                <td>
+                  {r.hoursInStep === null ? (
+                    "–"
+                  ) : r.hoursInStep > 48 && r.status === "onboarding" ? (
+                    <span className="chip bad">Stuck {Math.round(r.hoursInStep / 24)} days</span>
+                  ) : r.hoursInStep >= 48 ? (
+                    `${Math.round(r.hoursInStep / 24)} days`
+                  ) : (
+                    `${r.hoursInStep} h`
+                  )}
+                </td>
                 <td>
                   <div className="row">
                     <button className="btn small ghost" onClick={async () => setMsg((await api<{ sent: boolean }>(`/accounts/${r.id}/remind`, {})).sent ? `Reminder sent to ${r.name}.` : "Already reminded today.")}>
                       Send reminder
                     </button>
-                    <button className="btn small ghost" onClick={async () => (await api(`/accounts/${r.id}/advance`, {}), load())}>
-                      Re-run
+                    <button className="btn small ghost" title="Check this brand's step again now" onClick={async () => (await api(`/accounts/${r.id}/advance`, {}), load())}>
+                      Check again
                     </button>
                   </div>
                 </td>
@@ -723,10 +897,14 @@ function App() {
             ))}
           </tbody>
         </table>
+        </div>
+        )}
       </div>
       </>
       )}
-    </div>
+    </main>
+    <footer className="foot">Garrab admin · {ENV} · Signed in through Cloudflare Access</footer>
+    </>
   );
 }
 
