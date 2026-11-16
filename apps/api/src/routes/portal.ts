@@ -193,9 +193,13 @@ portal.get("/products", async (c) => {
       brand_decision: string | null;
       product_url: string | null;
     }>();
-  const tests = await c.env.DB.prepare("SELECT id, product_id FROM product_tests WHERE account_id = ? AND r2_key IS NOT NULL ORDER BY created_at")
+  const tests = await c.env.DB.prepare("SELECT id, product_id, fixture FROM product_tests WHERE account_id = ? AND r2_key IS NOT NULL ORDER BY created_at")
     .bind(id)
-    .all<{ id: string; product_id: string }>();
+    .all<{ id: string; product_id: string; fixture: string }>();
+  // One preview per test model: the newest (after "Test again", older runs are not shown).
+  const latest = new Map<string, { id: string; product_id: string; fixture: string }>();
+  for (const t of tests.results) latest.set(`${t.product_id}|${t.fixture}`, t);
+  const shown = [...latest.values()].sort((x, y) => x.fixture.localeCompare(y.fixture));
   const a = await c.env.DB.prepare("SELECT plan_id, max_products FROM accounts WHERE id = ?").bind(id).first<{ plan_id: PlanId; max_products: number | null }>();
   return c.json({
     maxProducts: productLimit(a?.plan_id ?? "pilot", a?.max_products),
@@ -210,7 +214,7 @@ portal.get("/products", async (c) => {
       result: p.test_score === null ? "pending" : p.enabled ? "passed" : p.needs_review ? "review" : "failed",
       reason: p.disabled_reason,
       decision: p.brand_decision,
-      tests: tests.results.filter((t) => t.product_id === p.id).map((t) => `/portal-api/test-image/${t.id}`),
+      tests: shown.filter((t) => t.product_id === p.id).map((t) => `/portal-api/test-image/${t.id}`),
     })),
   });
 });

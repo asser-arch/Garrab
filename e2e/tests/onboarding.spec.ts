@@ -39,6 +39,17 @@ test("invite → import → tests → approve → install → pilot live, with n
   }).toPass({ timeout: 90_000, intervals: [2_000] });
   const cards = page.getByRole("article");
   await expect(cards).toHaveCount(3);
+  // Any picture opens full size; arrows move between them; Escape closes.
+  const firstCard = page.getByRole("article").filter({ has: page.getByRole("button", { name: "Approve" }) }).first();
+  await firstCard.getByRole("button", { name: /^Enlarge on model a/ }).click();
+  const viewer = page.getByRole("dialog");
+  await expect(viewer).toBeVisible();
+  await expect(viewer.getByText(/On model A/)).toBeVisible();
+  await expect(viewer.locator("img")).toHaveJSProperty("complete", true);
+  await page.keyboard.press("ArrowRight");
+  await expect(viewer.getByText(/On model B/)).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(viewer).toHaveCount(0);
   await expect(page.getByRole("article", { name: "Cotton shirt [low]" }).getByText(/Not available for try-on/)).toBeVisible();
   await expect(page.getByRole("article", { name: "Olive linen dress" }).locator(".chip").first()).toHaveText("AI preview");
 

@@ -102,3 +102,20 @@ button.linkish {
   text-decoration: underline;
   cursor: pointer;
 }
+
+/* Tap-to-enlarge thumbnails (Approve) and the full-size viewer. */
+button.preview.zoom { display: block; width: 100%; padding: 0; cursor: zoom-in; font: inherit; color: inherit; }
+button.preview.zoom:hover { border-color: var(--grey); }
+button.preview.zoom:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.preview .chip.mini { top: 4px; left: 4px; padding: 0 6px; font-size: 9px; line-height: 1.7; letter-spacing: .04em; text-transform: none; }
+dialog.viewer { border: 1px solid var(--sand); border-radius: var(--radius-card); background: var(--paper); color: var(--ink); padding: 16px;
+  width: min(720px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; }
+dialog.viewer::backdrop { background: rgba(15, 26, 19, .7); }
+dialog.viewer[open] { animation: viewer-in 200ms ease; }
+@keyframes viewer-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { dialog.viewer[open] { animation: none; } }
+.viewer-top { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
+.viewer-top p { margin: 0; }
+.viewer-shot { position: relative; margin: 0 0 12px; border-radius: 16px; overflow: hidden; background: var(--mist); }
+.viewer-shot img { display: block; width: 100%; max-height: calc(100dvh - 200px); object-fit: contain; }
+.viewer-shot .chip { position: absolute; top: 12px; left: 12px; background: var(--peach); color: var(--forest); }

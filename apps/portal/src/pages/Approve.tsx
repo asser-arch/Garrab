@@ -1,10 +1,67 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { go } from "../main.js";
 import { api, atOrAfter, type Me, type Product } from "../api.js";
+
+interface Shot {
+  src: string;
+  label: string;
+  ai: boolean;
+}
+
+/** Full-size view of one product's pictures; arrows move between them. Native <dialog>: focus trap and Escape for free. */
+function Viewer({ title, shots, start, onClose }: { title: string; shots: Shot[]; start: number; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [i, setI] = useState(start);
+  useEffect(() => {
+    const d = ref.current;
+    if (d && !d.open) d.showModal();
+  }, []);
+  const go = (step: number) => setI((n) => (n + step + shots.length) % shots.length);
+  const shot = shots[i]!;
+  return (
+    <dialog
+      ref={ref}
+      className="viewer"
+      aria-label={`${title}: ${shot.label}`}
+      onClose={onClose}
+      onClick={(e) => {
+        if (e.target === ref.current) ref.current?.close(); // tap outside the picture
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowRight") go(1);
+        if (e.key === "ArrowLeft") go(-1);
+      }}
+    >
+      <div className="viewer-top">
+        <p>
+          <strong>{title}</strong> · {shot.label} <span className="muted">({i + 1} of {shots.length})</span>
+        </p>
+        <button className="btn small ghost" onClick={() => ref.current?.close()} autoFocus>
+          Close
+        </button>
+      </div>
+      <figure className="viewer-shot">
+        {shot.ai && <span className="chip">AI preview</span>}
+        <img src={shot.src} alt={`${title}, ${shot.label}`} referrerPolicy="no-referrer" />
+      </figure>
+      {shots.length > 1 && (
+        <div className="row" style={{ justifyContent: "center" }}>
+          <button className="btn small ghost" onClick={() => go(-1)} aria-label="Previous picture">
+            ← Previous
+          </button>
+          <button className="btn small ghost" onClick={() => go(1)} aria-label="Next picture">
+            Next →
+          </button>
+        </div>
+      )}
+    </dialog>
+  );
+}
 
 export function Approve({ me, refresh }: { me: Me; refresh: () => Promise<void> }) {
   const [list, setList] = useState<Product[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState<{ title: string; shots: Shot[]; start: number } | null>(null);
   const load = async () => setList((await api<{ products: Product[] }>("/products")).products.filter((p) => p.selected));
   useEffect(() => void load(), []);
 
@@ -30,29 +87,32 @@ export function Approve({ me, refresh }: { me: Me; refresh: () => Promise<void> 
       <h1>
         Approve <span className="soft">your previews</span>
       </h1>
-      <p>These are AI previews on our test models. Approve the ones you'd be happy for shoppers to see. You can change this any time.</p>
+      <p>These are AI previews on our test models. Tap any picture to see it full size. Approve the ones you'd be happy for shoppers to see. You can change this any time.</p>
       <div className="grid">
         {list.map((p) => (
           <article key={p.id} className="card" style={{ margin: 0 }} aria-label={p.title}>
             <h2>{p.title}</h2>
             <div className="thumbs">
-              {p.image && (
-                <figure className="shot">
-                  <div className="preview">
-                    <img src={p.image} alt={`${p.title}, product photo`} referrerPolicy="no-referrer" />
-                  </div>
-                  <figcaption>Your photo</figcaption>
-                </figure>
-              )}
-              {p.tests.map((src, i) => (
-                <figure className="shot" key={src}>
-                  <div className="preview">
-                    <span className="chip">AI preview</span>
-                    <img src={src} alt={`AI preview ${i + 1} of ${p.title} on a test model`} />
-                  </div>
-                  <figcaption>On model {String.fromCharCode(65 + i)}</figcaption>
-                </figure>
-              ))}
+              {(() => {
+                const shots: Shot[] = [
+                  ...(p.image ? [{ src: p.image, label: "Your photo", ai: false }] : []),
+                  ...p.tests.map((src, i) => ({ src, label: `On model ${String.fromCharCode(65 + i)}`, ai: true })),
+                ];
+                return shots.map((shot, i) => (
+                  <figure className="shot" key={shot.src}>
+                    <button
+                      type="button"
+                      className="preview zoom"
+                      onClick={() => setOpen({ title: p.title, shots, start: i })}
+                      aria-label={`Enlarge ${shot.label.toLowerCase()} of ${p.title}`}
+                    >
+                      {shot.ai && <span className="chip mini">AI preview</span>}
+                      <img src={shot.src} alt="" referrerPolicy="no-referrer" />
+                    </button>
+                    <figcaption>{shot.label}</figcaption>
+                  </figure>
+                ));
+              })()}
             </div>
             {p.result === "passed" && (
               <div className="row" style={{ marginTop: 12 }}>
@@ -70,6 +130,7 @@ export function Approve({ me, refresh }: { me: Me; refresh: () => Promise<void> 
           </article>
         ))}
       </div>
+      {open && <Viewer title={open.title} shots={open.shots} start={open.start} onClose={() => setOpen(null)} />}
       {error && (
         <p className="warn" role="alert">
           {error}
