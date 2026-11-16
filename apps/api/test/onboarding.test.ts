@@ -285,6 +285,55 @@ describe("onboarding: invite → pilot_live with no admin action", () => {
     expect((await env.DB.prepare("SELECT category FROM accounts WHERE id = ?").bind(home.accountId).first<{ category: string }>())?.category).toBe("home");
   });
 
+  it("home décor brand: products are tested in the two test rooms (never on the models), then go live with room preview", async () => {
+    await env.FILES.put("fixtures/room-a.jpg", fakeJpeg("ROOM-A"));
+    await env.FILES.put("fixtures/room-b.jpg", fakeJpeg("ROOM-B"));
+    const { accountId } = await createAccount(env, { brandName: "Beit Rugs", email: `rugs-${uniq()}@brand.example`, plan: "starter", category: "home", instagram: "@beitrugs" });
+    const pid = `p${uniq()}`;
+    await env.DB.prepare(
+      `INSERT INTO products (id, account_id, external_ref, title, images_json, kind, selected, source) VALUES (?, ?, 'manual:rug', 'Berber rug', '["https://cdn.shop.example/rug.jpg"]', 'decor', 1, 'manual')`,
+    )
+      .bind(pid, accountId)
+      .run();
+    expect(await advance(env, accountId, { fetcher, runTestsInline: (a, p) => testProduct(env, a, p) })).toBe("products_tested");
+    const fx = (await env.DB.prepare("SELECT fixture FROM product_tests WHERE product_id = ? ORDER BY fixture").bind(pid).all<{ fixture: string }>()).results.map((r) => r.fixture);
+    expect(fx).toEqual(["fixtures/room-a.jpg", "fixtures/room-b.jpg"]);
+    await decideProduct(env, accountId, pid, "approved");
+    await confirmApproval(env, accountId);
+    expect(await advance(env, accountId, { fetcher })).toBe("pilot_live");
+    const slug = (await env.DB.prepare("SELECT slug FROM accounts WHERE id = ?").bind(accountId).first<{ slug: string }>())!.slug;
+    invalidateStatus();
+    const page = (await (await exports.default.fetch(`https://api.test/v1/hosted/${slug}`)).json()) as { products: { id: string; kind: string }[] };
+    expect(page.products).toEqual([expect.objectContaining({ id: pid, kind: "decor" })]);
+    const one = (await (await exports.default.fetch(`https://api.test/v1/hosted/${slug}/${pid}`)).json()) as { enabled: boolean; ctx: string; product: { kind: string } };
+    expect(one).toMatchObject({ enabled: true, product: { kind: "decor" } });
+
+    // A shopper's room photo → a room preview, counted as "room" usage, and deleted at the provider.
+    const form = new FormData();
+    form.set("ctx", one.ctx);
+    form.set("product", pid);
+    form.set("turnstile", "ok");
+    form.set("photo", new Blob([fakeJpeg("MY-ROOM")], { type: "image/jpeg" }), "room.jpg");
+    const r = await exports.default.fetch("https://api.test/v1/tryon", { method: "POST", headers: { origin: APP }, body: form });
+    expect(r.status).toBe(200);
+    const u = await env.DB.prepare("SELECT kind FROM usage_events WHERE account_id = ? AND kind IN ('tryon','room')").bind(accountId).all<{ kind: string }>();
+    expect(u.results.map((x) => x.kind)).toEqual(["room"]);
+    await env.FILES.delete(["fixtures/room-a.jpg", "fixtures/room-b.jpg"]);
+  });
+
+  it("fashion brands are never tested in the rooms", async () => {
+    await env.FILES.put("fixtures/room-a.jpg", fakeJpeg("ROOM-A"));
+    const { accountId } = await createAccount(env, { brandName: "Abaya House", email: `ab-${uniq()}@brand.example`, plan: "starter", instagram: "@abayahouse" });
+    const pid = `p${uniq()}`;
+    await env.DB.prepare(`INSERT INTO products (id, account_id, external_ref, title, images_json, kind, selected, source) VALUES (?, ?, 'manual:a', 'Black abaya', '["https://cdn.shop.example/a.jpg"]', 'clothing', 1, 'manual')`)
+      .bind(pid, accountId)
+      .run();
+    await testProduct(env, accountId, pid);
+    const fx = (await env.DB.prepare("SELECT fixture FROM product_tests WHERE product_id = ? ORDER BY fixture").bind(pid).all<{ fixture: string }>()).results.map((r) => r.fixture);
+    expect(fx).toEqual(["fixtures/model-a.jpg", "fixtures/model-b.jpg"]);
+    await env.FILES.delete("fixtures/room-a.jpg");
+  });
+
   it("respects robots.txt: a store that disallows everything is not crawled", async () => {
     const email = `blocked-${uniq()}@brand.example`;
     const { accountId } = await createAccount(env, { brandName: "Blocked", email, plan: "starter", website: "https://blocked.example" });

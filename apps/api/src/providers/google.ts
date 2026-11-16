@@ -76,14 +76,29 @@ export function tryOnPrompt(req: TryOnRequest): string {
   ].join("\n");
 }
 
+/** Room preview (home décor brands): the product placed in the shopper's own room. */
+export function roomPrompt(req: TryOnRequest): string {
+  const p = req.product;
+  return [
+    "Image 1 is a photo of a real room. The following images are product photos of one home décor item:",
+    `"${p.title}". ${p.description}`.slice(0, 900),
+    "Create one photorealistic image of the SAME room with this item placed where it would naturally go",
+    "(a rug on the floor, a cushion on a sofa or bed, a lamp on a table or the floor, art or a mirror on a wall).",
+    "Keep the room's layout, walls, furniture, light and camera angle unchanged. Keep the item's real colour, pattern, material and a believable size for the room.",
+    "Do not add people, text, logos or watermarks. Do not change anything else. Return only the image.",
+  ].join("\n");
+}
+
 export class GeminiTryOnProvider implements TryOnProvider {
   readonly name: string;
   constructor(
     private readonly apiKey: string,
     private readonly model: GoogleModel = "gemini-3.1-flash-image",
     private readonly fetcher: typeof fetch = workerFetch,
+    /** "person": dress the person (fashion). "room": place the item in the room (home décor). */
+    private readonly mode: "person" | "room" = "person",
   ) {
-    this.name = `gemini:${model}`;
+    this.name = `gemini:${model}${mode === "room" ? ":room" : ""}`;
   }
 
   /** Exposed for tests: the exact body we send. */
@@ -98,7 +113,7 @@ export class GeminiTryOnProvider implements TryOnProvider {
       input: [
         { type: "image", mime_type: req.photoType === "image/heic" ? "image/heic" : req.photoType, data: toBase64(req.photo) },
         ...productImages.map((i) => ({ type: "image", mime_type: i.mime, data: i.data })),
-        { type: "text", text: tryOnPrompt(req) },
+        { type: "text", text: this.mode === "room" ? roomPrompt(req) : tryOnPrompt(req) },
       ],
       response_format: { type: "image", mime_type: "image/jpeg", image_size: "1K" },
     };

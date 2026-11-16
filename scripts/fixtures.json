@@ -1,7 +1,29 @@
 {
-  "note": "Stock model photos for automatic product tests and provider checks. Pexels licence (free to use and modify; pexels.com/license). Private testing only: never shown in marketing (brand guide p.9). Replace with photos of consenting models before launch if possible.",
+  "note": "Stock model and room photos for automatic product tests and provider checks. Pexels licence (free to use and modify; pexels.com/license). Private testing only: never shown in marketing (brand guide p.9). Replace with photos of consenting models before launch if possible.",
   "fixtures": [
-    { "key": "fixtures/model-a.jpg", "pexelsId": 31215272, "page": "https://www.pexels.com/photo/elegant-woman-in-white-suit-posing-indoors-31215272/", "desc": "Woman in hijab, white suit, full body, plain light background" },
-    { "key": "fixtures/model-b.jpg", "pexelsId": 29047212, "page": "https://www.pexels.com/photo/casual-fashion-portrait-of-a-woman-in-studio-29047212/", "desc": "Woman without head covering, fitted top and jeans, full body, white background" }
+    {
+      "key": "fixtures/model-a.jpg",
+      "pexelsId": 31215272,
+      "page": "https://www.pexels.com/photo/elegant-woman-in-white-suit-posing-indoors-31215272/",
+      "desc": "Woman in hijab, white suit, full body, plain light background"
+    },
+    {
+      "key": "fixtures/model-b.jpg",
+      "pexelsId": 29047212,
+      "page": "https://www.pexels.com/photo/casual-fashion-portrait-of-a-woman-in-studio-29047212/",
+      "desc": "Woman without head covering, fitted top and jeans, full body, white background"
+    },
+    {
+      "key": "fixtures/room-a.jpg",
+      "pexelsId": 29298710,
+      "page": "https://www.pexels.com/photo/minimalist-living-room-with-textured-walls-29298710/",
+      "desc": "Room A: grey sofa against a plain textured wall, side table (cushions, wall art, lamps)"
+    },
+    {
+      "key": "fixtures/room-b.jpg",
+      "pexelsId": 19889132,
+      "page": "https://www.pexels.com/photo/interior-of-a-modern-minimalist-living-room-19889132/",
+      "desc": "Room B: full living room with floor, sofa, console and walls (rugs, lamps, décor)"
+    }
   ]
 }

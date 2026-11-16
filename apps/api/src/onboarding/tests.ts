@@ -16,9 +16,18 @@ import { tryOnProvider, type TryOnProvider } from "../providers/tryon.js";
 
 export const FIXTURE_PREFIX = "fixtures/";
 
-export async function listFixtures(env: Env): Promise<string[]> {
+/**
+ * Test photos: two stock models (`fixtures/model-*`) for fashion, two stock rooms (`fixtures/room-*`)
+ * for home décor. Anything else in `fixtures/` (older uploads) counts as a model photo.
+ */
+export async function listFixtures(env: Env, kind: "person" | "room" = "person"): Promise<string[]> {
   const l = await env.FILES.list({ prefix: FIXTURE_PREFIX });
-  return l.objects.map((o) => o.key).filter((k) => /\.(jpe?g|png|webp)$/i.test(k)).sort().slice(0, 2);
+  return l.objects
+    .map((o) => o.key)
+    .filter((k) => /\.(jpe?g|png|webp)$/i.test(k))
+    .filter((k) => (kind === "room" ? k.startsWith(`${FIXTURE_PREFIX}room-`) : !k.startsWith(`${FIXTURE_PREFIX}room-`)))
+    .sort()
+    .slice(0, 2);
 }
 
 async function testSpendMicroUsd(env: Env, accountId: string): Promise<number> {
@@ -41,16 +50,17 @@ export async function testProduct(
   deps: { tryon?: TryOnProvider; scorer?: ScoringProvider } = {},
 ): Promise<TestOutcome> {
   const product = await env.DB.prepare(
-    "SELECT id, title, description, images_json, includes_headwear, test_score FROM products WHERE id = ? AND account_id = ? AND selected = 1",
+    "SELECT id, title, description, images_json, includes_headwear, test_score, kind FROM products WHERE id = ? AND account_id = ? AND selected = 1",
   )
     .bind(productId, accountId)
-    .first<{ id: string; title: string; description: string | null; images_json: string; includes_headwear: number; test_score: number | null }>();
+    .first<{ id: string; title: string; description: string | null; images_json: string; includes_headwear: number; test_score: number | null; kind: string }>();
   if (!product) return "already_tested";
   if (product.test_score !== null) return "already_tested"; // idempotent
 
-  const fixtures = await listFixtures(env);
+  const mode = product.kind === "decor" ? "room" : "person";
+  const fixtures = await listFixtures(env, mode);
   if (fixtures.length === 0) return "no_fixtures";
-  const tryon = deps.tryon ?? tryOnProvider(env);
+  const tryon = deps.tryon ?? tryOnProvider(env, mode);
   const scorer = deps.scorer ?? scoringProvider(env);
   const images = JSON.parse(product.images_json) as string[];
   const scores: number[] = [];
@@ -109,7 +119,7 @@ export async function testProduct(
         .run();
       continue;
     }
-    const s = await scorer.score({ title: product.title, productImageUrl: images[0] ?? "", result: r.image, resultType: r.contentType });
+    const s = await scorer.score({ title: product.title, productImageUrl: images[0] ?? "", result: r.image, resultType: r.contentType, room: mode === "room" });
     await recordUsage(env, accountId, "score", scorer.name, s.score !== null, s.costMicroUsd);
     const overall = s.score?.overall ?? 3; // scorer down → human review, never auto-enable
     lastReason = s.score?.reason ?? "Automatic check unavailable; needs a manual look.";

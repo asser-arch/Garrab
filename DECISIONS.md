@@ -268,3 +268,10 @@ Asser: "home decor customers will have no access to clothes preview and vice ver
 - **Privacy:** answers live only in that request: not stored, not logged (tested), the error never echoes them. Counted as an anonymous `size_completed`.
 - **Quality:** a fixed 30-case harness (`apps/api/test/size.test.ts`) pins what shoppers see whatever the model says. `Checks → size-live` runs three real AI answers (EN/AR) to confirm Google accepts the request.
 - **Wording:** "Estimated size" stays as the brief's exact English label; Arabic strings are drafts for native review, like the rest.
+
+## 2026-11-16 — Phase 4.4: room preview for home décor brands
+- **Flow:** same try-on window and links; for a home décor brand every product shows "See it in your room", the shopper uploads a room photo, and the item is placed in it. Same Turnstile, limits, kill switch, quota and "AI preview" chip; usage is recorded as `room`.
+- **Model:** Google nano-banana with flash-image as backup (the bake-off winner for people; both now take a room prompt). Genlook can't place objects in rooms, so rooms always use Google. The live model comparison for rooms can run once a home décor brand has products (bake-off script).
+- **Product tests:** home décor products are tested in two stock rooms (`fixtures/room-a.jpg`, `room-b.jpg`, Pexels 29298710 and 19889132; sofa against a plain wall, and a full living room with floor). Fashion products never use the rooms and home products never use the models. The scorer judges the item's look and a believable size and place in the room.
+- **Size finder (4.3 follow-up):** the live check gave valid sizes but broken Arabic reasons from the small model, so Arabic answers use our fixed, reviewable sentences; the AI still picks the size.
+- **Asser:** run Checks → `fixtures-only` once so staging gets the two room photos.

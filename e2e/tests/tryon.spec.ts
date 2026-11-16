@@ -162,3 +162,20 @@ test("size finder is not offered on Starter", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Upload a clear photo of yourself" }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Find my size" })).toHaveCount(0);
 });
+
+test("home décor brand: bio link lists pieces 'to see in your room', and a room photo gives a room preview", async ({ page }) => {
+  sql(
+    "INSERT OR IGNORE INTO accounts (id, slug, name, plan_id, status, cycle_start, buy_url, paid_through, onboarding_step, email, category) VALUES ('acc_home', 'home-brand', 'Beit Home', 'starter', 'active', '2026-11-01', 'http://localhost:8790', '2099-12-31', 'converted', 'owner@home-brand.example', 'home')",
+  );
+  sql(
+    `INSERT OR IGNORE INTO products (id, account_id, external_ref, url_path, title, description, images_json, kind, enabled, approved) VALUES ('prodRug01', 'acc_home', 'rug1', '/products/rug', 'Berber rug', 'Hand-woven wool rug.', '["http://localhost:8790/red-dress.svg"]', 'decor', 1, 1)`,
+  );
+  await page.goto(`${APP}/t/home-brand?lang=en`);
+  await expect(page.getByRole("heading", { name: "Choose a piece to see in your room" })).toBeVisible({ timeout: 20_000 });
+  await page.getByRole("link", { name: /Berber rug/ }).click();
+  await expect(page.getByRole("button", { name: "Upload a photo of your room" }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Find my size" })).toHaveCount(0);
+  await page.locator("input#photo").setInputFiles(PHOTO);
+  await expect(page.locator("img.result")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("AI preview").first()).toBeVisible();
+});

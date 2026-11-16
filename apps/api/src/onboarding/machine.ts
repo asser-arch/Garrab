@@ -200,7 +200,8 @@ export async function advance(env: Env, accountId: string, deps: AdvanceDeps = {
           await moveStep(env, acc, "products_tested");
           break;
         }
-        if ((await listFixtures(env)).length === 0) {
+        const home = (await env.DB.prepare("SELECT category FROM accounts WHERE id = ?").bind(acc.id).first<{ category: string }>())?.category === "home";
+        if ((await listFixtures(env, home ? "room" : "person")).length === 0) {
           await alertOnce(env, `no_fixtures:${cairoDay()}`, "no_fixtures", acc.id, "No stock test photos in R2 (fixtures/). Upload them so product tests can run.");
           return acc.onboarding_step;
         }

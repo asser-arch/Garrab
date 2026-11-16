@@ -112,12 +112,12 @@ widget.get("/hosted/:slug", async (c) => {
     if (!bySlug) return c.json(DISABLED);
     const account = await accountCached(c.env, bySlug.id);
     if (!account || !isServing(account.status)) return c.json(DISABLED);
-    const products = (await servableProducts(c.env, account.id)).filter((p) => p.kind !== "decor");
+    const products = await servableProducts(c.env, account.id); // kinds follow the brand's category
     if (products.length === 0) return c.json(DISABLED);
     return c.json({
       enabled: true,
       brand: { name: account.name },
-      products: products.map((p) => ({ id: p.id, title: p.title, image: (JSON.parse(p.images_json) as string[])[0] ?? null })),
+      products: products.map((p) => ({ id: p.id, title: p.title, image: (JSON.parse(p.images_json) as string[])[0] ?? null, kind: p.kind })),
     });
   } catch {
     return c.json(DISABLED);

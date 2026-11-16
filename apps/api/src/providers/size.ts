@@ -112,8 +112,29 @@ const R = {
     fitted: "تفضّل القصّة المحددة، لذا ابقَ على مقاسك المعتاد.",
     regular: "راجع ملاحظات المقاس في هذه الصفحة إذا كنت بين مقاسين.",
     noUsual: (s: string) => `${s} مقاس متوسط لهذه القطعة. لم نتمكن من مطابقة مقاسك المعتاد مع مقاساتها.`,
+    up: (s: string) => `${s} أكبر بدرجة من مقاسك المعتاد، بناءً على قصّة القطعة ووصفها.`,
+    down: (s: string) => `${s} أصغر بدرجة من مقاسك المعتاد، بناءً على قصّة القطعة ووصفها.`,
+    up2: (s: string) => `${s} أكبر بدرجتين من مقاسك المعتاد، لأن قصّة هذه القطعة ضيقة على الأرجح.`,
+    down2: (s: string) => `${s} أصغر بدرجتين من مقاسك المعتاد، لأن قصّة هذه القطعة واسعة على الأرجح.`,
+    alt: (s: string) => `إذا كنت بين مقاسين، فجرّب ${s} أيضًا.`,
   },
 };
+
+/**
+ * Arabic reasons are written by us, not the model (the live check showed broken Arabic from the small
+ * model). The AI still chooses the size; these fixed sentences explain it.
+ */
+export function arabicReasons(q: SizeQuestion, p: SizeProduct, size: string, alternative: string | null): [string, string] {
+  const t = R.ar;
+  const sizes = orderSizes(p.sizes);
+  const ui = usualIndex(sizes, q.usualSize);
+  const i = indexIn(sizes, size);
+  const d = ui < 0 ? null : i - ui;
+  const first =
+    d === null ? t.noUsual(size) : d === 0 ? (indexIn(sizes, q.usualSize) >= 0 ? t.usual(size) : t.nearest(size)) : d === 1 ? t.up(size) : d === -1 ? t.down(size) : d > 0 ? t.up2(size) : t.down2(size);
+  const second = alternative ? t.alt(alternative) : q.prefer === "loose" ? t.loose : q.prefer === "fitted" ? t.fitted : t.regular;
+  return [first, second];
+}
 
 /** The fallback: a plain rule from the shopper's usual size and fit preference. Never fails. */
 export function ruleSize(q: SizeQuestion, p: SizeProduct, lang: Lang): SizeAnswer {
@@ -248,6 +269,9 @@ export class MockSizer implements Sizer {
 
 /** One call, code rules, fallback. */
 export async function adviseSize(sizer: Sizer, q: SizeQuestion, p: SizeProduct, lang: Lang): Promise<{ answer: SizeAnswer; costMicroUsd: number }> {
-  const { raw, costMicroUsd } = await sizer.advise(q, p, lang);
-  return { answer: checkAnswer(raw, q, p) ?? ruleSize(q, p, lang), costMicroUsd };
+  const { raw, costMicroUsd } = await sizer.advise(q, p, "en"); // reasons in English; Arabic ones are ours
+  const checked = checkAnswer(raw, q, p);
+  if (!checked) return { answer: ruleSize(q, p, lang), costMicroUsd };
+  if (lang === "ar") checked.reasons = arabicReasons(q, p, checked.size, checked.alternative);
+  return { answer: checked, costMicroUsd };
 }

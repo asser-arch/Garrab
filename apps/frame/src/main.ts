@@ -409,17 +409,18 @@ function unavailable(lang: Lang): void {
 /** /t/<slug>: the brand page (one link for an Instagram bio). Lists every live product. */
 async function brandPage(slug: string, lang: Lang): Promise<void> {
   const t = tryOnStrings(lang);
-  let j: { enabled: boolean; brand?: { name: string }; products?: { id: string; title: string; image: string | null }[] };
+  let j: { enabled: boolean; brand?: { name: string }; products?: { id: string; title: string; image: string | null; kind?: Kind }[] };
   try {
     j = (await (await fetch(`${cfg.api}/v1/hosted/${slug}`, { credentials: "omit" })).json()) as typeof j;
   } catch {
     return unavailable(lang);
   }
   if (!j.enabled || !j.brand || !j.products?.length) return unavailable(lang);
-  document.title = `${j.brand.name} · ${t.buttonTryOn}`;
+  const home = j.products.every((p) => p.kind === "decor");
+  document.title = `${j.brand.name} · ${home ? t.buttonRoom : t.buttonTryOn}`;
   const q = new URLSearchParams(location.search).get("lang") ? `?lang=${lang}` : "";
   show(
-    h("header", {}, h("p", { class: "brand" }, j.brand.name), h("h1", { tabindex: "-1" }, t.pickProduct)),
+    h("header", {}, h("p", { class: "brand" }, j.brand.name), h("h1", { tabindex: "-1" }, home ? t.pickRoomProduct : t.pickProduct)),
     h(
       "ul",
       { class: "picks" },
@@ -432,7 +433,7 @@ async function brandPage(slug: string, lang: Lang): Promise<void> {
             { href: `/t/${slug}/${p.id}${q}`, class: "pick" },
             p.image ? h("img", { src: p.image, alt: "", class: "thumb", loading: "lazy" }) : h("span", { class: "thumb" }),
             h("span", { class: "pick-title" }, p.title),
-            h("span", { class: "pick-go", "aria-hidden": "true" }, t.buttonTryOn),
+            h("span", { class: "pick-go", "aria-hidden": "true" }, p.kind === "decor" ? t.buttonRoom : t.buttonTryOn),
           ),
         ),
       ),
@@ -466,7 +467,7 @@ async function boot(): Promise<void> {
         privacyClaim?: boolean;
         sizeFinder?: boolean;
       };
-      if (!j.enabled || !j.ctx || !j.product || !j.brand || j.product.kind === "decor") return unavailable(lang);
+      if (!j.enabled || !j.ctx || !j.product || !j.brand) return unavailable(lang);
       document.title = `${j.product.title} · ${j.brand.name}`;
       st = {
         mode: "hosted",

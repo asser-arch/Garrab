@@ -26,6 +26,8 @@ export const en = {
   buy: "Buy",
   /** Brand page (one link for an Instagram bio): the list of products to try on. */
   pickProduct: "Choose a piece to try on",
+  /** Brand page for home décor brands. */
+  pickRoomProduct: "Choose a piece to see in your room",
   /** On a product's try-on link: back to the brand page listing every product. */
   allProducts: "See all products",
   // Size finder (Growth plan), English and Arabic
@@ -78,6 +80,7 @@ export const TRY_ON_KEYS = [
   "unavailable",
   "buy",
   "pickProduct",
+  "pickRoomProduct",
   "allProducts",
   "buttonSize",
   "sizeIntro",

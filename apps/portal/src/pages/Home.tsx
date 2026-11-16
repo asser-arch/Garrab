@@ -10,7 +10,10 @@ function NextAction({ me }: { me: Me }) {
       return social ? (
         <>
           <h2>Add your products</h2>
-          <p>Add up to 10 products: a name, a photo and the link where people buy. About 5 minutes.</p>
+          <p>
+            Add up to 10 products: a name, a photo and the link where people
+            buy. About 5 minutes.
+          </p>
           <button className="btn" onClick={() => go("/portal/products")}>
             Add products
           </button>
@@ -18,7 +21,10 @@ function NextAction({ me }: { me: Me }) {
       ) : (
         <>
           <h2>We're reading your products</h2>
-          <p>This usually takes a minute or two. If we can't read your site, you can add products by hand.</p>
+          <p>
+            This usually takes a minute or two. If we can't read your site, you
+            can add products by hand.
+          </p>
           <button className="btn ghost" onClick={() => go("/portal/products")}>
             See products
           </button>
@@ -28,14 +34,22 @@ function NextAction({ me }: { me: Me }) {
       return (
         <>
           <h2>Testing your products</h2>
-          <p>We're trying each product on two test models and checking the results. Usually under 10 minutes. This page updates by itself.</p>
+          <p>
+            {me.account.category === "home"
+              ? "We're placing each product in two test rooms and checking the results."
+              : "We're trying each product on two test models and checking the results."}{" "}
+            Usually under 10 minutes. This page updates by itself.
+          </p>
         </>
       );
     case "products_tested":
       return (
         <>
           <h2>Your previews are ready</h2>
-          <p>Approve the products you're happy with. Nothing goes live until you do.</p>
+          <p>
+            Approve the products you're happy with. Nothing goes live until you
+            do.
+          </p>
           <button className="btn" onClick={() => go("/portal/approve")}>
             Review previews
           </button>
@@ -57,15 +71,32 @@ function NextAction({ me }: { me: Me }) {
           <h2>Your pilot is live</h2>
           {me.account.pilotEndsAt && (
             <p>
-              {Math.max(0, Math.ceil((Date.parse(me.account.pilotEndsAt) - Date.now()) / 86_400_000))} days left · ends{" "}
-              {new Date(me.account.pilotEndsAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Africa/Cairo" })}
+              {Math.max(
+                0,
+                Math.ceil(
+                  (Date.parse(me.account.pilotEndsAt) - Date.now()) /
+                    86_400_000,
+                ),
+              )}{" "}
+              days left · ends{" "}
+              {new Date(me.account.pilotEndsAt).toLocaleDateString("en-GB", {
+                day: "numeric",
+                month: "long",
+                timeZone: "Africa/Cairo",
+              })}
             </p>
           )}
           <div className="row">
-            <button className="btn accent" onClick={() => go("/portal/install")}>
+            <button
+              className="btn accent"
+              onClick={() => go("/portal/install")}
+            >
               Get my try-on link
             </button>
-            <button className="btn ghost" onClick={() => go("/portal/products")}>
+            <button
+              className="btn ghost"
+              onClick={() => go("/portal/products")}
+            >
               Add more products
             </button>
           </div>
@@ -74,10 +105,17 @@ function NextAction({ me }: { me: Me }) {
   }
 }
 
-export function Home({ me, refresh }: { me: Me; refresh: () => Promise<void> }) {
+export function Home({
+  me,
+  refresh,
+}: {
+  me: Me;
+  refresh: () => Promise<void>;
+}) {
   // While we work in the background, keep the page current.
   useEffect(() => {
-    if (!["account_created", "products_imported", "invited"].includes(me.step)) return;
+    if (!["account_created", "products_imported", "invited"].includes(me.step))
+      return;
     const id = setInterval(() => void refresh(), 15_000);
     return () => clearInterval(id);
   }, [me.step, refresh]);
@@ -97,25 +135,42 @@ export function Home({ me, refresh }: { me: Me; refresh: () => Promise<void> }) 
           <ol className="steps">
             {me.steps.map((s, i) => (
               <li key={s.step}>
-                <span className={`dot ${s.state === "done" || s.state === "overridden" ? "done" : s.state === "active" ? "active" : ""}`} aria-hidden="true">
+                <span
+                  className={`dot ${s.state === "done" || s.state === "overridden" ? "done" : s.state === "active" ? "active" : ""}`}
+                  aria-hidden="true"
+                >
                   {s.state === "done" || s.state === "overridden" ? "✓" : i + 1}
                 </span>
                 <span>
                   {s.label}
-                  <span className="sr-only"> ({s.state === "pending" ? "not started" : s.state === "active" ? "in progress" : "done"})</span>
+                  <span className="sr-only">
+                    {" "}
+                    (
+                    {s.state === "pending"
+                      ? "not started"
+                      : s.state === "active"
+                        ? "in progress"
+                        : "done"}
+                    )
+                  </span>
                 </span>
               </li>
             ))}
           </ol>
         </div>
         <div className="card">
-          <h2>Previews this {me.account.status === "pilot" ? "pilot" : "month"}</h2>
+          <h2>
+            Previews this {me.account.status === "pilot" ? "pilot" : "month"}
+          </h2>
           {me.usage ? (
             <>
               <p className="stat">
                 {me.usage.used} <span className="muted small">of {n}</span>
               </p>
-              <p className="small muted">Previews pause at 100% until the next month, or until you add an extra pack.</p>
+              <p className="small muted">
+                Previews pause at 100% until the next month, or until you add an
+                extra pack.
+              </p>
             </>
           ) : (
             <p className="muted">Starts when your pilot goes live.</p>

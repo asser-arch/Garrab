@@ -12,7 +12,12 @@ export function Products({
   const [max, setMax] = useState<number | null>(10);
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [msg, setMsg] = useState<string | null>(null);
-  const [form, setForm] = useState({ title: "", imageUrl: "", productUrl: "", sizes: "" });
+  const [form, setForm] = useState({
+    title: "",
+    imageUrl: "",
+    productUrl: "",
+    sizes: "",
+  });
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [useLink, setUseLink] = useState(false);
@@ -62,7 +67,9 @@ export function Products({
                 setMsg(
                   live
                     ? "Saved. New products are being tested now; approve them under Approve in about a minute."
-                    : "Saved. We'll test any new products on our models now.",
+                    : me.account.category === "home"
+                      ? "Saved. We'll test any new products in our test rooms now."
+                      : "Saved. We'll test any new products on our models now.",
                 );
                 await load();
                 await refresh();
@@ -152,7 +159,9 @@ export function Products({
               setMsg(
                 live
                   ? "Added. It's being tested now; approve it under Approve in about a minute to put it live."
-                  : "Added. We'll test it on our models now.",
+                  : me.account.category === "home"
+                    ? "Added. We'll test it in our test rooms now."
+                    : "Added. We'll test it on our models now.",
               );
               await load();
               await refresh();
@@ -242,18 +251,23 @@ export function Products({
                 : "My photo is already online: paste a link instead"}
             </a>
           </p>
-          <label htmlFor="sz">Sizes you sell (optional)</label>
-          <input
-            id="sz"
-            name="sizes"
-            autoComplete="off"
-            placeholder="e.g. S, M, L, XL"
-            value={form.sizes}
-            onChange={(e) => setForm({ ...form, sizes: e.target.value })}
-          />
-          <p className="small muted" style={{ margin: "4px 0 0" }}>
-            On the Growth plan, shoppers can ask Garrab to suggest their size for clothing that comes in two or more sizes.
-          </p>
+          {me.account.category !== "home" && (
+            <>
+              <label htmlFor="sz">Sizes you sell (optional)</label>
+              <input
+                id="sz"
+                name="sizes"
+                autoComplete="off"
+                placeholder="e.g. S, M, L, XL"
+                value={form.sizes}
+                onChange={(e) => setForm({ ...form, sizes: e.target.value })}
+              />
+              <p className="small muted" style={{ margin: "4px 0 0" }}>
+                On the Growth plan, shoppers can ask Garrab to suggest their
+                size for clothing that comes in two or more sizes.
+              </p>
+            </>
+          )}
           <label htmlFor="u">Where people buy it (optional)</label>
           <input
             id="u"

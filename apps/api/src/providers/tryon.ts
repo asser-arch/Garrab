@@ -249,13 +249,14 @@ export class FallbackTryOnProvider implements TryOnProvider {
  * Genlook 1.9/5). TRYON_PROVIDER: "gemini" (default) = nano-banana with flash-image as backup;
  * "genlook" = Genlook (kept for a later re-test).
  */
-export function tryOnProvider(env: Env): TryOnProvider {
+export function tryOnProvider(env: Env, mode: "person" | "room" = "person"): TryOnProvider {
   if (env.ENVIRONMENT !== "test") {
-    if ((env.TRYON_PROVIDER ?? "gemini") === "gemini" && env.GEMINI_API_KEY) {
+    // Room preview is Google only (Genlook dresses people; it doesn't place objects in rooms).
+    if ((mode === "room" || (env.TRYON_PROVIDER ?? "gemini") === "gemini") && env.GEMINI_API_KEY) {
       const f = appFetch(env);
       return new FallbackTryOnProvider(
-        new GeminiTryOnProvider(env.GEMINI_API_KEY, "gemini-nano-banana-2.1", f),
-        new GeminiTryOnProvider(env.GEMINI_API_KEY, "gemini-3.1-flash-image", f),
+        new GeminiTryOnProvider(env.GEMINI_API_KEY, "gemini-nano-banana-2.1", f, mode),
+        new GeminiTryOnProvider(env.GEMINI_API_KEY, "gemini-3.1-flash-image", f, mode),
       );
     }
     if (env.TRYON_PROVIDER === "genlook" && env.GENLOOK_API_KEY) {

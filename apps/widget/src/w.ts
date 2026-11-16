@@ -95,8 +95,8 @@ interface Config {
       const ids = candidates();
       const path = normPath(location.pathname);
       return (
-        c.products.find((p) => p.kind !== "decor" && ((p.ref !== null && ids.has(p.ref)) || ids.has(p.id))) ??
-        c.products.find((p) => p.kind !== "decor" && p.path !== null && normPath(p.path) === path) ??
+        c.products.find((p) => (p.ref !== null && ids.has(p.ref)) || ids.has(p.id)) ??
+        c.products.find((p) => p.path !== null && normPath(p.path) === path) ??
         null
       );
     }
@@ -183,7 +183,7 @@ interface Config {
       btn.type = "button";
       btn.dir = dir(lang);
       btn.lang = lang;
-      btn.textContent = t.buttonTryOn;
+      btn.textContent = p.kind === "decor" ? t.buttonRoom : t.buttonTryOn; // home décor brands: room preview
       btn.setAttribute("aria-haspopup", "dialog");
       btn.addEventListener("click", () => void open(btn));
       shadow.append(style, btn);
@@ -206,9 +206,10 @@ interface Config {
         overlay.className = "overlay";
         overlay.setAttribute("role", "dialog");
         overlay.setAttribute("aria-modal", "true");
-        overlay.setAttribute("aria-label", t.buttonTryOn);
+        const label = product.kind === "decor" ? t.buttonRoom : t.buttonTryOn;
+        overlay.setAttribute("aria-label", label);
         const iframe = document.createElement("iframe");
-        iframe.title = t.buttonTryOn;
+        iframe.title = label;
         iframe.allow = "camera";
         iframe.referrerPolicy = "no-referrer";
         const params = new URLSearchParams({ ctx: cfg.ctx, p: product.id, k: product.kind, lang });

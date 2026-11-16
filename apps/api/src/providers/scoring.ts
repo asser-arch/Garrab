@@ -20,7 +20,7 @@ export interface Score {
 
 export interface ScoringProvider {
   readonly name: string;
-  score(input: { title: string; productImageUrl: string; result: Uint8Array; resultType: string }): Promise<{ score: Score | null; costMicroUsd: number }>;
+  score(input: { title: string; productImageUrl: string; result: Uint8Array; resultType: string; room?: boolean }): Promise<{ score: Score | null; costMicroUsd: number }>;
 }
 
 const SCHEMA = {
@@ -50,7 +50,7 @@ export class GeminiScorer implements ScoringProvider {
     this.name = `gemini:${model}`;
   }
 
-  async score(input: { title: string; productImageUrl: string; result: Uint8Array; resultType: string }): Promise<{ score: Score | null; costMicroUsd: number }> {
+  async score(input: { title: string; productImageUrl: string; result: Uint8Array; resultType: string; room?: boolean }): Promise<{ score: Score | null; costMicroUsd: number }> {
     let product: { data: string; mime: string } | null = null;
     try {
       const r = await this.fetcher(input.productImageUrl, { signal: AbortSignal.timeout(15_000) });
@@ -66,9 +66,13 @@ export class GeminiScorer implements ScoringProvider {
       input: [
         {
           type: "text",
-          text: `You are checking an AI virtual try-on result for a small fashion shop. Product: "${input.title}". ${
-            product ? "Image 1 is the product photo. Image 2 is the try-on result on a stock model." : "The image is the try-on result on a stock model."
-          } Score strictly. A result with any visible distortion of the face or hands cannot score above 3 overall.`,
+          text: input.room
+            ? `You are checking an AI room preview for a small home décor shop: the product placed in a stock photo of a room. Product: "${input.title}". ${
+                product ? "Image 1 is the product photo. Image 2 is the room preview." : "The image is the room preview."
+              } Score strictly. For "garment_preserved" judge the item's colour, pattern and material; for "plausible_fit" judge whether it sits in the room at a believable size and position. A preview where the room itself is distorted cannot score above 3 overall.`
+            : `You are checking an AI virtual try-on result for a small fashion shop. Product: "${input.title}". ${
+                product ? "Image 1 is the product photo. Image 2 is the try-on result on a stock model." : "The image is the try-on result on a stock model."
+              } Score strictly. A result with any visible distortion of the face or hands cannot score above 3 overall.`,
         },
         ...(product ? [{ type: "image", mime_type: product.mime, data: product.data }] : []),
         { type: "image", mime_type: input.resultType, data: toBase64(input.result) },

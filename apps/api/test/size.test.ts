@@ -103,6 +103,13 @@ describe("size helpers", () => {
     const r = ruleSize(q(), prod(), "ar");
     expect(r.reasons[0]).toMatch(/[؀-ۿ]/);
   });
+  it("Arabic answers use our fixed sentences, whatever the model wrote", async () => {
+    const { answer } = await adviseSize(fixed(ai("L", "XL", ["broken text", "more"])), q(), prod(), "ar");
+    expect(answer.source).toBe("ai");
+    expect(answer.size).toBe("L");
+    expect(answer.reasons).toEqual(["L أكبر بدرجة من مقاسك المعتاد، بناءً على قصّة القطعة ووصفها.", "إذا كنت بين مقاسين، فجرّب XL أيضًا."]);
+  });
+
   it("checkAnswer never invents a size", () => {
     expect(checkAnswer(ai("XXXL"), q(), prod())).toBeNull();
   });

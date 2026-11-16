@@ -16,7 +16,7 @@ export default defineConfig({
   webServer: [
     {
       command:
-        "pnpm exec wrangler d1 migrations apply DB --local && pnpm exec wrangler d1 execute DB --local --file scripts/seed-dev.sql && pnpm exec wrangler r2 object put garrab-files-dev/fixtures/model-a.png --file ../../e2e/fixtures/synthetic-photo.png --local && pnpm exec wrangler r2 object put garrab-files-dev/fixtures/model-b.png --file ../../e2e/fixtures/synthetic-photo.png --local && pnpm exec wrangler dev --port 8787 --ip 127.0.0.1",
+        "pnpm exec wrangler d1 migrations apply DB --local && pnpm exec wrangler d1 execute DB --local --file scripts/seed-dev.sql && pnpm exec wrangler r2 object put garrab-files-dev/fixtures/model-a.png --file ../../e2e/fixtures/synthetic-photo.png --local && pnpm exec wrangler r2 object put garrab-files-dev/fixtures/model-b.png --file ../../e2e/fixtures/synthetic-photo.png --local && pnpm exec wrangler r2 object put garrab-files-dev/fixtures/room-a.png --file ../../e2e/fixtures/synthetic-photo.png --local && pnpm exec wrangler r2 object put garrab-files-dev/fixtures/room-b.png --file ../../e2e/fixtures/synthetic-photo.png --local && pnpm exec wrangler dev --port 8787 --ip 127.0.0.1",
       cwd: "../apps/api",
       url: "http://localhost:8787/healthz",
       reuseExistingServer: false,

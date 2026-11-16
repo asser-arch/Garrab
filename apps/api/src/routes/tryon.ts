@@ -124,13 +124,13 @@ tryon.post("/tryon", async (c) => {
 
   const product = await servableProduct(c.env, account.id, productId);
   if (!product) return fail(c, 404, "product_unavailable");
-  if (product.kind === "decor") return fail(c, 422, "not_supported"); // room preview: Phase 4
+  const room = product.kind === "decor"; // home décor brands: the item placed in the shopper's room
 
   const caps = await checkCaps(c.env, account);
   if (caps !== "ok") return fail(c, 503, "unavailable");
   if ((await reservePreview(c.env, account)) === "quota") return fail(c, 402, "quota");
 
-  const provider = tryOnProvider(c.env);
+  const provider = tryOnProvider(c.env, room ? "room" : "person");
   const oneTimeUserId = crypto.randomUUID();
   const started = Date.now();
   let result;
@@ -155,7 +155,7 @@ tryon.post("/tryon", async (c) => {
 
   if (!result.ok) {
     await releasePreview(c.env, account);
-    await recordUsage(c.env, account.id, "tryon", provider.name, false, 0, `${result.code}${result.detail ? `: ${result.detail}` : ""}`.slice(0, 400));
+    await recordUsage(c.env, account.id, room ? "room" : "tryon", provider.name, false, 0, `${result.code}${result.detail ? `: ${result.detail}` : ""}`.slice(0, 400));
     log("tryon_failed", { route: "tryon", account: account.id, provider: provider.name, code: result.code, detail: result.detail ?? "", ms: Date.now() - started });
     if (result.code === "provider_credits") await alert(c.env, "provider_credits", null, `${provider.name}: out of credits.`);
     await afterResponse(c, providerErrorBurst(c.env, provider.name));
@@ -165,7 +165,7 @@ tryon.post("/tryon", async (c) => {
     return fail(c, 422, "failed");
   }
 
-  await recordUsage(c.env, account.id, "tryon", provider.name, true, result.costMicroUsd);
+  await recordUsage(c.env, account.id, room ? "room" : "tryon", provider.name, true, result.costMicroUsd);
   // Counted on the server (the shopper's page can't fake it): total and per product, for the results report.
   await bumpCounter(c.env, account.id, "preview");
   await bumpCounter(c.env, account.id, `preview@${product.id}`);

@@ -37,6 +37,7 @@ export const ar: Record<TryOnKey, string> = {
   unavailable: "غير متاح مؤقتًا",
   buy: "اشترِ الآن",
   pickProduct: "اختر قطعة لتجربتها",
+  pickRoomProduct: "اختر قطعة لتراها في غرفتك",
   allProducts: "شاهد كل المنتجات",
   // Size finder (Growth plan). Same register as the rest, for native review.
   buttonSize: "اعرف مقاسك",
