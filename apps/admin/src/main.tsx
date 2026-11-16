@@ -32,7 +32,7 @@ interface Stage {
 }
 
 function Invite({ onDone }: { onDone: () => void }) {
-  const [f, setF] = useState({ brandName: "", email: "", plan: "starter", website: "", setupFee: "default" });
+  const [f, setF] = useState({ brandName: "", email: "", plan: "starter", category: "fashion", website: "", setupFee: "default" });
   const [link, setLink] = useState<string | null>(null);
   const [again, setAgain] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -54,6 +54,7 @@ function Invite({ onDone }: { onDone: () => void }) {
               brandName: f.brandName,
               email: f.email,
               plan: f.plan,
+              category: f.category,
               website: f.website || undefined,
               setupFee: f.setupFee === "default" ? undefined : f.setupFee === "yes",
             });
@@ -84,6 +85,13 @@ function Invite({ onDone }: { onDone: () => void }) {
           <div>
             <label htmlFor="em">Email</label>
             <input id="em" name="email" type="email" autoComplete="off" spellCheck={false} autoCapitalize="none" required value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} />
+          </div>
+          <div>
+            <label htmlFor="cat">Type of brand</label>
+            <select id="cat" value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}>
+              <option value="fashion">Fashion: try-on on a person</option>
+              <option value="home">Home décor: preview in the shopper's room</option>
+            </select>
           </div>
           <div>
             <label htmlFor="pl">Plan after pilot</label>
@@ -194,6 +202,7 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
           <h2>{String(d.account.name)}</h2>
           <p className="small muted" style={{ margin: "6px 0 0" }}>
             <StatusChip status={String(d.account.status)} /> <span className="chip">{nice(STEP_NAME, String(d.account.onboarding_step))}</span>{" "}
+            <span className="chip lavender">{String(d.account.category) === "home" ? "Home décor · room preview" : "Fashion · try-on"}</span>{" "}
             {String(d.account.email ?? "")}
             {site && (
               <>

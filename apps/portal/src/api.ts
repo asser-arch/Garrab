@@ -29,7 +29,7 @@ export type Step =
 
 export interface Me {
   readonly?: boolean;
-  account: { name: string; status: string; platform: string | null; website: string | null; plan: string; pilotStartedAt: string | null; pilotEndsAt: string | null };
+  account: { name: string; status: string; platform: string | null; website: string | null; plan: string; pilotStartedAt: string | null; pilotEndsAt: string | null; category: "fashion" | "home" };
   step: Step;
   steps: { step: Step; label: string; state: "done" | "active" | "overridden" | "pending" }[];
   snippet: string | null;

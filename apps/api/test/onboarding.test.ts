@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createAccount } from "../src/lib/accounts.js";
 import { invalidateStatus } from "../src/lib/db.js";
 import { cairoDay } from "../src/lib/time.js";
-import { guessKind, importJsonLd, importShopify, importWoo, parseRobots, rankScore } from "../src/onboarding/import.js";
+import { guessKind, importJsonLd, importShopify, importWoo, kindFor, parseRobots, rankScore, saveProducts } from "../src/onboarding/import.js";
 import { advance, decideProduct, confirmApproval } from "../src/onboarding/machine.js";
 import { testProduct } from "../src/onboarding/tests.js";
 import { pilotClock, runScheduled, stuckDetector } from "../src/jobs.js";
@@ -121,12 +121,12 @@ describe("import", () => {
     expect(guessKind("Linen wide-leg trousers")).toBe("clothing");
   });
 
-  it("ranks products with more photos and sizes higher, and never auto-picks decor", () => {
+  it("ranks products with more photos and sizes higher (décor too: home brands get room preview)", () => {
     const a = rankScore({ images: ["1", "2", "3", "4"], sizes: ["S"], pricePiastres: 1000, kind: "clothing" }, 1000);
     const b = rankScore({ images: ["1"], sizes: [], pricePiastres: 1000, kind: "clothing" }, 1000);
     const d = rankScore({ images: ["1", "2", "3", "4"], sizes: ["S"], pricePiastres: 1000, kind: "decor" }, 1000);
     expect(a).toBeGreaterThan(b);
-    expect(d).toBeLessThan(0);
+    expect(d).toBe(a);
   });
 });
 
@@ -267,6 +267,22 @@ describe("onboarding: invite → pilot_live with no admin action", () => {
     await decideProduct(env, accountId, second, "approved");
     invalidateStatus();
     expect((await ids()).sort()).toEqual([first, second].sort());
+  });
+
+  it("brand category: home décor brands only get décor products, fashion brands never do", async () => {
+    expect(kindFor("home", "clothing")).toBe("decor");
+    expect(kindFor("fashion", "decor")).toBe("clothing");
+    expect(kindFor("fashion", "accessory")).toBe("accessory");
+    const home = await createAccount(env, { brandName: "Beit Home", email: `home-${uniq()}@brand.example`, plan: "starter", niche: "home_decor" });
+    const fashion = await createAccount(env, { brandName: "Abaya Co", email: `fash-${uniq()}@brand.example`, plan: "starter", category: "fashion" });
+    const item = (t: string) => ({ externalRef: `r:${t}`, title: t, description: "", images: ["https://cdn.shop.example/1.jpg"], sizes: [], kind: guessKind(t), productUrl: null, urlPath: null, pricePiastres: null, source: "manual" as const });
+    await saveProducts(env, home.accountId, [item("Linen cushion"), item("Cotton dress")]);
+    await saveProducts(env, fashion.accountId, [item("Wrap dress with throw collar"), item("Leather bag")]);
+    const kinds = async (a: string) =>
+      (await env.DB.prepare("SELECT title, kind FROM products WHERE account_id = ? ORDER BY title").bind(a).all<{ title: string; kind: string }>()).results.map((r) => `${r.title}=${r.kind}`);
+    expect(await kinds(home.accountId)).toEqual(["Cotton dress=decor", "Linen cushion=decor"]);
+    expect(await kinds(fashion.accountId)).toEqual(["Leather bag=accessory", "Wrap dress with throw collar=clothing"]);
+    expect((await env.DB.prepare("SELECT category FROM accounts WHERE id = ?").bind(home.accountId).first<{ category: string }>())?.category).toBe("home");
   });
 
   it("respects robots.txt: a store that disallows everything is not crawled", async () => {

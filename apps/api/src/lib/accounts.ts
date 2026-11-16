@@ -12,6 +12,8 @@ export interface NewAccount {
   instagram?: string | undefined;
   platform?: "shopify" | "woocommerce" | "other_website" | "social_only" | undefined;
   niche?: string | undefined;
+  /** Fashion (try-on on a person) or home décor (room preview). Defaults from `niche`. */
+  category?: "fashion" | "home" | undefined;
   /** Charge the one-off setup fee. Defaults to the `founding_pilots_open` setting (open → no fee). */
   setupFee?: boolean | undefined;
 }
@@ -56,8 +58,8 @@ export async function createAccount(env: Env, a: NewAccount): Promise<{ accountI
   const stmts = [
     env.DB.prepare(
       `INSERT INTO accounts (id, slug, name, plan_id, target_plan_id, status, platform, contact_name, email, whatsapp, website, instagram, niche,
-                             onboarding_step, onboarding_step_at, buy_url, setup_fee_due)
-       VALUES (?, ?, ?, 'pilot', ?, 'onboarding', ?, ?, ?, ?, ?, ?, ?, 'invited', ?, ?, ?)`,
+                             onboarding_step, onboarding_step_at, buy_url, setup_fee_due, category)
+       VALUES (?, ?, ?, 'pilot', ?, 'onboarding', ?, ?, ?, ?, ?, ?, ?, 'invited', ?, ?, ?, ?)`,
     ).bind(
       accountId,
       slug,
@@ -73,6 +75,7 @@ export async function createAccount(env: Env, a: NewAccount): Promise<{ accountI
       now,
       siteOrigin ?? (a.whatsapp ? `https://wa.me/${a.whatsapp.replace(/\D/g, "")}` : null),
       setupFeeDue ? 1 : 0,
+      a.category ?? (a.niche === "home_decor" ? "home" : "fashion"),
     ),
     env.DB.prepare("INSERT INTO users (id, account_id, email, name) VALUES (?, ?, ?, ?)").bind(userId, accountId, email, a.contactName ?? null),
     env.DB.prepare("INSERT INTO api_keys (id, account_id, prefix, key_hash, key_public) VALUES (?, ?, ?, ?, ?)").bind(

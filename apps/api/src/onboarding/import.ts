@@ -307,8 +307,17 @@ export function rankScore(p: Pick<ImportedProduct, "images" | "sizes" | "pricePi
   const img = Math.min(p.images.length, 4); // more angles → better try-on
   const sizes = p.sizes.length > 0 ? 1 : 0;
   const price = maxPrice > 0 && p.pricePiastres ? (p.pricePiastres / maxPrice) * 2 : 0; // pricier items gain most from try-on
-  const kind = p.kind === "decor" ? -10 : 0; // decor needs the room preview (Phase 4)
-  return img + sizes + price + kind;
+  return img + sizes + price;
+}
+
+/**
+ * The brand's category decides the kind: a home décor brand only gets room preview (every product is
+ * décor), a fashion brand only gets try-on on a person (never décor). Keywords only split clothing from
+ * accessories.
+ */
+export function kindFor(category: "fashion" | "home", guessed: ImportedProduct["kind"]): ImportedProduct["kind"] {
+  if (category === "home") return "decor";
+  return guessed === "decor" ? "clothing" : guessed;
 }
 
 // ---------------------------------------------------------------------------
@@ -360,6 +369,7 @@ export async function importForAccount(env: Env, accountId: string, fetcher: Fet
 
 export async function saveProducts(env: Env, accountId: string, products: ImportedProduct[]): Promise<number> {
   const usable = products.filter((p) => p.title && p.images.length > 0);
+  const category = (await env.DB.prepare("SELECT category FROM accounts WHERE id = ?").bind(accountId).first<{ category: "fashion" | "home" }>())?.category ?? "fashion";
   const stmts = [];
   for (const p of usable) {
     const hash = await sha256Hex(JSON.stringify([p.title, p.description, p.images]));
@@ -371,7 +381,7 @@ export async function saveProducts(env: Env, accountId: string, products: Import
          ON CONFLICT(account_id, external_ref) DO UPDATE SET
            url_path = excluded.url_path, product_url = excluded.product_url, title = excluded.title,
            description = excluded.description, images_json = excluded.images_json, sizes_json = excluded.sizes_json,
-           price_piastres = excluded.price_piastres,
+           price_piastres = excluded.price_piastres, kind = excluded.kind,
            provider_synced_at = CASE WHEN products.content_hash = excluded.content_hash THEN products.provider_synced_at ELSE NULL END,
            content_hash = excluded.content_hash,
            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')`,
@@ -386,7 +396,7 @@ export async function saveProducts(env: Env, accountId: string, products: Import
         p.description,
         JSON.stringify(p.images),
         JSON.stringify(p.sizes),
-        p.kind,
+        kindFor(category, p.kind),
         hash,
         p.pricePiastres,
       ),
@@ -405,8 +415,7 @@ export async function autoSelect(env: Env, accountId: string, n: number): Promis
     .all<{ id: string; images_json: string; sizes_json: string; price_piastres: number | null; kind: ImportedProduct["kind"] }>();
   const maxPrice = Math.max(0, ...rows.results.map((r) => r.price_piastres ?? 0));
   const ranked = rows.results
-    .map((r) => ({ id: r.id, kind: r.kind, s: rankScore({ images: JSON.parse(r.images_json), sizes: JSON.parse(r.sizes_json), pricePiastres: r.price_piastres, kind: r.kind }, maxPrice) }))
-    .filter((r) => r.kind !== "decor")
+    .map((r) => ({ id: r.id, s: rankScore({ images: JSON.parse(r.images_json), sizes: JSON.parse(r.sizes_json), pricePiastres: r.price_piastres, kind: r.kind }, maxPrice) }))
     .sort((a, b) => b.s - a.s)
     .slice(0, n);
   if (ranked.length) {

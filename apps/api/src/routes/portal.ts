@@ -111,7 +111,7 @@ portal.get("/me", async (c) => {
     if (step?.onboarding_step === "products_approved") await advance(c.env, id);
   }
   const a = await c.env.DB.prepare(
-    `SELECT name, slug, status, platform, website, target_plan_id, plan_id, onboarding_step, pilot_started_at, pilot_ends_at, cycle_start
+    `SELECT name, slug, status, platform, website, target_plan_id, plan_id, onboarding_step, pilot_started_at, pilot_ends_at, cycle_start, category
        FROM accounts WHERE id = ?`,
   )
     .bind(id)
@@ -126,6 +126,7 @@ portal.get("/me", async (c) => {
       onboarding_step: Step;
       pilot_started_at: string | null;
       pilot_ends_at: string | null;
+      category: "fashion" | "home";
       cycle_start: string | null;
     }>();
   if (!a) return c.json({ error: "not_found" }, 404);
@@ -153,6 +154,7 @@ portal.get("/me", async (c) => {
       plan: PLANS[a.target_plan_id ?? a.plan_id].name,
       pilotStartedAt: a.pilot_started_at,
       pilotEndsAt: a.pilot_ends_at,
+      category: a.category,
     },
     step: a.onboarding_step,
     steps: STEPS.filter((s) => s !== "expired" && s !== "converted").map((s) => ({

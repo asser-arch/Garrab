@@ -66,10 +66,13 @@ export const LeadForm = z
 export type LeadForm = z.infer<typeof LeadForm>;
 
 /** Admin "Invite brand". */
+export const BrandCategory = z.enum(["fashion", "home"]);
 export const InviteBrand = z.object({
   brandName: z.string().trim().min(2).max(80),
   email: z.string().trim().toLowerCase().email().max(254),
   plan: z.enum(["starter", "growth"]),
+  /** Fashion: try-on on a person. Home: room preview. A brand never gets the other. */
+  category: BrandCategory.default("fashion"),
 });
 
 /** Shopper size-finder inputs (brief §5). Never stored or logged. */
