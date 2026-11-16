@@ -155,8 +155,8 @@ tryon.post("/tryon", async (c) => {
 
   if (!result.ok) {
     await releasePreview(c.env, account);
-    await recordUsage(c.env, account.id, "tryon", provider.name, false, 0, result.code);
-    log("tryon_failed", { route: "tryon", account: account.id, provider: provider.name, code: result.code, ms: Date.now() - started });
+    await recordUsage(c.env, account.id, "tryon", provider.name, false, 0, `${result.code}${result.detail ? `: ${result.detail}` : ""}`.slice(0, 400));
+    log("tryon_failed", { route: "tryon", account: account.id, provider: provider.name, code: result.code, detail: result.detail, ms: Date.now() - started });
     if (result.code === "provider_credits") await alert(c.env, "provider_credits", null, `${provider.name}: out of credits.`);
     await afterResponse(c, providerErrorBurst(c.env, provider.name));
     if (result.code === "content_policy") return fail(c, 422, "content_policy");

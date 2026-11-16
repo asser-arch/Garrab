@@ -74,13 +74,18 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           GENLOOK_API_KEY: ${{ secrets.GENLOOK_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           node ../../scripts/cf-provision.mjs staging >/dev/null
+          echo "== Recent shopper try-ons (newest first) =="
+          pnpm exec wrangler d1 execute DB --env staging --remote --json \
+            --command "SELECT provider, ok, error_code, created_at FROM usage_events WHERE kind = 'tryon' ORDER BY created_at DESC LIMIT 10"
           pnpm exec wrangler d1 execute DB --env staging --remote --json \
             --command "SELECT id, title, description, images_json, test_score FROM products ORDER BY rowid DESC LIMIT 3" > "$RUNNER_TEMP/p.json"
           pnpm exec wrangler d1 execute DB --env staging --remote --json \
             --command "SELECT kind, provider, ok, error_code, created_at FROM usage_events WHERE kind = 'test' ORDER BY created_at DESC LIMIT 6"
-          node ../../scripts/diagnose-tryon.mjs "$RUNNER_TEMP/p.json" "$RUNNER_TEMP/fx/model-a.jpg"
+          echo "== Gemini, newest product, stock photo =="
+          node ../../scripts/diagnose-gemini.mjs "$RUNNER_TEMP/p.json" "$RUNNER_TEMP/fx/model-a.jpg"
       - name: Bake-off (Genlook vs Google on the brand's products)
         if: inputs.check == 'bakeoff'
         working-directory: apps/api

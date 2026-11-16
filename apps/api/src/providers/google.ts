@@ -50,6 +50,16 @@ async function fetchImage(fetcher: typeof fetch, url: string): Promise<{ data: s
   }
 }
 
+/** Google's error message only (their JSON error body), trimmed. */
+function errorMessage(body: string): string {
+  try {
+    const j = JSON.parse(body) as { error?: { message?: string; status?: string } };
+    return `${j.error?.status ?? ""} ${j.error?.message ?? ""}`.trim().slice(0, 200);
+  } catch {
+    return body.replace(/\s+/g, " ").slice(0, 200);
+  }
+}
+
 export function tryOnPrompt(req: TryOnRequest): string {
   const p = req.product;
   const head = p.includesHeadwear
@@ -96,7 +106,7 @@ export class GeminiTryOnProvider implements TryOnProvider {
 
   async tryOn(req: TryOnRequest): Promise<TryOnResult> {
     const body = await this.buildBody(req);
-    if (!body) return { ok: false, code: "provider_error", costMicroUsd: 0, retryable: false };
+    if (!body) return { ok: false, code: "provider_error", costMicroUsd: 0, retryable: false, detail: "product photos could not be fetched" };
     const inputImages = (body.input as unknown[]).length - 1;
     let r: Response;
     try {
@@ -109,12 +119,12 @@ export class GeminiTryOnProvider implements TryOnProvider {
     } catch {
       return { ok: false, code: "timeout", costMicroUsd: 0, retryable: true };
     }
-    if (r.status === 429) return { ok: false, code: "provider_busy", costMicroUsd: 0, retryable: true };
+    if (r.status === 429) return { ok: false, code: "provider_busy", costMicroUsd: 0, retryable: true, detail: "HTTP 429" };
     if (!r.ok) {
       // 400 is also used for a bad API key; only call it a bad photo when the error is about the input.
-      const msg = r.status === 400 ? await r.text().catch(() => "") : "";
+      const msg = await r.text().catch(() => "");
       const badInput = r.status === 400 && !/api.?key|permission|billing/i.test(msg);
-      return { ok: false, code: badInput ? "bad_photo" : "provider_error", costMicroUsd: 0, retryable: r.status >= 500 };
+      return { ok: false, code: badInput ? "bad_photo" : "provider_error", costMicroUsd: 0, retryable: r.status >= 500, detail: `HTTP ${r.status} ${errorMessage(msg)}` };
     }
     const j = (await r.json()) as {
       steps?: { type?: string; content?: { type?: string; data?: string; mime_type?: string }[] }[];
@@ -129,7 +139,12 @@ export class GeminiTryOnProvider implements TryOnProvider {
     const inputTokens = j.usage?.total_input_tokens ?? inputImages * price.tokensPerInputImage;
     const cost = Math.round((price.perOutputImage + (inputTokens / 1e6) * price.inputPerMTokens) * 1e6);
     // A refused or text-only answer (e.g. safety block) is still billed for input.
-    if (!last?.data) return { ok: false, code: "content_policy", costMicroUsd: 0, retryable: false };
+    if (!last?.data) {
+      // No image back: Google's reason (finish reason / short text), never the shopper's photo.
+      const text = (j.steps ?? []).flatMap((s) => s.content ?? []).filter((c) => c.type === "text").map((c) => (c as { text?: string }).text ?? "").join(" ");
+      const why = [(j as { status?: string }).status, text].filter(Boolean).join(" ").replace(/\s+/g, " ").slice(0, 200);
+      return { ok: false, code: "content_policy", costMicroUsd: 0, retryable: false, detail: `no image: ${why || JSON.stringify(Object.keys(j))}` };
+    }
     return { ok: true, image: fromBase64(last.data), contentType: last.mime_type ?? "image/jpeg", costMicroUsd: cost, productSynced: true };
   }
 
