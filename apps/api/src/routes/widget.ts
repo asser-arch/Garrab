@@ -163,7 +163,7 @@ widget.get("/frame-info", async (c) => {
 widget.post("/events", async (c) => {
   const origin = c.req.header("origin") ?? "";
   if (await limited(c.env.RL_CONFIG_IP, clientIp(c))) return c.body(null, 429);
-  let body: { ctx?: unknown; e?: unknown };
+  let body: { ctx?: unknown; e?: unknown; p?: unknown };
   try {
     const text = await c.req.text();
     if (text.length > 2048) return c.body(null, 413);
@@ -180,5 +180,10 @@ widget.post("/events", async (c) => {
   if (!fromBrand && !fromApp) return c.body(null, 403);
   corsFor(c, origin);
   await bumpCounter(c.env, claims.a, ev.data);
+  // Per-product count for the results report (only for this brand's own products).
+  if (typeof body.p === "string" && /^[A-Za-z0-9]{1,40}$/.test(body.p)) {
+    const own = await c.env.DB.prepare("SELECT 1 FROM products WHERE id = ? AND account_id = ?").bind(body.p, claims.a).first();
+    if (own) await bumpCounter(c.env, claims.a, `${ev.data}@${body.p}`);
+  }
   return c.body(null, 204);
 });

@@ -1,3 +1,5 @@
+import { cairoDay } from "../src/lib/time.js";
+import { buildReport } from "../src/lib/report.js";
 import { env, exports } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { invalidateStatus } from "../src/lib/db.js";
@@ -256,5 +258,26 @@ describe("/v1/hosted and /v1/events", () => {
       { metric: "button_view", count: 1 },
       { metric: "try_on_started", count: 1 },
     ]);
+  });
+
+  it("counts per product (own products only) and the server counts each preview, for the results report", async () => {
+    const s = await seedAccount();
+    const ctx = (await getConfig(s)).body.ctx as string;
+    const send = (e: string, p: string) =>
+      exports.default.fetch("https://api.test/v1/events", { method: "POST", headers: { origin: APP, "content-type": "text/plain" }, body: JSON.stringify({ ctx, e, p }) });
+    expect((await send("link_view", s.productId)).status).toBe(204);
+    expect((await send("buy_click", s.productId)).status).toBe(204);
+    expect((await send("buy_click", "someoneElsesProduct1")).status).toBe(204); // counted in total only
+    expect((await postTryOn({ ctx, product: s.productId, photo: fakeJpeg() })).status).toBe(200);
+    const rows = await env.DB.prepare("SELECT metric, count FROM daily_counters WHERE account_id = ? ORDER BY metric").bind(s.accountId).all<{ metric: string; count: number }>();
+    const m = Object.fromEntries(rows.results.map((r) => [r.metric, r.count]));
+    expect(m).toMatchObject({ link_view: 1, [`link_view@${s.productId}`]: 1, buy_click: 2, [`buy_click@${s.productId}`]: 1, preview: 1, [`preview@${s.productId}`]: 1 });
+    expect(m["buy_click@someoneElsesProduct1"]).toBeUndefined();
+
+    const r = await buildReport(env, s.accountId, cairoDay(), cairoDay());
+    expect(r!.totals).toEqual({ views: 1, started: 0, previews: 1, buys: 2 });
+    expect(r!.products).toEqual([expect.objectContaining({ id: s.productId, title: "Red dress", views: 1, previews: 1, buys: 1 })]);
+    expect(r!.byDay).toEqual([{ day: cairoDay(), previews: 1, views: 1 }]);
+    expect(r!.rates).toEqual({ tryRate: 0, buyRate: 100 }); // capped: a report never shows over 100%
   });
 });

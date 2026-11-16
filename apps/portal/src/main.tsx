@@ -7,13 +7,14 @@ import { Billing } from "./pages/Billing.js";
 import { Home } from "./pages/Home.js";
 import { Install } from "./pages/Install.js";
 import { Login } from "./pages/Login.js";
+import { Results } from "./pages/Results.js";
 import { Products } from "./pages/Products.js";
 
-export type Route = "/portal" | "/portal/products" | "/portal/approve" | "/portal/install" | "/portal/billing" | "/portal/login";
+export type Route = "/portal" | "/portal/products" | "/portal/approve" | "/portal/install" | "/portal/results" | "/portal/billing" | "/portal/login";
 
 function currentRoute(): Route {
   const p = location.pathname.replace(/\/+$/, "") || "/portal";
-  return (["/portal/products", "/portal/approve", "/portal/install", "/portal/billing", "/portal/login"].includes(p) ? p : "/portal") as Route;
+  return (["/portal/products", "/portal/approve", "/portal/install", "/portal/results", "/portal/billing", "/portal/login"].includes(p) ? p : "/portal") as Route;
 }
 
 export function go(to: Route): void {
@@ -84,6 +85,7 @@ function App() {
           <Link to="/portal/products">Products</Link>
           <Link to="/portal/approve">Approve</Link>
           <Link to="/portal/install">Install & links</Link>
+          <Link to="/portal/results">Results</Link>
           <Link to="/portal/billing">Billing</Link>
         </nav>
       </header>
@@ -98,6 +100,7 @@ function App() {
         {route === "/portal/approve" && <Approve me={me} refresh={refresh} />}
         {route === "/portal/install" && <Install me={me} refresh={refresh} />}
         {route === "/portal/billing" && <Billing />}
+        {route === "/portal/results" && <Results />}
       </main>
       <p className="small muted">
         Need help? Reply to any Garrab email. ·{" "}

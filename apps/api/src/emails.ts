@@ -149,23 +149,6 @@ export const emails = {
       { label: "Continue my plan", url: payUrl },
     ),
 
-  pilotDay14: (
-    to: string,
-    r: { previews: number; started: number; completed: number; views: number; buys: number },
-    payUrl: string,
-  ): EmailMessage =>
-    msg(
-      to,
-      "Your Garrab pilot results",
-      "Your 14-day results",
-      [
-        `Button views: ${r.views}. Try-ons started: ${r.started}. Previews created: ${r.previews}.`,
-        `Completion rate: ${r.started ? Math.round((r.completed / r.started) * 100) : 0}%. Buy clicks from the try-on page: ${r.buys}.`,
-        "Now compare your add-to-cart rate and returns for these products with the two weeks before the pilot. That's the honest test.",
-      ],
-      { label: "Continue my plan", url: payUrl },
-    ),
-
   // ------------------------------------------------------------------ billing
 
   invoice: (to: string, inv: { number: string; total: number; due: string; label: string }, payUrl: string): EmailMessage =>

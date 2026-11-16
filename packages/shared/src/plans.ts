@@ -78,7 +78,7 @@ export const PILOT = {
   setupFee: 0,
   cardRequired: false,
   /** Pilot clock emails, by day number after pilot_live (day 1 = first day). */
-  emailDays: { welcome: 1, checkIn: 7, endingSoon: 12, results: 14 },
+  emailDays: { welcome: 1, checkIn: 7, report: 10, endingSoon: 12, results: 14 },
 } as const;
 
 export const BILLING = {

@@ -136,7 +136,7 @@ interface Config {
       try {
         void fetch(`${api}/v1/events`, {
           method: "POST",
-          body: JSON.stringify({ ctx: cfg.ctx, e }),
+          body: JSON.stringify({ ctx: cfg.ctx, e, p: product?.id }),
           headers: { "content-type": "text/plain" },
           keepalive: true,
           credentials: "omit",

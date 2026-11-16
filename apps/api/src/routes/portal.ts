@@ -2,6 +2,7 @@
  * Brand portal API (served same-origin under app.<domain>/portal-api via the site Worker).
  * Every query is scoped to the session's account: a brand only ever sees its own data.
  */
+import { buildReport, defaultPeriod } from "../lib/report.js";
 import { EXTRA_PACK, PLANS, productLimit, type PlanId } from "@garrab/shared/plans";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
@@ -217,6 +218,13 @@ portal.get("/products", async (c) => {
       tests: shown.filter((t) => t.product_id === p.id).map((t) => `/portal-api/test-image/${t.id}`),
     })),
   });
+});
+
+/** Results: anonymous counts for the pilot so far (pilot brands) or the last 30 days. */
+portal.get("/results", async (c) => {
+  const { from, to } = await defaultPeriod(c.env, acct(c));
+  const r = await buildReport(c.env, acct(c), from, to);
+  return r ? c.json(r) : c.json({ error: "not_found" }, 404);
 });
 
 portal.get("/test-image/:id", async (c) => {

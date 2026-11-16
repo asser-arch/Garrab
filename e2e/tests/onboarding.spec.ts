@@ -102,6 +102,12 @@ test("invite → import → tests → approve → install → pilot live, with n
   await expect(page.getByRole("link", { name: /\/t\/[a-z0-9-]+$/ })).toBeVisible();
   await page.getByText("QR code for print").first().click();
   await expect(page.getByRole("img", { name: "QR code for Olive linen dress" })).toBeVisible();
+
+  // 9. Results page: totals, the daily chart and the products table (anonymous counts).
+  await page.goto(`${APP}/portal/results`);
+  await expect(page.getByRole("heading", { name: /Results/ })).toBeVisible();
+  await expect(page.getByText("Previews per day")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save as PDF" })).toBeVisible();
 });
 
 test("the public /start form creates a lead and an account", async ({ page }) => {

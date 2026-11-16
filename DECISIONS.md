@@ -253,3 +253,8 @@ A pilot brand approved her products and her bio link said "Temporarily unavailab
 3. **Size finder: Growth plan only** (Starter never shows "Find my size").
 4. **Pilot report: day 10 of 14, by email**, fully branded and organised (clean, professional): also in the portal and admin, with a PDF; includes the payment link so the brand can convert before day 14.
 Build order: results + pilot report → size finder → room preview, each piece tested and deployed before the next.
+
+## 2026-11-16 — Phase 4.1: Results page and branded pilot report
+- **Per-product counts:** widget/frame events carry the product id (only counted per product when it belongs to the brand); hosted links count `link_view`; previews are counted on the server (`preview`), so they can't be faked from a page. All counts stay anonymous daily totals.
+- **Portal → Results:** views, try-ons, previews, Buy taps, two rates (capped at 100%), previews per day (single-series bar chart, hover/focus values, table view) and a products table. "Save as PDF" prints just the report.
+- **Pilot report email on day 10** (Asser, 16 Nov), branded (Forest header, KPI tiles, rates, daily bars, top 5 products, next steps), email-safe tables, no images needed. **Day 14** sends the same report as the final results with the plan price and pay link (replaces the old plain day-14 email). If the job catches up past day 14, only the final one goes. Sample: `docs/brand/pilot-report-sample.png`.

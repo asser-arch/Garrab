@@ -3,7 +3,7 @@
  * of day run on the first tick at or after that time in Africa/Cairo, once per Cairo day.
  * Every job is idempotent. Each run is recorded in cron_runs (shown in the admin status line).
  */
-import { PILOT, TIMINGS } from "@garrab/shared/plans";
+import { PILOT, PLANS, TIMINGS } from "@garrab/shared/plans";
 import { accountFacts, billingRun, ensurePlanInvoice, payUrl, reconcileAccount } from "./billing/ledger.js";
 import { pingPendingClaims } from "./billing/instapay.js";
 import { emails } from "./emails.js";
@@ -14,6 +14,8 @@ import { sendOnce } from "./lib/email.js";
 import { log } from "./lib/log.js";
 import { alert } from "./lib/ops.js";
 import { cairoClock, cairoDay, nowIso } from "./lib/time.js";
+import { buildReport } from "./lib/report.js";
+import { reportEmail } from "./reportEmail.js";
 import { importForAccount } from "./onboarding/import.js";
 import { STEP_LABEL, advance, checkInstall, portalUrl, type Step } from "./onboarding/machine.js";
 import { testProduct } from "./onboarding/tests.js";
@@ -69,19 +71,42 @@ export const pilotClock: JobFn = async (env, now) => {
 
     if (day >= PILOT.emailDays.checkIn)
       await sendOnce(env, { accountId: a.id, template: "pilot_day_7", dedupeKey: `pilot_day_7:${a.id}`, msg: emails.pilotDay7(user.email, used, c.button_view ?? 0, portalUrl(env)) });
+    // Day 10: the branded pilot report (results so far). Skipped when catching up past day 14: the final one covers it.
+    if (day >= PILOT.emailDays.report && day < PILOT.emailDays.results) {
+      const r = await buildReport(env, a.id, cairoDay(new Date(a.pilot_started_at)), cairoDay(now));
+      if (r)
+        await sendOnce(env, {
+          accountId: a.id,
+          template: "pilot_report",
+          dedupeKey: `pilot_report:${a.id}`,
+          msg: reportEmail(user.email, r, {
+            kind: "midway",
+            dayNumber: Math.min(day, PILOT.days),
+            cta: { label: "See full results", url: portalUrl(env, "/results") },
+            endsOn: a.pilot_ends_at ? cairoDay(new Date(a.pilot_ends_at)) : null,
+            planLine: null,
+          }),
+        });
+    }
     if (day >= PILOT.emailDays.endingSoon)
       await sendOnce(env, { accountId: a.id, template: "pilot_day_12", dedupeKey: `pilot_day_12:${a.id}`, msg: emails.pilotDay12(user.email, plan, payLink) });
-    if (day >= PILOT.emailDays.results)
-      await sendOnce(env, {
-        accountId: a.id,
-        template: "pilot_day_14",
-        dedupeKey: `pilot_day_14:${a.id}`,
-        msg: emails.pilotDay14(
-          user.email,
-          { previews: used, started: c.try_on_started ?? 0, completed: c.try_on_completed ?? 0, views: c.button_view ?? 0, buys: c.buy_click ?? 0 },
-          payLink,
-        ),
-      });
+    // Day 14: the final results, same branded report, with the pay link.
+    if (day >= PILOT.emailDays.results) {
+      const r = await buildReport(env, a.id, cairoDay(new Date(a.pilot_started_at)), cairoDay(now));
+      if (r)
+        await sendOnce(env, {
+          accountId: a.id,
+          template: "pilot_day_14",
+          dedupeKey: `pilot_day_14:${a.id}`,
+          msg: reportEmail(user.email, r, {
+            kind: "final",
+            dayNumber: PILOT.days,
+            cta: { label: "Continue my plan", url: payLink },
+            endsOn: null,
+            planLine: `To keep try-on running, the ${PLANS[plan].name} plan is ${(PLANS[plan].monthlyPrice / 100).toLocaleString("en-US")} EGP a month, paid before each month. No minimum term.`,
+          }),
+        });
+    }
 
     // Not paid by pilot end + grace → expired (kill switch on, data kept, pay link reactivates).
     await reconcileAccount(env, a.id, now);

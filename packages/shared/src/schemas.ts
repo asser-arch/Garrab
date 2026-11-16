@@ -106,6 +106,8 @@ export type SizeResult = z.infer<typeof SizeResult>;
 /** Anonymous aggregate widget events (brief §4). No identifiers. */
 export const WidgetEvent = z.enum([
   "button_view",
+  /** A shopper opened a try-on link (Instagram bio / WhatsApp), counted by our page. */
+  "link_view",
   "try_on_started",
   "try_on_completed",
   "size_completed",

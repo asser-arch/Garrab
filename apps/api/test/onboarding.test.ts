@@ -513,17 +513,48 @@ describe("pilot clock", () => {
     expect((await outbox(a.email)).map((m) => m.subject)).toEqual(["Week one of your pilot"]);
   });
 
-  it("day 14: check-in, ending soon (with price from plans.ts) and the results report", async () => {
+  it("day 10: the branded pilot report, once, with the brand's real numbers and top product", async () => {
+    const a = await livePilot(9.5);
+    const pid = `p${uniq()}`;
+    await env.DB.prepare(`INSERT INTO products (id, account_id, external_ref, title, images_json, selected, enabled, approved) VALUES (?, ?, 'r', 'Olive kaftan', '[]', 1, 1, 1)`)
+      .bind(pid, a.id)
+      .run();
+    const d = cairoDay();
+    await env.DB.prepare(
+      `INSERT INTO daily_counters (account_id, day, metric, count) VALUES
+        (?, ?, 'link_view', 200), (?, ?, 'try_on_started', 50), (?, ?, 'preview', 40), (?, ?, 'buy_click', 10),
+        (?, ?, ?, 40), (?, ?, ?, 10)`,
+    )
+      .bind(a.id, d, a.id, d, a.id, d, a.id, d, a.id, d, `preview@${pid}`, a.id, d, `buy_click@${pid}`)
+      .run();
+    await pilotClock(env, new Date());
+    await pilotClock(env, new Date());
+    const mails = await outbox(a.email);
+    expect(mails.map((m) => m.subject)).toEqual(["Week one of your pilot", "Pilot: your first 10 days with Garrab"]);
+    const html = mails[1]!.html;
+    expect(html).toContain("Pilot report · day 10");
+    expect(html).toContain("40 previews created by your shoppers, and 10 Buy taps straight after.");
+    expect(html).toContain("25%"); // 50 of 200 viewers started a try-on; 10 of 40 previews → Buy
+    expect(html).toContain("Olive kaftan");
+    expect(html).toContain("/portal/results");
+    expect(html).not.toMatch(/box-shadow|gradient/); // brand guideline
+  });
+
+  it("day 14: check-in, ending soon (with price from plans.ts) and the final results with the pay link", async () => {
     const a = await livePilot(13.5);
-    await env.DB.prepare("INSERT INTO daily_counters (account_id, day, metric, count) VALUES (?, ?, 'button_view', 120), (?, ?, 'try_on_started', 20), (?, ?, 'try_on_completed', 15), (?, ?, 'buy_click', 4)")
+    await env.DB.prepare("INSERT INTO daily_counters (account_id, day, metric, count) VALUES (?, ?, 'button_view', 120), (?, ?, 'try_on_started', 20), (?, ?, 'preview', 15), (?, ?, 'buy_click', 4)")
       .bind(a.id, cairoDay(), a.id, cairoDay(), a.id, cairoDay(), a.id, cairoDay())
       .run();
     await pilotClock(env, new Date());
     const mails = await outbox(a.email);
-    expect(mails.map((m) => m.subject)).toEqual(["Week one of your pilot", "Your pilot ends in 2 days", "Your Garrab pilot results"]);
+    // Catching up at day 14: the final results replace the day-10 report.
+    expect(mails.map((m) => m.subject)).toEqual(["Week one of your pilot", "Your pilot ends in 2 days", "Your Garrab pilot results, Pilot"]);
     expect(mails[1]!.html).toContain("5000 EGP a month");
-    expect(mails[2]!.html).toContain("Completion rate: 75%");
-    expect(mails[2]!.html).toContain("Buy clicks from the try-on page: 4");
+    const final = mails[2]!.html;
+    expect(final).toContain("Pilot results");
+    expect(final).toContain("5,000 EGP a month");
+    expect(final).toContain("/pay/");
+    expect(final).toContain("27%"); // 4 of 15 previews → Buy
   });
 
   it("expires after pilot end + 5-day grace: kill switch on", async () => {

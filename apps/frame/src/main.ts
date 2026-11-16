@@ -72,7 +72,7 @@ function sendEvent(st: State, e: string): void {
   try {
     void fetch(`${cfg.api}/v1/events`, {
       method: "POST",
-      body: JSON.stringify({ ctx: st.ctx, e }),
+      body: JSON.stringify({ ctx: st.ctx, e, p: st.productId }),
       headers: { "content-type": "text/plain" },
       keepalive: true,
       credentials: "omit",
@@ -374,6 +374,8 @@ async function boot(): Promise<void> {
   } catch {
     return unavailable(lang);
   }
+
+  if (st.mode === "hosted") sendEvent(st, "link_view");
 
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && st.mode === "widget") close(st);

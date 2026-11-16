@@ -119,3 +119,53 @@ dialog.viewer[open] { animation: viewer-in 200ms ease; }
 .viewer-shot { position: relative; margin: 0 0 12px; border-radius: 16px; overflow: hidden; background: var(--mist); }
 .viewer-shot img { display: block; width: 100%; max-height: calc(100dvh - 200px); object-fit: contain; }
 .viewer-shot .chip { position: absolute; top: 12px; left: 12px; background: var(--peach); color: var(--forest); }
+
+/* ---------- Results (portal) ---------- */
+.results h1 { margin-bottom: 4px; }
+.results-head { margin-bottom: 16px; gap: 12px; }
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 12px; }
+@media (max-width: 720px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+.kpi { border-radius: var(--radius-card); padding: 16px 18px; display: flex; flex-direction: column; gap: 2px; }
+.kpi.mist { background: var(--mist); } .kpi.lavender { background: var(--lavender); } .kpi.mint { background: var(--mint); } .kpi.peach { background: var(--peach); }
+.kpi-label { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--forest); }
+.kpi-value { font-size: 32px; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.kpi-note { font-size: 12px; color: var(--muted); }
+.card.rates { display: grid; grid-template-columns: 1fr 1fr; gap: 0; padding: 0; }
+.card.rates > div { padding: 16px 20px; display: flex; flex-direction: column; }
+.card.rates > div + div { border-inline-start: 1px solid var(--sand); }
+.rate-value { font-size: 26px; font-weight: 700; color: var(--forest); font-variant-numeric: tabular-nums; }
+
+.daychart { margin: 8px 0 12px; }
+.daychart-plot { display: flex; align-items: flex-end; gap: 2px; height: 180px; border-bottom: 1px solid var(--sand); }
+.daychart-col { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; outline: none; cursor: default; }
+.daychart-col:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; border-radius: 4px; }
+.daychart-bar { width: 100%; background: var(--forest); border-radius: 4px 4px 0 0; transition: opacity 150ms ease; }
+.daychart-bar.zero { background: var(--sand); }
+.daychart-plot:hover .daychart-bar { opacity: .55; }
+.daychart-plot:hover .daychart-col:hover .daychart-bar { opacity: 1; }
+.daychart-tip { position: absolute; bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%); z-index: 2; white-space: nowrap;
+  background: var(--paper); border: 1px solid var(--sand); border-radius: 12px; padding: 6px 10px; font-size: 12px; line-height: 1.4; pointer-events: none; }
+.daychart-col:first-child .daychart-tip { left: 0; transform: none; }
+.daychart-col:last-child .daychart-tip { left: auto; right: 0; transform: none; }
+.daychart-axis { display: flex; gap: 2px; margin-top: 6px; }
+.daychart-axis span { flex: 1; font-size: 11px; color: var(--muted); white-space: nowrap; overflow: visible; }
+@media (prefers-reduced-motion: reduce) { .daychart-bar { transition: none; } }
+
+table.data { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; margin-top: 8px; }
+table.data th, table.data td { text-align: end; padding: 10px 8px; border-top: 1px solid var(--sand); font-weight: 400; }
+table.data th:first-child, table.data td:first-child { text-align: start; }
+table.data thead th { border-top: 0; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.products-table .prod { display: flex; align-items: center; gap: 10px; }
+.products-table img, .products-table .noimg { width: 36px; height: 45px; object-fit: cover; border-radius: 8px; border: 1px solid var(--sand); background: var(--mist); flex: none; }
+.rank { width: 22px; height: 22px; border-radius: 11px; background: var(--mist); color: var(--forest); font-size: 12px; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.rank.top { background: var(--peach); }
+@media (max-width: 560px) { .products-table th:nth-child(2), .products-table td:nth-child(2), .products-table th:nth-child(3), .products-table td:nth-child(3) { display: none; } }
+
+/* Print / Save as PDF: just the report, on white. */
+@media print {
+  html, body { background: #fff !important; }
+  header.top, nav, footer, .no-print { display: none !important; }
+  .card { break-inside: avoid; border-color: #ccc; }
+  .kpi, .rank.top, .daychart-bar { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

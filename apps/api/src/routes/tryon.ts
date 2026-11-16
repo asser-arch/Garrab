@@ -4,7 +4,7 @@ import { ctxKey, type Env } from "../env.js";
 import { verifyCtx } from "../lib/crypto.js";
 import { accountFresh, domainAllowed, getSetting, isServing, servableProduct } from "../lib/db.js";
 import { log } from "../lib/log.js";
-import { checkCaps, recordUsage, releasePreview, reservePreview, usageWarnings } from "../lib/metering.js";
+import { bumpCounter, checkCaps, recordUsage, releasePreview, reservePreview, usageWarnings } from "../lib/metering.js";
 import { alert } from "../lib/ops.js";
 import { readPhoto } from "../lib/photo.js";
 import { verifyTurnstile } from "../lib/turnstile.js";
@@ -166,6 +166,9 @@ tryon.post("/tryon", async (c) => {
   }
 
   await recordUsage(c.env, account.id, "tryon", provider.name, true, result.costMicroUsd);
+  // Counted on the server (the shopper's page can't fake it): total and per product, for the results report.
+  await bumpCounter(c.env, account.id, "preview");
+  await bumpCounter(c.env, account.id, `preview@${product.id}`);
   await afterResponse(c, usageWarnings(c.env, account, `${c.env.APP_ORIGIN}/portal/billing`));
   if (!product.provider_synced_at) {
     await c.env.DB.prepare("UPDATE products SET provider_synced_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?")
