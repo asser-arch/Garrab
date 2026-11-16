@@ -31,6 +31,8 @@ interface State {
   lang: Lang;
   t: S;
   privacyClaim: boolean;
+  /** Growth plan and a clothing product with sizes: offer "Find my size". */
+  sizeFinder: boolean;
   hosted?: { slug: string; brand: string; title: string; image: string | null; buyUrl: string | null };
   resultUrl: string | null;
   hadPhoto: boolean;
@@ -171,6 +173,7 @@ function startScreen(st: State, error?: string): void {
     error ? h("p", { class: "error", role: "alert" }, error) : null,
     pick,
     input,
+    st.sizeFinder ? sizeButton(st) : null,
     h("p", { class: "small" }, t.consent),
     h("p", { class: "small muted" }, t.expectation),
     st.privacyClaim ? h("p", { class: "small muted" }, t.privacy) : null,
@@ -228,6 +231,133 @@ function close(st: State): void {
     startScreen(st);
     if (had) root.prepend(h("p", { class: "note", role: "status" }, st.t.closed));
   }
+}
+
+// ---------------------------------------------------------------------------
+// Size finder (Growth plan): a few answers → one suggested size. The answers are sent once and kept nowhere.
+
+function sizeButton(st: State): HTMLElement {
+  const b = h("button", { type: "button", class: "btn ghost" }, st.t.buttonSize);
+  b.addEventListener("click", () => sizeScreen(st));
+  return b;
+}
+
+function field(id: string, label: string, control: HTMLElement): HTMLElement {
+  control.id = id;
+  return h("div", { class: "field" }, h("label", { for: id }, label), control);
+}
+
+function select(name: string, options: [string, string][], selected: string): HTMLSelectElement {
+  const s = h("select", { name });
+  for (const [v, label] of options) {
+    const o = h("option", { value: v }, label);
+    if (v === selected) o.selected = true;
+    s.append(o);
+  }
+  return s;
+}
+
+function sizeScreen(st: State, error?: string, keep?: Record<string, string>): void {
+  const t = st.t;
+  const v = keep ?? {};
+  const height = h("input", { name: "height", type: "number", inputmode: "numeric", min: "120", max: "220", required: "", autocomplete: "off", value: v.height ?? "" });
+  const weight = h("input", { name: "weight", type: "number", inputmode: "numeric", min: "30", max: "250", autocomplete: "off", value: v.weight ?? "" });
+  const usual = h("input", { name: "usual", type: "text", maxlength: "10", required: "", autocomplete: "off", autocapitalize: "characters", placeholder: "S, M, L, 38…", value: v.usual ?? "" });
+  const body = select(
+    "body",
+    [
+      ["average", t.bodyAverage],
+      ["slim", t.bodySlim],
+      ["athletic", t.bodyAthletic],
+      ["curvy", t.bodyCurvy],
+      ["broad", t.bodyBroad],
+      ["prefer_not_to_say", t.bodySkip],
+    ],
+    v.body ?? "average",
+  );
+  const prefer = select(
+    "prefer",
+    [
+      ["regular", t.preferRegular],
+      ["fitted", t.preferFitted],
+      ["loose", t.preferLoose],
+    ],
+    v.prefer ?? "regular",
+  );
+  const form = h(
+    "form",
+    { class: "sizeform", novalidate: "" },
+    field("sz-h", t.sizeHeight, height),
+    field("sz-w", t.sizeWeight, weight),
+    field("sz-u", t.sizeUsual, usual),
+    field("sz-b", t.sizeBody, body),
+    field("sz-p", t.sizePrefer, prefer),
+    h("button", { type: "submit", class: "btn primary" }, t.sizeSubmit),
+  );
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    if (!form.checkValidity()) {
+      form.reportValidity();
+      return;
+    }
+    const answers = { height: height.value, weight: weight.value, usual: usual.value, body: body.value, prefer: prefer.value };
+    void askSize(st, answers);
+  });
+  const back = h("button", { type: "button", class: "btn ghost" }, t.sizeBack);
+  back.addEventListener("click", () => startScreen(st));
+  show(
+    h("h1", { tabindex: "-1", class: "title" }, t.buttonSize),
+    h("p", { class: "small" }, t.sizeIntro),
+    error ? h("p", { class: "error", role: "alert" }, error) : null,
+    form,
+    h("p", { class: "small muted" }, t.sizeConsent),
+    back,
+  );
+}
+
+async function askSize(st: State, a: Record<string, string>): Promise<void> {
+  const t = st.t;
+  show(h("div", { class: "progress", "aria-busy": "true" }, h("div", { class: "spinner", "aria-hidden": "true" }), h("h1", { tabindex: "-1" }, t.sizeSubmit)));
+  try {
+    const r = await fetch(`${cfg.api}/v1/size`, {
+      method: "POST",
+      credentials: "omit",
+      headers: { "content-type": "text/plain" }, // JSON body as text: a "simple" request, no CORS pre-check
+      body: JSON.stringify({
+        ctx: st.ctx,
+        product: st.productId,
+        lang: st.lang,
+        input: {
+          heightCm: Math.round(Number(a.height)),
+          weightKg: a.weight ? Math.round(Number(a.weight)) : null,
+          usualSize: a.usual!.trim(),
+          bodyType: a.body,
+          prefer: a.prefer,
+        },
+      }),
+    });
+    if (!r.ok) return sizeScreen(st, t.sizeError, a);
+    const j = (await r.json()) as { size: string; alternative: string | null; confidence: "medium" | "low"; reasons: string[] };
+    sizeResult(st, j);
+  } catch {
+    sizeScreen(st, t.sizeError, a);
+  }
+}
+
+function sizeResult(st: State, r: { size: string; alternative: string | null; confidence: "medium" | "low"; reasons: string[] }): void {
+  const t = st.t;
+  const again = h("button", { type: "button", class: "btn primary", "data-autofocus": "" }, st.kind === "decor" ? t.buttonRoom : t.buttonTryOn);
+  again.addEventListener("click", () => startScreen(st));
+  show(
+    h("p", { class: "brand" }, t.sizeLabel),
+    h("h1", { tabindex: "-1", class: "size-big" }, r.size),
+    r.alternative ? h("p", {}, `${t.sizeAlt} `, h("strong", {}, r.alternative)) : null,
+    h("ul", { class: "reasons" }, ...r.reasons.map((x) => h("li", {}, x))),
+    h("p", { class: "small muted" }, r.confidence === "low" ? `${t.sizeLow} ${t.sizeNote}` : t.sizeNote),
+    again,
+    closeButton(st),
+  );
+  // Counted on the server (once per answer); no client event, so nothing is counted twice.
 }
 
 // ---------------------------------------------------------------------------
@@ -334,6 +464,7 @@ async function boot(): Promise<void> {
         product?: { id: string; title: string; image: string | null; kind: Kind };
         buyUrl?: string | null;
         privacyClaim?: boolean;
+        sizeFinder?: boolean;
       };
       if (!j.enabled || !j.ctx || !j.product || !j.brand || j.product.kind === "decor") return unavailable(lang);
       document.title = `${j.product.title} · ${j.brand.name}`;
@@ -345,6 +476,7 @@ async function boot(): Promise<void> {
         lang,
         t: tryOnStrings(lang),
         privacyClaim: j.privacyClaim === true,
+        sizeFinder: j.sizeFinder === true,
         hosted: { slug: hostedMatch[1]!, brand: j.brand.name, title: j.product.title, image: j.product.image, buyUrl: j.buyUrl ?? null },
         resultUrl: null,
         hadPhoto: false,
@@ -353,9 +485,10 @@ async function boot(): Promise<void> {
       const ctx = hash.get("ctx");
       const productId = hash.get("p");
       if (!ctx || !productId) return unavailable(lang);
-      const info = (await (await fetch(`${cfg.api}/v1/frame-info?ctx=${encodeURIComponent(ctx)}`, { credentials: "omit" })).json()) as {
+      const info = (await (await fetch(`${cfg.api}/v1/frame-info?ctx=${encodeURIComponent(ctx)}&p=${encodeURIComponent(productId)}`, { credentials: "omit" })).json()) as {
         enabled: boolean;
         privacyClaim?: boolean;
+        sizeFinder?: boolean;
       };
       if (!info.enabled) return unavailable(lang);
       const k = hash.get("k");
@@ -367,6 +500,7 @@ async function boot(): Promise<void> {
         lang,
         t: tryOnStrings(lang),
         privacyClaim: info.privacyClaim === true,
+        sizeFinder: info.sizeFinder === true,
         resultUrl: null,
         hadPhoto: false,
       };

@@ -80,9 +80,10 @@ export const BodyType = z.enum(["slim", "average", "athletic", "curvy", "broad",
 export const SizeInput = z.object({
   heightCm: z.number().int().min(120).max(220),
   weightKg: z.number().int().min(30).max(250).nullable(),
-  usualTop: z.string().trim().min(1).max(10),
-  usualBottom: z.string().trim().min(1).max(10),
+  /** The size the shopper usually buys (S, M, 38, …). */
+  usualSize: z.string().trim().min(1).max(10),
   bodyType: BodyType,
+  prefer: z.enum(["fitted", "regular", "loose"]).default("regular"),
 });
 export type SizeInput = z.infer<typeof SizeInput>;
 

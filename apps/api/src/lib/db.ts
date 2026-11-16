@@ -25,6 +25,7 @@ export interface ProductRow {
   description: string | null;
   images_json: string;
   kind: "clothing" | "accessory" | "decor";
+  sizes_json: string;
   includes_headwear: number;
   provider_synced_at: string | null;
 }
@@ -126,7 +127,7 @@ export async function setSetting(env: Env, key: string, value: unknown): Promise
 
 export async function servableProducts(env: Env, accountId: string): Promise<ProductRow[]> {
   const r = await env.DB.prepare(
-    `SELECT id, account_id, external_ref, url_path, title, description, images_json, kind, includes_headwear, provider_synced_at
+    `SELECT id, account_id, external_ref, url_path, title, description, images_json, kind, sizes_json, includes_headwear, provider_synced_at
        FROM products WHERE account_id = ? AND enabled = 1 AND approved = 1 ORDER BY created_at`,
   )
     .bind(accountId)
@@ -136,7 +137,7 @@ export async function servableProducts(env: Env, accountId: string): Promise<Pro
 
 export async function servableProduct(env: Env, accountId: string, productId: string): Promise<ProductRow | null> {
   return env.DB.prepare(
-    `SELECT id, account_id, external_ref, url_path, title, description, images_json, kind, includes_headwear, provider_synced_at
+    `SELECT id, account_id, external_ref, url_path, title, description, images_json, kind, sizes_json, includes_headwear, provider_synced_at
        FROM products WHERE account_id = ? AND id = ? AND enabled = 1 AND approved = 1`,
   )
     .bind(accountId, productId)

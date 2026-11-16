@@ -261,3 +261,10 @@ Build order: results + pilot report → size finder → room preview, each piece
 
 ## 2026-11-16 — Phase 4.2: brand category (fashion or home décor)
 Asser: "home decor customers will have no access to clothes preview and vice versa". Each account has `category` (`fashion` | `home`), chosen at invite ("Type of brand") or from the /start "What do you sell?" answer. Product kind follows the category at save time (`kindFor`): home → every product is décor (room preview); fashion → never décor (keywords only split clothing from accessories). The try-on route already refuses décor; the room route (4.4) will refuse anything else. Admin shows the category on the brand page.
+
+## 2026-11-16 — Phase 4.3: size finder (Growth, English and Arabic)
+- **Where:** a "Find my size" button in the try-on window (website pop-up and try-on links), only when the plan is Growth (a pilot counts as the plan it converts to: Asser, Growth only), the product is clothing, and it comes in two or more sizes. Brands without a website can now type "Sizes you sell" when adding a product.
+- **How:** the shopper gives height, weight (optional), usual size, body shape and fit preference. ONE AI call (`gemini-3.5-flash-lite`, ~0.001 USD) reads the product and the answers. **Code rules** check the answer: a size the brand sells, at most two sizes from the usual one, the alternative must be a neighbour, confidence never "high", two reasons. Anything else → a plain **rule** answer (usual size, plus the size up for a loose fit or curvy/broad shape).
+- **Privacy:** answers live only in that request: not stored, not logged (tested), the error never echoes them. Counted as an anonymous `size_completed`.
+- **Quality:** a fixed 30-case harness (`apps/api/test/size.test.ts`) pins what shoppers see whatever the model says. `Checks → size-live` runs three real AI answers (EN/AR) to confirm Google accepts the request.
+- **Wording:** "Estimated size" stays as the brief's exact English label; Arabic strings are drafts for native review, like the rest.

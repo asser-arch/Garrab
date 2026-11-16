@@ -260,7 +260,18 @@ const ManualProduct = z.object({
   imageUrl: z.string().trim().url().startsWith("https://").max(1000),
   productUrl: z.string().trim().url().max(1000).optional(),
   description: z.string().trim().max(2000).optional(),
+  /** Sizes the brand sells, e.g. "S, M, L, XL" (turns on the size finder on Growth). */
+  sizes: z.string().trim().max(120).optional(),
 });
+
+/** "S, M / L ،XL" or "S M L XL" → ["S", "M", "L", "XL"]. "One size" stays one size. */
+export function parseSizes(s: string | undefined): string[] {
+  if (!s) return [];
+  let parts = s.split(/[,/،;|]+/).map((x) => x.trim()).filter(Boolean);
+  // Space-separated short labels ("S M L", "38 40 42"); longer phrases like "One size" stay whole.
+  if (parts.length === 1 && !/size|سايز|مقاس/i.test(parts[0]!) && parts[0]!.split(/\s+/).every((x) => x.length <= 4) && /\s/.test(parts[0]!)) parts = parts[0]!.split(/\s+/);
+  return [...new Set(parts.filter((x) => x.length <= 10))].slice(0, 15);
+}
 
 async function addManual(env: Env, accountId: string, items: z.infer<typeof ManualProduct>[]): Promise<number> {
   const a = await env.DB.prepare("SELECT plan_id, max_products FROM accounts WHERE id = ?").bind(accountId).first<{ plan_id: PlanId; max_products: number | null }>();
@@ -277,7 +288,7 @@ async function addManual(env: Env, accountId: string, items: z.infer<typeof Manu
       title: p.title,
       description: p.description ?? "",
       images: [p.imageUrl],
-      sizes: [],
+      sizes: parseSizes(p.sizes),
       kind: guessKind(p.title),
       productUrl: p.productUrl ?? null,
       urlPath: p.productUrl ? new URL(p.productUrl).pathname : null,
@@ -313,6 +324,7 @@ portal.post("/products/upload", async (c) => {
   const file = form?.get("photo");
   const title = String(form?.get("title") ?? "").trim();
   const productUrl = String(form?.get("productUrl") ?? "").trim() || undefined;
+  const sizes = String(form?.get("sizes") ?? "").trim().slice(0, 120) || undefined;
   if (!form || !(file instanceof File) || title.length < 2 || title.length > 200) return c.json({ error: "invalid" }, 400);
   if (file.size > PRODUCT_PHOTO_MAX_BYTES) return c.json({ error: "too_large" }, 413);
   if (productUrl && !z.string().url().max(1000).safeParse(productUrl).success) return c.json({ error: "invalid", fields: ["productUrl"] }, 400);
@@ -324,7 +336,7 @@ portal.post("/products/upload", async (c) => {
   const name = `${ulid().toLowerCase()}.${type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg"}`;
   await c.env.FILES.put(`products/${id}/${name}`, bytes, { httpMetadata: { contentType: type, cacheControl: "public, max-age=31536000, immutable" } });
   const imageUrl = productPhotoUrl(c.env, id, name);
-  const added = await addManual(c.env, id, [{ title, imageUrl, productUrl }]);
+  const added = await addManual(c.env, id, [{ title, imageUrl, productUrl, sizes }]);
   if (!added) {
     await c.env.FILES.delete(`products/${id}/${name}`);
     return c.json({ error: "limit_reached" }, 400);

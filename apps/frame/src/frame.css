@@ -56,3 +56,12 @@ html[lang="ar"] .chip { letter-spacing: 0; text-transform: none; font-size: 12px
 .pick-title { flex: 1; font-weight: 700; overflow-wrap: anywhere; }
 .pick-go { flex: none; background: var(--forest); color: var(--paper); border-radius: var(--radius-pill); padding: 8px 14px; font: 700 13px/1 var(--font); }
 @media (prefers-reduced-motion: reduce) { .pick { transition: none; } }
+/* Size finder */
+.sizeform { display: flex; flex-direction: column; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 14px; font-weight: 700; }
+.field input, .field select { font: 400 16px/1.4 var(--font); color: var(--ink); background: var(--paper); border: 1px solid var(--grey);
+  border-radius: 12px; min-height: 44px; padding: 8px 12px; width: 100%; }
+.field input:focus-visible, .field select:focus-visible { outline: 3px solid var(--teal); outline-offset: 1px; }
+.size-big { font-size: 48px; line-height: 1.1; color: var(--forest); font-variant-numeric: tabular-nums; }
+.reasons { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 6px; }

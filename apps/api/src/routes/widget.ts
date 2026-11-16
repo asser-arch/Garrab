@@ -16,6 +16,8 @@ import {
   servableProducts,
 } from "../lib/db.js";
 import { bumpCounter } from "../lib/metering.js";
+import { sizeFinderFits } from "../providers/size.js";
+import { featurePlan } from "./size.js";
 
 type C = Context<{ Bindings: Env }>;
 
@@ -92,7 +94,7 @@ widget.get("/config", async (c) => {
       exp,
       frame: `${c.env.APP_ORIGIN}/frame`,
       selector: account.button_selector,
-      sizeFinder: PLANS[account.plan_id].sizeFinder,
+      sizeFinder: await sizeFinderOn(c.env, account.id),
       products: products.map((p) => ({ id: p.id, ref: p.external_ref, path: p.url_path, kind: p.kind })),
     });
   } catch {
@@ -142,6 +144,7 @@ widget.get("/hosted/:slug/:productId", async (c) => {
       exp,
       brand: { name: account.name },
       product: { id: p.id, title: p.title, image: images[0] ?? null, kind: p.kind },
+      sizeFinder: (await sizeFinderOn(c.env, account.id)) && sizeFinderFits(p.kind, JSON.parse(p.sizes_json ?? "[]") as string[]),
       buyUrl: p.url_path && account.buy_url ? new URL(p.url_path, account.buy_url).toString() : account.buy_url,
       privacyClaim: await getSetting(c.env, "privacy_claim_verified", false),
     });
@@ -150,14 +153,26 @@ widget.get("/hosted/:slug/:productId", async (c) => {
   }
 });
 
-/** GET /v1/frame-info?ctx=… (the iframe asks whether to show the privacy claim) */
+/** GET /v1/frame-info?ctx=…&p=… (the iframe asks whether to show the privacy claim and the size finder) */
 widget.get("/frame-info", async (c) => {
   c.header("Cache-Control", "no-store");
   corsFor(c, c.env.APP_ORIGIN);
   const claims = await verifyCtx(ctxKey(c.env), c.req.query("ctx") ?? "");
   if (!claims) return c.json(DISABLED);
-  return c.json({ enabled: true, privacyClaim: await getSetting(c.env, "privacy_claim_verified", false) });
+  const pid = c.req.query("p") ?? "";
+  let sizeFinder = false;
+  if (/^[A-Za-z0-9]{1,40}$/.test(pid) && (await sizeFinderOn(c.env, claims.a))) {
+    const p = await servableProduct(c.env, claims.a, pid);
+    sizeFinder = !!p && sizeFinderFits(p.kind, JSON.parse(p.sizes_json ?? "[]") as string[]);
+  }
+  return c.json({ enabled: true, privacyClaim: await getSetting(c.env, "privacy_claim_verified", false), sizeFinder });
 });
+
+/** Size finder is a Growth feature; a pilot gets the features of the plan it converts to. */
+async function sizeFinderOn(env: Env, accountId: string): Promise<boolean> {
+  const a = await env.DB.prepare("SELECT plan_id, target_plan_id FROM accounts WHERE id = ?").bind(accountId).first<{ plan_id: string; target_plan_id: string | null }>();
+  return !!a && PLANS[featurePlan(a)].sizeFinder;
+}
 
 /** POST /v1/events  body (text/plain JSON): { ctx, e }  — anonymous daily counts only. */
 widget.post("/events", async (c) => {

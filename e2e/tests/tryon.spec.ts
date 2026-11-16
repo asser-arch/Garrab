@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { setDemoStatus } from "./db.js";
+import { setDemoStatus, sql } from "./db.js";
 
 const SHOP = "http://localhost:8790";
 const APP = "http://localhost:8788";
@@ -125,4 +125,40 @@ test("brand page (Instagram bio link) lists products and opens one", async ({ pa
   await page.getByRole("link", { name: /Red linen dress/ }).click();
   await expect(page).toHaveURL(/\/t\/demo-brand\/prodRedDress01\?lang=en$/);
   await expect(page.getByRole("button", { name: "Upload a clear photo of yourself" }).first()).toBeVisible();
+});
+
+test("size finder (Growth): answers on the try-on link in English and Arabic, then back to try-on", async ({ page }) => {
+  sql("UPDATE accounts SET plan_id = 'growth' WHERE id = 'acc_demo'");
+  sql(`UPDATE products SET sizes_json = '["S","M","L","XL"]' WHERE id = 'prodRedDress01'`);
+  try {
+    await page.goto(`${APP}/t/demo-brand/prodRedDress01?lang=en`);
+    await page.getByRole("button", { name: "Find my size" }).click();
+    await page.getByLabel("Height (cm)").fill("165");
+    await page.getByLabel("Weight (kg, optional)").fill("60");
+    await page.getByLabel("Your usual size").fill("M");
+    await page.getByLabel("How do you like it to fit?").selectOption("loose");
+    await page.getByRole("button", { name: "Suggest my size" }).click();
+    await expect(page.getByText("Estimated size")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "M" })).toBeVisible();
+    await expect(page.getByText("Also worth a look:")).toBeVisible();
+    await page.getByRole("button", { name: "Try it on" }).click();
+    await expect(page.getByRole("button", { name: "Upload a clear photo of yourself" }).first()).toBeVisible();
+
+    await page.goto(`${APP}/t/demo-brand/prodRedDress01?lang=ar`);
+    await page.getByRole("button", { name: "اعرف مقاسك" }).click();
+    await page.getByLabel("الطول (سم)").fill("170");
+    await page.getByLabel("مقاسك المعتاد").fill("L");
+    await page.getByRole("button", { name: "اقترح مقاسي" }).click();
+    await expect(page.getByText("المقاس التقديري")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "L" })).toBeVisible();
+  } finally {
+    sql("UPDATE accounts SET plan_id = 'starter' WHERE id = 'acc_demo'");
+    sql(`UPDATE products SET sizes_json = '[]' WHERE id = 'prodRedDress01'`);
+  }
+});
+
+test("size finder is not offered on Starter", async ({ page }) => {
+  await page.goto(`${APP}/t/demo-brand/prodRedDress01?lang=en`);
+  await expect(page.getByRole("button", { name: "Upload a clear photo of yourself" }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Find my size" })).toHaveCount(0);
 });

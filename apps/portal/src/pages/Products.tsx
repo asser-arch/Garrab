@@ -12,7 +12,7 @@ export function Products({
   const [max, setMax] = useState<number | null>(10);
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   const [msg, setMsg] = useState<string | null>(null);
-  const [form, setForm] = useState({ title: "", imageUrl: "", productUrl: "" });
+  const [form, setForm] = useState({ title: "", imageUrl: "", productUrl: "", sizes: "" });
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [useLink, setUseLink] = useState(false);
@@ -146,7 +146,7 @@ export function Products({
                 fd.set("photo", photo!);
                 await api("/products/upload", { form: fd });
               }
-              setForm({ title: "", imageUrl: "", productUrl: "" });
+              setForm({ title: "", imageUrl: "", productUrl: "", sizes: "" });
               setPhoto(null);
               setPreview(null);
               setMsg(
@@ -241,6 +241,18 @@ export function Products({
                 ? "Upload a photo instead"
                 : "My photo is already online: paste a link instead"}
             </a>
+          </p>
+          <label htmlFor="sz">Sizes you sell (optional)</label>
+          <input
+            id="sz"
+            name="sizes"
+            autoComplete="off"
+            placeholder="e.g. S, M, L, XL"
+            value={form.sizes}
+            onChange={(e) => setForm({ ...form, sizes: e.target.value })}
+          />
+          <p className="small muted" style={{ margin: "4px 0 0" }}>
+            On the Growth plan, shoppers can ask Garrab to suggest their size for clothing that comes in two or more sizes.
           </p>
           <label htmlFor="u">Where people buy it (optional)</label>
           <input

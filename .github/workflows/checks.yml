@@ -7,7 +7,7 @@ on:
       check:
         description: What to run
         type: choice
-        options: [fixtures-and-delete-check, fixtures-only, delete-check-only, bakeoff, diagnose-tryon]
+        options: [fixtures-and-delete-check, fixtures-only, delete-check-only, bakeoff, diagnose-tryon, size-live]
         default: fixtures-and-delete-check
       shop:
         description: "Bake-off: the brand's Shopify site"
@@ -86,6 +86,11 @@ jobs:
             --command "SELECT kind, provider, ok, error_code, created_at FROM usage_events WHERE kind = 'test' ORDER BY created_at DESC LIMIT 6"
           echo "== Gemini, newest product, stock photo =="
           node ../../scripts/diagnose-gemini.mjs "$RUNNER_TEMP/p.json" "$RUNNER_TEMP/fx/model-a.jpg"
+      - name: Size finder live check (3 AI answers, a fraction of a cent)
+        if: inputs.check == 'size-live'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/size-live.mjs
       - name: Bake-off (Genlook vs Google on the brand's products)
         if: inputs.check == 'bakeoff'
         working-directory: apps/api
