@@ -93,7 +93,8 @@ test("path 2: suspended → brand uses portal Pay now → Asser confirms in the 
   expect(secs).toBeLessThan(60);
 
   // Brand signs in with the 6-digit code from the email.
-  await page.goto(`${APP}/portal/login`);
+  // Start from /portal (signed out), the address brands actually type.
+  await page.goto(`${APP}/portal`);
   await page.getByLabel("Your email").fill("owner@demo-brand.example");
   await page.getByRole("button", { name: "Email me a code" }).click();
   await expect(page.getByRole("status")).toBeVisible();

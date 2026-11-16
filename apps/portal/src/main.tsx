@@ -61,7 +61,16 @@ function App() {
     if (route !== "/portal/login") void refresh();
   }, [route, refresh]);
 
-  if (route === "/portal/login" || signedOut) return <Login onSignedIn={() => go("/portal")} />;
+  if (route === "/portal/login" || signedOut)
+    return (
+      <Login
+        onSignedIn={() => {
+          // Signing in from /portal itself doesn't change the route, so load the account explicitly.
+          if (route === "/portal") void refresh();
+          else go("/portal");
+        }}
+      />
+    );
   if (!me) return <div className="shell muted">Loading…</div>;
 
   return (
