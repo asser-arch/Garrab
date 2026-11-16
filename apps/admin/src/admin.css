@@ -19,6 +19,7 @@ body { background: var(--cream); }
 .stats .card { margin: 0; padding: 16px 20px; }
 .stats .label { font-size: 13px; color: var(--muted); margin: 0; }
 .stats .stat { margin: 4px 0 0; font-size: 26px; line-height: 1.2; }
+.stats .stat.neg { color: #8a2f12; }
 .stats .hint { font-size: 12px; color: var(--muted); margin: 2px 0 0; }
 .cols { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
 .cols .card { margin: 0; }

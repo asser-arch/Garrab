@@ -680,6 +680,7 @@ function Money({ id, status, hold, notes, onChange }: { id: string; status: stri
 interface Dash {
   statusCounts: Record<string, number>;
   mrr: number;
+  month: { label: string; revenue: number; aiCostUsd: number; aiCostEgp: number | null; margin: number | null };
   egpPerUsd: number | null;
   globalKill: boolean;
   privacyClaim: boolean;
@@ -759,6 +760,24 @@ function Dashboard({ open }: { open: (id: string) => void }) {
           <p className="label">Monthly revenue</p>
           <p className="stat">{egp(d.mrr)}</p>
           <p className="hint">MRR from paying brands</p>
+        </div>
+        <div className="card">
+          <p className="label">Monthly Margin Total</p>
+          {d.month.margin === null ? (
+            <>
+              <p className="stat">–</p>
+              <p className="hint">
+                Set the EGP/USD rate (under Brands) to see it. AI cost so far: {d.month.aiCostUsd.toFixed(2)} USD
+              </p>
+            </>
+          ) : (
+            <>
+              <p className={`stat${d.month.margin < 0 ? " neg" : ""}`}>{egp(d.month.margin)}</p>
+              <p className="hint">
+                {new Date(`${d.month.label}-01T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" })}: received {egp(d.month.revenue)} − AI {egp(d.month.aiCostEgp ?? 0)} ({d.month.aiCostUsd.toFixed(2)} USD)
+              </p>
+            </>
+          )}
         </div>
         {(
           [

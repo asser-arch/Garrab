@@ -305,6 +305,26 @@ describe("admin: kill, restore, manual payments, global switch, privacy gate", (
     const row = d.clients.find((x) => x.id === b.id)!;
     expect(row).toMatchObject({ revenue30: 80_000, costUsd30: 2, margin30: 80_000 - 2 * 50 * 100 });
   });
+
+  it("Monthly Margin Total: this month's money received minus all AI cost, at the FX rate", async () => {
+    await post("/settings", { egpPerUsd: 50 });
+    const get = async () => ((await (await exports.default.fetch("https://api.test/admin-api/dashboard", { headers: ADMIN })).json()) as { month: { revenue: number; aiCostUsd: number; aiCostEgp: number; margin: number } }).month;
+    const before = await get();
+    const b = await brand({ status: "active", paidThrough: addDays(today, 20) });
+    const inv = await createInvoice(env, (await accountFacts(env, b.id))!, { kind: "pack", periodStart: null, dueDate: today });
+    await applyPayment(env, { invoiceId: inv.id, provider: "manual", txnId: `m-${uniq()}`, amount: inv.total, method: "cash", actor: "admin:test" });
+    await env.DB.prepare("INSERT INTO usage_events (id, account_id, kind, provider, ok, cost_micro_usd) VALUES (?, ?, 'room', 'gemini', 1, 3000000), (?, ?, 'test', 'gemini', 1, 1000000)")
+      .bind(ulid(), b.id, ulid(), b.id)
+      .run();
+    const m = await get();
+    expect(m.revenue - before.revenue).toBe(inv.total);
+    expect(Math.round((m.aiCostUsd - before.aiCostUsd) * 100) / 100).toBe(4);
+    expect(m.aiCostEgp - before.aiCostEgp).toBe(4 * 50 * 100);
+    expect(m.margin).toBe(m.revenue - m.aiCostEgp);
+
+    await post("/settings", { egpPerUsd: null });
+    expect((await get()).margin).toBeNull(); // no rate → no made-up margin
+  });
 });
 
 // ---------------------------------------------------------------- portal billing

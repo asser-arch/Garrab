@@ -285,9 +285,21 @@ admin.get("/dashboard", async (c) => {
       margin30: fx ? revenue30 - Math.round(costUsd * fx * 100) : null,
     });
   }
+  // This calendar month (Cairo): money received minus every AI cost (previews, room previews, size answers,
+  // product tests and scoring), converted at the EGP/USD rate you set.
+  const month = cairoDay().slice(0, 7);
+  const monthStart = new Date(Date.parse(`${month}-01T00:00:00Z`) - 3 * 3_600_000).toISOString(); // Cairo midnight (UTC+2/+3), safe side
+  const [mRev, mCost] = await Promise.all([
+    env.DB.prepare("SELECT COALESCE(SUM(amount), 0) AS s FROM payments WHERE created_at >= ?").bind(monthStart).first<{ s: number }>(),
+    env.DB.prepare("SELECT COALESCE(SUM(cost_micro_usd), 0) AS s FROM usage_events WHERE created_at >= ?").bind(monthStart).first<{ s: number }>(),
+  ]);
+  const monthRevenue = mRev?.s ?? 0;
+  const monthCostUsd = Math.round((mCost?.s ?? 0) / 1e4) / 100;
+  const monthCostEgp = fx ? Math.round(((mCost?.s ?? 0) / 1e6) * fx * 100) : null;
   return c.json({
     statusCounts: Object.fromEntries(counts.results.map((r) => [r.status, r.n])),
     mrr,
+    month: { label: month, revenue: monthRevenue, aiCostUsd: monthCostUsd, aiCostEgp: monthCostEgp, margin: monthCostEgp === null ? null : monthRevenue - monthCostEgp },
     egpPerUsd: fx,
     globalKill,
     privacyClaim: await getSetting(env, "privacy_claim_verified", false),
