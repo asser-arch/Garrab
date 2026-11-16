@@ -252,8 +252,10 @@ async function run(st: State, file: File): Promise<void> {
     form.set("photo", photo, "photo.jpg");
     const r = await fetch(`${cfg.api}/v1/tryon`, { method: "POST", body: form, credentials: "omit" });
     if (!r.ok) {
-      const code = ((await r.json().catch(() => ({}))) as { error?: string }).error;
-      startScreen(st, code === "unavailable" || code === "quota" || code === "session_expired" ? t.unavailable : t.error);
+      const code = ((await r.json().catch(() => ({}))) as { error?: string }).error ?? "";
+      // Only blame the photo when the photo was the problem.
+      const photoProblem = code === "bad_photo" || code === "content_policy" || code.startsWith("photo");
+      startScreen(st, code === "unavailable" || code === "quota" || code === "session_expired" ? t.unavailable : photoProblem ? t.error : t.errorRetry);
       return;
     }
     const blob = await r.blob();
@@ -261,7 +263,7 @@ async function run(st: State, file: File): Promise<void> {
     sendEvent(st, "try_on_completed");
     resultScreen(st, st.resultUrl);
   } catch {
-    startScreen(st, t.error);
+    startScreen(st, t.errorRetry); // bot check or network: not the photo
   }
 }
 

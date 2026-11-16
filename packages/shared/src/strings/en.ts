@@ -18,6 +18,8 @@ export const en = {
   download: "Download preview",
   closed: "Your photo has been deleted.",
   error: "We couldn't create a preview from this photo. Try a clearer one.",
+  /** Not the photo's fault (network, bot check, busy): ask to retry, don't blame the photo. */
+  errorRetry: "We couldn't create your preview just now. Please try again in a moment.",
   close: "Close",
   notNow: "Not now",
   unavailable: "Temporarily unavailable",
@@ -48,6 +50,7 @@ export const TRY_ON_KEYS = [
   "download",
   "closed",
   "error",
+  "errorRetry",
   "close",
   "notNow",
   "unavailable",
