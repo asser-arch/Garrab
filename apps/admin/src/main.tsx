@@ -766,17 +766,10 @@ function Dashboard({ open }: { open: (id: string) => void }) {
           {d.month.margin === null ? (
             <>
               <p className="stat">–</p>
-              <p className="hint">
-                Set the EGP/USD rate (under Brands) to see it. AI cost so far: {d.month.aiCostUsd.toFixed(2)} USD
-              </p>
+              <p className="hint">Set the EGP/USD rate</p>
             </>
           ) : (
-            <>
-              <p className={`stat${d.month.margin < 0 ? " neg" : ""}`}>{egp(d.month.margin)}</p>
-              <p className="hint">
-                {new Date(`${d.month.label}-01T12:00:00Z`).toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" })}: received {egp(d.month.revenue)} − AI {egp(d.month.aiCostEgp ?? 0)} ({d.month.aiCostUsd.toFixed(2)} USD)
-              </p>
-            </>
+            <p className={`stat${d.month.margin < 0 ? " neg" : ""}`}>{egp(d.month.margin)}</p>
           )}
         </div>
         {(
@@ -784,7 +777,6 @@ function Dashboard({ open }: { open: (id: string) => void }) {
             ["pilot", "In free pilot"],
             ["active", "Paying"],
             ["past_due", "Payment due"],
-            ["suspended", "Switched off"],
           ] as const
         ).map(([k, l]) => (
           <div className="card" key={k}>
