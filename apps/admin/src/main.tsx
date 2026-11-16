@@ -1056,7 +1056,7 @@ function App() {
       </>
       )}
     </main>
-    <footer className="foot">Garrab admin · {ENV} · Signed in through Cloudflare Access</footer>
+    <footer className="foot">Garrab Admin · {ENV} · Signed in through Cloudflare Access</footer>
     </>
   );
 }

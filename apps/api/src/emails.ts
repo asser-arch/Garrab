@@ -45,7 +45,7 @@ export const emails = {
           : "Tap the button below to sign in. It works once within 15 minutes; after that you stay signed in for 60 days on that device.",
         "You'll approve every product before anything goes live.",
       ],
-      { label: "Open my Garrab portal", url: link },
+      { label: "Open my Garrab Portal", url: link },
     ),
 
   login: (to: string, link: string, code?: string): EmailMessage =>
