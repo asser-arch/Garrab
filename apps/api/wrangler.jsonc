@@ -13,7 +13,7 @@
     "GENLOOK_USD_PER_CREDIT": "0.04",
     "MOCK_TURNSTILE": "pass",
     "ADMIN_DEV_TOKEN": "dev-admin-token-local-only",
-    "INSTAPAY_IPA": "asserrostom@instapay",
+    "INSTAPAY_IPA": "01009110001",
     "INSTAPAY_ACCOUNT_NAME": "Asser Rostom",
     "TELEGRAM_WEBHOOK_SECRET": "dev-telegram-secret-local-only",
     "TELEGRAM_CHAT_ID": "424242",
@@ -92,7 +92,7 @@
       "name": "garrab-api-staging",
       "vars": {
         "ENVIRONMENT": "staging",
-        "INSTAPAY_IPA": "asserrostom@instapay",
+        "INSTAPAY_IPA": "01009110001",
         "INSTAPAY_ACCOUNT_NAME": "Asser Rostom",
         "ADMIN_ORIGIN": "https://admin-staging.garrabb.com",
         "APP_ORIGIN": "https://app-staging.garrabb.com",
@@ -180,7 +180,7 @@
       "name": "garrab-api",
       "vars": {
         "ENVIRONMENT": "prod",
-        "INSTAPAY_IPA": "asserrostom@instapay",
+        "INSTAPAY_IPA": "01009110001",
         "INSTAPAY_ACCOUNT_NAME": "Asser Rostom",
         "ADMIN_ORIGIN": "https://admin.garrabb.com",
         "APP_ORIGIN": "https://app.garrabb.com",

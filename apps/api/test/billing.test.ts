@@ -127,7 +127,7 @@ describe("invoices", () => {
     expect(pdf.headers.get("content-type")).toBe("application/pdf");
     expect(new TextDecoder().decode((await pdf.arrayBuffer()).slice(0, 5))).toBe("%PDF-");
     const page = (await (await exports.default.fetch(`https://api.test/v1/pay/${inv.pay_token}`)).json()) as { number: string; total: number; instapay: { address: string } };
-    expect(page).toMatchObject({ number: inv.number, total: 500_000, instapay: { address: "asserrostom@instapay" } });
+    expect(page).toMatchObject({ number: inv.number, total: 500_000, instapay: { address: "01009110001" } });
     expect((await exports.default.fetch(`https://api.test/v1/pay/${"x".repeat(32)}`)).status).toBe(404);
   });
 });

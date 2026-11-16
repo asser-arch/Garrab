@@ -240,3 +240,9 @@ Brands without a website share one link in their Instagram/TikTok bio, which all
 
 ## 2026-11-15 — Approved products go live straight away; the website line is optional
 A pilot brand approved her products and her bio link said "Temporarily unavailable": brands with a website stayed in onboarding until the script was found on their shop, so their links stayed off. Now approval puts the brand live (pilot clock starts, links work); the website line can be added any time and the widget works the moment it's pasted. Brands already waiting are moved on the next time they open the portal.
+
+## 2026-11-16 — InstaPay by mobile number; live brands keep adding products; hosted Close → all products
+- **InstaPay:** brands now pay to the mobile number **01009110001** (Asser Rostom), since payment addresses no longer accept transfers from others. The pay page says "Send money → Mobile number" with a Copy button; the PDF says "InstaPay to mobile number …".
+- **Live/pilot brands** can add, swap and approve products at any time. New products are tested automatically (same test budget cap) and go live only after the brand approves them.
+- **Hosted product page:** the bottom button is "See all products" (EN/AR) and returns to the brand page. Escape only closes the widget overlay.
+- **Admin:** an account's History is collapsed until opened.

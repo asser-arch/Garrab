@@ -363,8 +363,10 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
       )}
       </div>
       <Money id={id} status={String(d.account.status)} hold={Number(d.account.manual_hold) === 1} notes={String(d.account.notes ?? "")} onChange={async () => (await load(), onChange())} />
-      <div className="section">
-      <h3>History</h3>
+      <details className="section history">
+      <summary>
+        <h3>History</h3> <span className="muted small">({d.audit.length} events)</span>
+      </summary>
       <ul className="timeline">
         {d.audit.map((a, i) => (
           <li key={i}>
@@ -376,7 +378,7 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
           </li>
         ))}
       </ul>
-      </div>
+      </details>
     </div>
   );
 }

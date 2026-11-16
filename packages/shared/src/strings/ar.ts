@@ -37,4 +37,5 @@ export const ar: Record<TryOnKey, string> = {
   unavailable: "غير متاح مؤقتًا",
   buy: "اشترِ الآن",
   pickProduct: "اختر قطعة لتجربتها",
+  allProducts: "شاهد كل المنتجات",
 };

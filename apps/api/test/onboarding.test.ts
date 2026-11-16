@@ -236,6 +236,39 @@ describe("onboarding: invite → pilot_live with no admin action", () => {
     expect(acc?.buy_url).toBe("https://wa.me/201001234567");
   });
 
+  it("a live pilot brand keeps adding products: new ones are tested, then go live once approved", async () => {
+    const email = `more-${uniq()}@brand.example`;
+    const { accountId } = await createAccount(env, { brandName: "More", email, plan: "starter", instagram: "@more", whatsapp: "+201001234567" });
+    const add = async (title: string) => {
+      const id = `p${uniq()}`;
+      await env.DB.prepare(
+        `INSERT INTO products (id, account_id, external_ref, title, images_json, kind, selected, source) VALUES (?, ?, ?, ?, '["https://cdn.shop.example/x.jpg"]', 'clothing', 1, 'manual')`,
+      )
+        .bind(id, accountId, `manual:${id}`, title)
+        .run();
+      return id;
+    };
+    const inline = { fetcher, runTestsInline: (a: string, p: string) => testProduct(env, a, p) };
+    const first = await add("Black abaya");
+    expect(await advance(env, accountId, inline)).toBe("products_tested");
+    await decideProduct(env, accountId, first, "approved");
+    await confirmApproval(env, accountId);
+    expect(await advance(env, accountId, inline)).toBe("pilot_live");
+
+    // Added after going live: tested without leaving pilot_live, not served until approved.
+    const second = await add("Olive kaftan");
+    expect(await advance(env, accountId, inline)).toBe("pilot_live");
+    const row = await env.DB.prepare("SELECT test_score, enabled, approved FROM products WHERE id = ?").bind(second).first<{ test_score: number | null; enabled: number; approved: number }>();
+    expect(row?.test_score).not.toBeNull();
+    expect(row).toMatchObject({ enabled: 1, approved: 0 });
+    const slug = (await env.DB.prepare("SELECT slug FROM accounts WHERE id = ?").bind(accountId).first<{ slug: string }>())!.slug;
+    const ids = async () => ((await (await exports.default.fetch(`https://api.test/v1/hosted/${slug}`)).json()) as { products: { id: string }[] }).products.map((p) => p.id);
+    expect(await ids()).toEqual([first]);
+    await decideProduct(env, accountId, second, "approved");
+    invalidateStatus();
+    expect((await ids()).sort()).toEqual([first, second].sort());
+  });
+
   it("respects robots.txt: a store that disallows everything is not crawled", async () => {
     const email = `blocked-${uniq()}@brand.example`;
     const { accountId } = await createAccount(env, { brandName: "Blocked", email, plan: "starter", website: "https://blocked.example" });

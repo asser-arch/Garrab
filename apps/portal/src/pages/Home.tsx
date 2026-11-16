@@ -61,9 +61,14 @@ function NextAction({ me }: { me: Me }) {
               {new Date(me.account.pilotEndsAt).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "Africa/Cairo" })}
             </p>
           )}
-          <button className="btn accent" onClick={() => go("/portal/install")}>
-            Get my try-on links
-          </button>
+          <div className="row">
+            <button className="btn accent" onClick={() => go("/portal/install")}>
+              Get my try-on link
+            </button>
+            <button className="btn ghost" onClick={() => go("/portal/products")}>
+              Add more products
+            </button>
+          </div>
         </>
       );
   }

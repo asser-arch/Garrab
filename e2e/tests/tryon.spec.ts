@@ -78,7 +78,7 @@ test("nothing renders and nothing is logged for a wrong key", async ({ page }) =
   expect(noise).toEqual([]);
 });
 
-test("hosted link: try on, then Buy; the result is gone after closing", async ({ page }) => {
+test("hosted link: try on, then Buy; back to all products, the result is gone", async ({ page }) => {
   await page.goto(`${APP}/t/demo-brand/prodRedDress01?lang=en`);
   await expect(page.getByRole("heading", { name: "Red linen dress" })).toBeVisible();
   await expect(page.getByText("Demo Brand")).toBeVisible();
@@ -86,8 +86,10 @@ test("hosted link: try on, then Buy; the result is gone after closing", async ({
   await expect(page.locator("img.result")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByRole("link", { name: "Buy" })).toHaveAttribute("href", "http://localhost:8790/products/red-dress");
   const blobUrl = await page.locator("img.result").getAttribute("src");
-  await page.getByRole("button", { name: "Close" }).click();
-  await expect(page.getByText("Your photo has been deleted.")).toBeVisible();
+  // "See all products" goes back to the brand page; the photo and result are gone.
+  await page.getByRole("button", { name: "See all products" }).click();
+  await expect(page).toHaveURL(/\/t\/demo-brand\?lang=en$/);
+  await expect(page.getByRole("heading", { name: "Choose a piece to try on" })).toBeVisible();
   // The object URL was revoked: the image bytes are no longer reachable in the page.
   const stillThere = await page.evaluate(async (u) => fetch(u!).then(() => true, () => false), blobUrl);
   expect(stillThere).toBe(false);

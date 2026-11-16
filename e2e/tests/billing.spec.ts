@@ -36,7 +36,7 @@ async function goUnpaid(page: Page): Promise<number> {
 async function claimOnPayPage(page: Page, payUrl: string, reference: string): Promise<void> {
   await page.goto(payUrl);
   await expect(page.getByRole("heading", { name: /Invoice/ })).toBeVisible();
-  await expect(page.getByText("asserrostom@instapay").first()).toBeVisible();
+  await expect(page.getByText("01009110001").first()).toBeVisible();
   await expect(page.getByText("5,000 EGP").first()).toBeVisible();
   await page.getByLabel("InstaPay reference (from your receipt)").fill(reference);
   await page.getByRole("button", { name: "I've paid" }).click();

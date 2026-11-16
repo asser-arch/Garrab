@@ -31,7 +31,7 @@ interface State {
   lang: Lang;
   t: S;
   privacyClaim: boolean;
-  hosted?: { brand: string; title: string; image: string | null; buyUrl: string | null };
+  hosted?: { slug: string; brand: string; title: string; image: string | null; buyUrl: string | null };
   resultUrl: string | null;
   hadPhoto: boolean;
 }
@@ -203,7 +203,7 @@ function resultScreen(st: State, url: string): void {
 }
 
 function closeButton(st: State): HTMLElement {
-  const b = h("button", { type: "button", class: "btn ghost" }, st.t.close);
+  const b = h("button", { type: "button", class: "btn ghost" }, st.mode === "hosted" ? st.t.allProducts : st.t.close);
   b.addEventListener("click", () => close(st));
   return b;
 }
@@ -221,9 +221,11 @@ function close(st: State): void {
   if (st.mode === "widget") {
     root.replaceChildren();
     parent.postMessage({ type: "garrab:close", deleted: had }, "*");
+  } else if (st.hosted) {
+    // Hosted link: back to the brand page with every product (the photo is already forgotten).
+    location.assign(`/t/${st.hosted.slug}${new URLSearchParams(location.search).get("lang") ? `?lang=${st.lang}` : ""}`);
   } else {
     startScreen(st);
-    // role="status" announces it once; no second copy in the live region.
     if (had) root.prepend(h("p", { class: "note", role: "status" }, st.t.closed));
   }
 }
@@ -343,7 +345,7 @@ async function boot(): Promise<void> {
         lang,
         t: tryOnStrings(lang),
         privacyClaim: j.privacyClaim === true,
-        hosted: { brand: j.brand.name, title: j.product.title, image: j.product.image, buyUrl: j.buyUrl ?? null },
+        hosted: { slug: hostedMatch[1]!, brand: j.brand.name, title: j.product.title, image: j.product.image, buyUrl: j.buyUrl ?? null },
         resultUrl: null,
         hadPhoto: false,
       };
@@ -374,7 +376,7 @@ async function boot(): Promise<void> {
   }
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") close(st);
+    if (e.key === "Escape" && st.mode === "widget") close(st);
   });
   window.addEventListener("pagehide", () => wipe(st));
   startScreen(st);

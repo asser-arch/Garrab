@@ -45,7 +45,7 @@ wrangler secret put RESEND_API_KEY
 TELEGRAM_BOT_TOKEN=… TELEGRAM_WEBHOOK_SECRET=… pnpm --filter @garrab/api telegram:webhook -- https://api.<your-domain>
 ```
 
-`INSTAPAY_IPA` is already set to `asserrostom@instapay` in `apps/api/wrangler.jsonc`. Set `INSTAPAY_ACCOUNT_NAME` (the name brands see when paying) and, optionally, `INSTAPAY_LINK`.
+`INSTAPAY_IPA` is set to the mobile number `01009110001` (changed 16 Nov: InstaPay payment addresses no longer accept transfers to others) in `apps/api/wrangler.jsonc`. Set `INSTAPAY_ACCOUNT_NAME` (the name brands see when paying) and, optionally, `INSTAPAY_LINK`.
 
 ## 4. Admin
 

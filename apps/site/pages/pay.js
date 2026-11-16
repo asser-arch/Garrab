@@ -35,13 +35,15 @@
     } else if (d.claim && d.claim.status === "pending") {
       body.push(el("div", { class: "card note", role: "status" }, [el("h2", {}, ["Thanks, we're checking your transfer"]), el("p", {}, ["We'll confirm it shortly, usually within a few hours, and email you. Try-on stays on while we check."])]));
     } else if (d.instapay && d.instapay.address) {
+      // The address is either a mobile number (InstaPay → Send → Mobile number) or a name@instapay address.
+      var isPhone = /^\+?[0-9 ]{10,15}$/.test(d.instapay.address);
       var steps = el("ol", {}, [
-        el("li", {}, ["Open your InstaPay app."]),
-        el("li", {}, ["Send ", el("strong", {}, [egp(d.total)]), " to ", el("strong", {}, [d.instapay.address]), d.instapay.accountName ? " (" + d.instapay.accountName + ")" : "", "."]),
+        el("li", {}, ["Open your InstaPay app and choose ", el("strong", {}, [isPhone ? "Send money → Mobile number" : "Send money → Payment address"]), "."]),
+        el("li", {}, ["Send ", el("strong", {}, [egp(d.total)]), " to ", isPhone ? "the mobile number " : "", el("strong", {}, [d.instapay.address]), d.instapay.accountName ? " (" + d.instapay.accountName + ")" : "", "."]),
         el("li", {}, ["In the note, write ", el("strong", {}, [d.number]), "."]),
         el("li", {}, ["Come back here and tap ", el("strong", {}, ["I've paid"]), " with the reference from your InstaPay receipt."]),
       ]);
-      var tools = el("div", { class: "row" }, [copyBtn(d.instapay.address, "Copy InstaPay address"), copyBtn(String(d.total / 100), "Copy amount"), copyBtn(d.number, "Copy invoice number"),
+      var tools = el("div", { class: "row" }, [copyBtn(d.instapay.address, isPhone ? "Copy mobile number" : "Copy InstaPay address"), copyBtn(String(d.total / 100), "Copy amount"), copyBtn(d.number, "Copy invoice number"),
         d.instapay.link ? el("a", { class: "btn small accent", href: d.instapay.link, target: "_blank", rel: "noopener" }, ["Open InstaPay"]) : null]);
       var form = el("form", { class: "card", novalidate: "" }, [
         el("h2", {}, ["I've paid"]),

@@ -26,6 +26,8 @@ export const en = {
   buy: "Buy",
   /** Brand page (one link for an Instagram bio): the list of products to try on. */
   pickProduct: "Choose a piece to try on",
+  /** On a product's try-on link: back to the brand page listing every product. */
+  allProducts: "See all products",
   // Size finder (English only)
   sizeConsent: "We use these details only to suggest a size. We don't save them.",
   sizeLabel: "Estimated size",
@@ -56,4 +58,5 @@ export const TRY_ON_KEYS = [
   "unavailable",
   "buy",
   "pickProduct",
+  "allProducts",
 ] as const satisfies readonly StringKey[];

@@ -46,3 +46,13 @@ td a:hover { border-color: var(--ink); }
 .search input { width: 280px; padding-left: 38px; }
 .search svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); }
 footer.foot { max-width: 1200px; margin: 0 auto; padding: 0 16px 32px; color: var(--muted); font-size: 12px; }
+
+/* Collapsible History: closed until the operator opens it. */
+details.history > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 8px; }
+details.history > summary::-webkit-details-marker { display: none; }
+details.history > summary h3 { display: inline; margin: 0; }
+details.history > summary::before { content: "▸"; color: var(--forest); transition: transform 150ms ease; display: inline-block; }
+details.history[open] > summary::before { transform: rotate(90deg); }
+details.history > summary:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; border-radius: 8px; }
+details.history[open] > .timeline { margin-top: 12px; }
+@media (prefers-reduced-motion: reduce) { details.history > summary::before { transition: none; } }

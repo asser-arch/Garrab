@@ -153,7 +153,7 @@ describe("Asser's answers (14 Nov): product limits, account name, test budget", 
     await env.DB.prepare("UPDATE accounts SET paid_through = ? WHERE id = ?").bind(cairoDay(), b.id).run();
     const inv = await ensurePlanInvoice(env, (await accountFacts(env, b.id))!, new Date());
     const page = (await (await exports.default.fetch(`https://api.test/v1/pay/${inv.pay_token}`)).json()) as { instapay: { address: string; accountName: string } };
-    expect(page.instapay).toMatchObject({ address: "asserrostom@instapay", accountName: "Asser Rostom" });
+    expect(page.instapay).toMatchObject({ address: "01009110001", accountName: "Asser Rostom" });
   });
 
   it("the product test budget is per rolling 30 days, so old tests don't block new products", async () => {

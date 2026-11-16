@@ -255,8 +255,19 @@ export async function advance(env: Env, accountId: string, deps: AdvanceDeps = {
         break;
       }
 
+      case "pilot_live":
+      case "converted": {
+        // Live brands keep adding products: test new ones; the brand approves them in the portal.
+        const pending = await env.DB.prepare("SELECT id FROM products WHERE account_id = ? AND selected = 1 AND test_score IS NULL").bind(acc.id).all<{ id: string }>();
+        for (const p of pending.results) {
+          if (deps.runTestsInline) await deps.runTestsInline(acc.id, p.id);
+          else await env.JOBS.send({ t: "test", a: acc.id, p: p.id });
+        }
+        return acc.onboarding_step;
+      }
+
       default:
-        return acc.onboarding_step; // pilot_live / converted / expired: billing takes over
+        return acc.onboarding_step; // expired: billing takes over
     }
     if (acc.onboarding_step === before) return acc.onboarding_step;
   }

@@ -94,9 +94,20 @@ export function Approve({ me, refresh }: { me: Me; refresh: () => Promise<void> 
           </button>
         </p>
       ) : (
-        <p className="note" style={{ marginTop: 16 }}>
-          Approved products go live as soon as Garrab is on your shop.
-        </p>
+        <div className="note" style={{ marginTop: 16 }}>
+          <p style={{ margin: 0 }}>Approved products are live on your try-on link straight away. Hide a product to take it off.</p>
+          <p style={{ margin: "8px 0 0" }}>
+            <a
+              href="/portal/products"
+              onClick={(e) => {
+                e.preventDefault();
+                go("/portal/products");
+              }}
+            >
+              Add more products
+            </a>
+          </p>
+        </div>
       )}
     </>
   );
