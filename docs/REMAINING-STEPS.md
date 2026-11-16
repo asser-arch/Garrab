@@ -34,6 +34,14 @@ When 1 is done, tell Claude **"go live"**. Claude deploys `app.garrabb.com`, `ap
 - keep `admin` + `garrabb.com` in the Cloudflare Access app (it protects the live admin);
 - add `https://api.garrabb.com/healthz` to the uptime monitor.
 
-## 7. Phase 4
+## 7. ✅ Phase 4 built (16 Nov), on staging
 
-On hold until you say **"start phase 4"**.
+- **Results** page in the portal, and the branded **pilot report** email on day 10 (final results with the pay link on day 14).
+- **Type of brand** when inviting: Fashion (try-on on a person) or Home décor (room preview). A brand only ever gets one.
+- **Size finder** ("Find my size") for Growth brands, English and Arabic, on clothing that comes in 2+ sizes. Brands without a website can type "Sizes you sell" when adding a product.
+- **Room preview** ("See it in your room") for home décor brands.
+
+Your side:
+1. Invite a test **home décor** brand (Type of brand → Home décor), add a rug or cushion, and try "See it in your room" on your phone.
+2. To see the size finder, invite a test brand with **Plan after pilot → Growth**, and type sizes (e.g. S, M, L, XL) when adding a product.
+3. Ask an Arabic speaker to read the new size-finder wording (the "Find my size" form and answers), like you did for the try-on wording.
