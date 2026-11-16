@@ -246,3 +246,10 @@ A pilot brand approved her products and her bio link said "Temporarily unavailab
 - **Live/pilot brands** can add, swap and approve products at any time. New products are tested automatically (same test budget cap) and go live only after the brand approves them.
 - **Hosted product page:** the bottom button is "See all products" (EN/AR) and returns to the brand page. Escape only closes the widget overlay.
 - **Admin:** an account's History is collapsed until opened.
+
+## 2026-11-16 — Phase 4 scope (Asser's answers; build starts on "start phase 4")
+1. **Room preview: build it** (décor products; Google image model, compared in Phase 4).
+2. **Size finder: English and Arabic** (Arabic wording for Asser's review, as with the try-on strings).
+3. **Size finder: Growth plan only** (Starter never shows "Find my size").
+4. **Pilot report: day 10 of 14, by email**, fully branded and organised (clean, professional): also in the portal and admin, with a PDF; includes the payment link so the brand can convert before day 14.
+Build order: results + pilot report → size finder → room preview, each piece tested and deployed before the next.
