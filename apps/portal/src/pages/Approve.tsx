@@ -96,7 +96,6 @@ export function Approve({
   refresh: () => Promise<void>;
 }) {
   const [list, setList] = useState<Product[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<{
     title: string;
     shots: Shot[];
@@ -127,10 +126,8 @@ export function Approve({
   const decide = async (id: string, decision: "approved" | "hidden") => {
     await api(`/products/${id}/decision`, { body: { decision } });
     await load();
+    await refresh(); // the first approval puts the brand live
   };
-  const approved = list.filter(
-    (p) => p.decision === "approved" && p.result === "passed",
-  ).length;
 
   return (
     <>
@@ -223,28 +220,10 @@ export function Approve({
           onClose={() => setOpen(null)}
         />
       )}
-      {error && (
-        <p className="warn" role="alert">
-          {error}
-        </p>
-      )}
       {!atOrAfter(me.step, "products_approved") ? (
-        <p style={{ marginTop: 16 }}>
-          <button
-            className="btn accent"
-            disabled={approved === 0}
-            onClick={async () => {
-              try {
-                await api("/approve/confirm", { body: {} });
-                await refresh();
-                go("/portal/install");
-              } catch {
-                setError("Approve at least one product first.");
-              }
-            }}
-          >
-            Done: {approved} approved, go live next
-          </button>
+        <p className="note" style={{ marginTop: 16 }}>
+          Approve the products you're happy with: each one goes live on your
+          try-on link as soon as you approve it.
         </p>
       ) : (
         <div className="note" style={{ marginTop: 16 }}>

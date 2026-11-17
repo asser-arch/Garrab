@@ -109,6 +109,8 @@ portal.get("/me", async (c) => {
   if (!c.get("user").readonly) {
     const step = await c.env.DB.prepare("SELECT onboarding_step FROM accounts WHERE id = ?").bind(id).first<{ onboarding_step: string }>();
     if (step?.onboarding_step === "products_approved") await advance(c.env, id);
+    // Brands that approved products but never tapped the old "Done" button.
+    if (step?.onboarding_step === "products_tested" && (await confirmApproval(c.env, id))) await advance(c.env, id);
   }
   const a = await c.env.DB.prepare(
     `SELECT name, slug, status, platform, website, target_plan_id, plan_id, onboarding_step, pilot_started_at, pilot_ends_at, cycle_start, category
@@ -365,7 +367,13 @@ portal.post("/products/:id/decision", async (c) => {
   const body = z.object({ decision: z.enum(["approved", "hidden"]) }).safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json({ error: "invalid" }, 400);
   const ok = await decideProduct(c.env, acct(c), c.req.param("id"), body.data.decision);
-  return ok ? c.json({ ok: true }) : c.json({ error: "not_found" }, 404);
+  if (!ok) return c.json({ error: "not_found" }, 404);
+  // Approving a product is the go-ahead: the brand goes live straight away (no separate "Done" step to miss).
+  if (body.data.decision === "approved" && (await confirmApproval(c.env, acct(c)))) {
+    const step = await advance(c.env, acct(c));
+    return c.json({ ok: true, step });
+  }
+  return c.json({ ok: true });
 });
 
 portal.post("/approve/confirm", async (c) => {

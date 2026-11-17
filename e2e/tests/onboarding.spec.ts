@@ -56,7 +56,9 @@ test("invite → import → tests → approve → install → pilot live, with n
   // 4. The brand approves one product and hides another.
   await page.getByRole("article", { name: "Olive linen dress" }).getByRole("button", { name: "Approve" }).click();
   await page.getByRole("article", { name: "Black abaya with pockets" }).getByRole("button", { name: "Hide" }).click();
-  await page.getByRole("button", { name: /Done: 1 approved/ }).click();
+  // Approving is the go-ahead: the brand goes live straight away (no separate "Done" step).
+  await expect(page.getByText("Approved products are live on your try-on link straight away.")).toBeVisible();
+  await page.goto(`${APP}/portal/install`);
 
   // 5. Install page: copy the line into the shop, then check.
   await expect(page.getByRole("heading", { name: /Install/ })).toBeVisible();

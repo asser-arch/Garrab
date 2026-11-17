@@ -49,7 +49,7 @@ test("portal and admin screens", async ({ page, request }) => {
   await page.getByRole("article", { name: "Olive linen dress" }).getByRole("button", { name: "Approve" }).click();
   await page.getByRole("button", { name: "✓ Approved" }).waitFor();
   await page.screenshot({ path: out("6-portal-approve"), fullPage: true });
-  await page.getByRole("button", { name: /Done:/ }).click();
+  await page.goto("http://localhost:8788/portal/install");
   await page.getByLabel("Install code").waitFor();
   const key = /data-key="([^"]+)"/.exec((await page.getByLabel("Install code").textContent())!)![1];
   await request.post("http://127.0.0.1:8790/__install", { data: { key } });

@@ -275,3 +275,7 @@ Asser: "home decor customers will have no access to clothes preview and vice ver
 - **Product tests:** home décor products are tested in two stock rooms (`fixtures/room-a.jpg`, `room-b.jpg`, Pexels 29298710 and 19889132; sofa against a plain wall, and a full living room with floor). Fashion products never use the rooms and home products never use the models. The scorer judges the item's look and a believable size and place in the room.
 - **Size finder (4.3 follow-up):** the live check gave valid sizes but broken Arabic reasons from the small model, so Arabic answers use our fixed, reviewable sentences; the AI still picks the size.
 - **Asser:** run Checks → `fixtures-only` once so staging gets the two room photos.
+
+## 2026-11-17 — Delete any brand; approving a product puts the brand live
+- **Delete brand** (admin, any status, type the name + a reason). Never paid → removed completely, unpaid invoices included. Paid at least once → invoices and payments are kept for the accounts, open invoices voided, everything else removed, account archived (switched off for good, no sign-in). The history keeps who deleted it and why.
+- The home décor test brand stayed "Temporarily unavailable" because its products were approved one by one but the separate "Done: go live next" button was never tapped. That step is gone: the first approval puts the brand live. Brands stuck before this go live the next time they open the portal.

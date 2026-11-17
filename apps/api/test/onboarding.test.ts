@@ -475,6 +475,31 @@ describe("magic links and sessions", () => {
     expect(days((await row())!.expires_at)).toBeGreaterThan(59);
   });
 
+  it("approving a product is the go-ahead (no 'Done' step); a brand stuck before that recovers on its next visit", async () => {
+    const make = async (tag: string) => {
+      const email = `go-${tag}-${uniq()}@brand.example`;
+      const { accountId } = await createAccount(env, { brandName: `Go ${tag}`, email, plan: "starter", instagram: "@go" });
+      const pid = `p${uniq()}`;
+      await env.DB.prepare(`INSERT INTO products (id, account_id, external_ref, title, images_json, kind, selected, source) VALUES (?, ?, ?, 'Dress', '["https://cdn.shop.example/d.jpg"]', 'clothing', 1, 'manual')`)
+        .bind(pid, accountId, `manual:${pid}`)
+        .run();
+      expect(await advance(env, accountId, { fetcher, runTestsInline: (a, p) => testProduct(env, a, p) })).toBe("products_tested");
+      return { accountId, pid, cookie: await login(email) };
+    };
+    const status = async (id: string) => (await env.DB.prepare("SELECT status, onboarding_step FROM accounts WHERE id = ?").bind(id).first())!;
+
+    const a = await make("a");
+    expect((await portalPost(`/products/${a.pid}/decision`, a.cookie, { decision: "approved" })).status).toBe(200);
+    expect(await status(a.accountId)).toEqual({ status: "pilot", onboarding_step: "pilot_live" });
+
+    // Stuck the old way: approved, but approved_at never set (the old "Done" button wasn't tapped).
+    const b = await make("b");
+    await decideProduct(env, b.accountId, b.pid, "approved");
+    expect(await status(b.accountId)).toMatchObject({ status: "onboarding", onboarding_step: "products_tested" });
+    expect((await portalGet("/me", b.cookie)).status).toBe(200);
+    expect(await status(b.accountId)).toEqual({ status: "pilot", onboarding_step: "pilot_live" });
+  });
+
   it("no session → 401; cross-site writes refused", async () => {
     expect((await portalGet("/me", "")).status).toBe(401);
     const email = `csrf-${uniq()}@brand.example`;
