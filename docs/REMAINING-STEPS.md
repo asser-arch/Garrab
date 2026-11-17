@@ -28,11 +28,19 @@ Staging: `app-staging.garrabb.com` · `api-staging.garrabb.com` · `admin-stagin
 2. ✅ **Uptime monitor**: UptimeRobot watches `https://api-staging.garrabb.com/healthz` every 5 minutes, alerts by email (done 15 Nov).
 3. **Optional, better:** two photos of real people who sign the consent text (`docs/SETUP-CHECKLIST.md`, step 36) to replace the stock photos used for product tests.
 
-## 6. Going live
+## 6. ✅ LIVE (17 Nov 2026)
 
-When 1 is done, tell Claude **"go live"**. Claude deploys `app.garrabb.com`, `api.garrabb.com`, `admin.garrabb.com` and `cdn.garrabb.com`, moves the Telegram bot to live and runs the same checks. Then:
-- keep `admin` + `garrabb.com` in the Cloudflare Access app (it protects the live admin);
-- add `https://api.garrabb.com/healthz` to the uptime monitor.
+Live: `app.garrabb.com` (portal, try-on links, /start) · `api.garrabb.com` · `admin.garrabb.com` · `cdn.garrabb.com` · `garrabb.com` and `www` redirect to the app.
+
+Your side, once:
+1. **Cloudflare Access → your Garrab admin app → add the hostname `admin.garrabb.com`** (keep `admin-staging.garrabb.com`). Until then the live admin can't be signed into (its data is already refused without Access).
+2. **UptimeRobot:** add `https://api.garrabb.com/healthz` (every 5 min, email alert).
+3. In the live admin: **Set rate** (EGP/USD) and, under Settings, a **Global daily cap** (for example 2 USD while your Google balance is small).
+4. Top up the Google AI balance before inviting real brands.
+5. Telegram alerts now come from **live** (the bot follows the live environment; staging alerts stop).
+6. The "We don't save your photo" line starts **off** on live. Turn it on in the live admin (Privacy line) when you're ready, as you did on staging.
+
+Test brands on staging stay there; live starts empty.
 
 ## 7. ✅ Phase 4 built (16 Nov), on staging
 
