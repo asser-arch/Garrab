@@ -334,6 +334,18 @@ describe("onboarding: invite → pilot_live with no admin action", () => {
     await env.FILES.delete("fixtures/room-a.jpg");
   });
 
+  it("a product is tested once even when duplicate test messages arrive together (no repeat AI spend)", async () => {
+    const { accountId } = await createAccount(env, { brandName: "Dup", email: `dup-${uniq()}@brand.example`, plan: "starter", instagram: "@dup" });
+    const pid = `p${uniq()}`;
+    await env.DB.prepare(`INSERT INTO products (id, account_id, external_ref, title, images_json, kind, selected, source) VALUES (?, ?, ?, 'Dress', '["https://cdn.shop.example/d.jpg"]', 'clothing', 1, 'manual')`)
+      .bind(pid, accountId, `manual:${pid}`)
+      .run();
+    const outcomes = await Promise.all([1, 2, 3, 4, 5].map(() => testProduct(env, accountId, pid)));
+    expect(outcomes.filter((o) => o !== "already_tested")).toHaveLength(1);
+    const spent = await env.DB.prepare("SELECT COUNT(*) AS n FROM usage_events WHERE account_id = ? AND kind = 'test'").bind(accountId).first<{ n: number }>();
+    expect(spent?.n).toBe(2); // one test = the two test models, once
+  });
+
   it("respects robots.txt: a store that disallows everything is not crawled", async () => {
     const email = `blocked-${uniq()}@brand.example`;
     const { accountId } = await createAccount(env, { brandName: "Blocked", email, plan: "starter", website: "https://blocked.example" });

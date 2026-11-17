@@ -200,7 +200,7 @@ admin.post("/products/:id/retest", async (c) => {
   if (!p) return c.json({ error: "not_found" }, 404);
   // Old results go, so the card only ever shows the latest run (one result per stock model).
   await clearProductTests(c.env, p.account_id, c.req.param("id"));
-  await c.env.DB.prepare("UPDATE products SET test_score = NULL, enabled = 0, needs_review = 0, disabled_reason = NULL, selected = 1 WHERE id = ?")
+  await c.env.DB.prepare("UPDATE products SET test_score = NULL, test_started_at = NULL, enabled = 0, needs_review = 0, disabled_reason = NULL, selected = 1 WHERE id = ?")
     .bind(c.req.param("id"))
     .run();
   await audit(c.env, p.account_id, c.get("admin"), "product_retest", null, { product: c.req.param("id") });

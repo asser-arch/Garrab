@@ -56,6 +56,16 @@ export async function testProduct(
     .first<{ id: string; title: string; description: string | null; images_json: string; includes_headwear: number; test_score: number | null; kind: string }>();
   if (!product) return "already_tested";
   if (product.test_score !== null) return "already_tested"; // idempotent
+  // Claim the product before any paid call: only one test runs per product (a stale claim, e.g. a
+  // crashed worker, expires after 15 minutes). Duplicate queue messages stop here at no cost.
+  const claim = await env.DB.prepare(
+    `UPDATE products SET test_started_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+      WHERE id = ? AND account_id = ? AND test_score IS NULL
+        AND (test_started_at IS NULL OR test_started_at < strftime('%Y-%m-%dT%H:%M:%fZ','now','-15 minutes'))`,
+  )
+    .bind(productId, accountId)
+    .run();
+  if (claim.meta.changes !== 1) return "already_tested";
 
   const mode = product.kind === "decor" ? "room" : "person";
   const fixtures = await listFixtures(env, mode);
