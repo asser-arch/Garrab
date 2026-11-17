@@ -77,6 +77,15 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           node ../../scripts/cf-provision.mjs staging >/dev/null
+          echo "== AI spend by day and kind (last 4 days) =="
+          pnpm exec wrangler d1 execute DB --env staging --remote --json \
+            --command "SELECT substr(created_at,1,10) AS day, kind, provider, COUNT(*) AS calls, ROUND(SUM(cost_micro_usd)/1e6, 2) AS usd FROM usage_events WHERE created_at >= datetime('now','-4 days') GROUP BY day, kind, provider ORDER BY day DESC, usd DESC"
+          echo "== Tests per product (duplicates?) =="
+          pnpm exec wrangler d1 execute DB --env staging --remote --json \
+            --command "SELECT a.name, p.title, COUNT(t.id) AS tests, MIN(t.created_at) AS first, MAX(t.created_at) AS last FROM product_tests t JOIN products p ON p.id = t.product_id JOIN accounts a ON a.id = t.account_id GROUP BY t.product_id ORDER BY tests DESC LIMIT 12"
+          echo "== Spend by hour, last 24 h =="
+          pnpm exec wrangler d1 execute DB --env staging --remote --json \
+            --command "SELECT substr(created_at,1,13) AS hour, kind, COUNT(*) AS calls, ROUND(SUM(cost_micro_usd)/1e6, 2) AS usd FROM usage_events WHERE created_at >= datetime('now','-1 day') GROUP BY hour, kind ORDER BY hour DESC LIMIT 40"
           echo "== Newest brands =="
           pnpm exec wrangler d1 execute DB --env staging --remote --json \
             --command "SELECT name, category, status, onboarding_step, approved_at, created_at FROM accounts ORDER BY created_at DESC LIMIT 4"
@@ -95,8 +104,7 @@ jobs:
             --command "SELECT id, title, description, images_json, test_score FROM products ORDER BY rowid DESC LIMIT 3" > "$RUNNER_TEMP/p.json"
           pnpm exec wrangler d1 execute DB --env staging --remote --json \
             --command "SELECT kind, provider, ok, error_code, created_at FROM usage_events WHERE kind = 'test' ORDER BY created_at DESC LIMIT 6"
-          echo "== Gemini, newest product, stock photo =="
-          node ../../scripts/diagnose-gemini.mjs "$RUNNER_TEMP/p.json" "$RUNNER_TEMP/fx/model-a.jpg"
+          echo "(paid Gemini call skipped: read-only diagnosis)"
       - name: Size finder live check (3 AI answers, a fraction of a cent)
         if: inputs.check == 'size-live'
         env:
