@@ -60,6 +60,17 @@ const fs = require("node:fs"); const p = "apps/site/wrangler.jsonc"; const c = J
 c.env[process.argv[1]].vars.TURNSTILE_SITE_KEY = process.env.TURNSTILE_SITE_KEY; fs.writeFileSync(p, JSON.stringify(c, null, 2));
 console.log("Turnstile: real site key set");' "$ENV"
 fi
+# Product-test photos (two stock models, two stock rooms; scripts/fixtures.json, Pexels licence).
+# Uploaded on every deploy so a fresh environment can test products from its first brand.
+fx="${RUNNER_TEMP:-/tmp}/fixtures"; mkdir -p "$fx"
+node -e 'for (const f of require("./scripts/fixtures.json").fixtures) console.log(`${f.pexelsId} ${f.key}`)' | while read -r id key; do
+  if curl -sSfL --retry 3 -o "$fx/$(basename "$key")" "https://images.pexels.com/photos/$id/pexels-photo-$id.jpeg?h=2000&fm=jpg"; then
+    W api r2 object put "garrab-files-$ENV/$key" --file "$fx/$(basename "$key")" --content-type image/jpeg --remote >/dev/null && echo "test photo: $key"
+  else
+    echo "::warning::Couldn't download test photo $key (product tests need it)"
+  fi
+done
+
 W site deploy --env "$ENV"
 W admin deploy --env "$ENV"
 
