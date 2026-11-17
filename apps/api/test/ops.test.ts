@@ -1,6 +1,6 @@
 import { env, exports } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
-import { accountFacts, ensurePlanInvoice } from "../src/billing/ledger.js";
+import { accountFacts, applyPayment, ensurePlanInvoice } from "../src/billing/ledger.js";
 import { createAccount } from "../src/lib/accounts.js";
 import { invalidateStatus } from "../src/lib/db.js";
 import { cairoDay } from "../src/lib/time.js";
@@ -227,20 +227,36 @@ describe("invite again and delete an invitation", () => {
     expect(ok.status).toBe(200);
     expect(await env.DB.prepare("SELECT 1 FROM accounts WHERE id = ?").bind(accountId).first()).toBeNull();
     expect(await env.DB.prepare("SELECT 1 FROM users WHERE email = ?").bind(email).first()).toBeNull();
-    const audit = await env.DB.prepare("SELECT action FROM audit_log WHERE account_id = ? AND action = 'delete_invitation'").bind(accountId).first();
+    const audit = await env.DB.prepare("SELECT action FROM audit_log WHERE account_id = ? AND action = 'delete_brand'").bind(accountId).first();
     expect(audit).not.toBeNull();
     const again = (await (await post("/invite", { brandName: name, email, plan: "starter" })).json()) as { created: boolean };
     expect(again.created).toBe(true);
   });
 
-  it("never deletes a brand that has money attached", async () => {
+  it("deletes a live pilot brand that never paid completely, unpaid invoice included", async () => {
     const b = await liveBrand();
-    await env.DB.prepare("UPDATE accounts SET status = 'onboarding' WHERE id = ?").bind(b.id).run();
     await ensurePlanInvoice(env, (await accountFacts(env, b.id))!, new Date());
+    await env.DB.prepare("INSERT INTO usage_events (id, account_id, kind, provider, ok, cost_micro_usd) VALUES (?, ?, 'tryon', 'mock', 1, 40000)").bind(`u${uniq()}`, b.id).run();
     const name = (await env.DB.prepare("SELECT name FROM accounts WHERE id = ?").bind(b.id).first<{ name: string }>())!.name;
-    const r = await post(`/accounts/${b.id}/delete`, { confirmName: name, reason: "should fail" });
-    expect(r.status).toBe(409);
-    expect(await env.DB.prepare("SELECT 1 FROM accounts WHERE id = ?").bind(b.id).first()).not.toBeNull();
+    const r = await post(`/accounts/${b.id}/delete`, { confirmName: name, reason: "test brand" });
+    expect(r.status).toBe(200);
+    expect(((await r.json()) as { kept: string | null }).kept).toBeNull();
+    for (const t of ["accounts WHERE id", "invoices WHERE account_id", "products WHERE account_id", "users WHERE account_id", "usage_events WHERE account_id", "api_keys WHERE account_id"])
+      expect(await env.DB.prepare(`SELECT 1 FROM ${t} = ?`).bind(b.id).first(), t).toBeNull();
+  });
+
+  it("a brand that paid: invoices and payments stay, everything else goes, switched off for good", async () => {
+    const b = await liveBrand();
+    const inv = await ensurePlanInvoice(env, (await accountFacts(env, b.id))!, new Date());
+    await applyPayment(env, { invoiceId: inv.id, provider: "manual", txnId: `m-${uniq()}`, amount: inv.total, method: "cash", actor: "admin:test" });
+    const name = (await env.DB.prepare("SELECT name FROM accounts WHERE id = ?").bind(b.id).first<{ name: string }>())!.name;
+    const r = await post(`/accounts/${b.id}/delete`, { confirmName: name, reason: "closed shop" });
+    expect(r.status).toBe(200);
+    expect(((await r.json()) as { kept: string }).kept).toBe("invoices");
+    expect(await env.DB.prepare("SELECT status FROM accounts WHERE id = ?").bind(b.id).first()).toEqual({ status: "archived" });
+    expect(await env.DB.prepare("SELECT 1 FROM payments WHERE account_id = ?").bind(b.id).first()).not.toBeNull();
+    expect(await env.DB.prepare("SELECT 1 FROM invoices WHERE account_id = ?").bind(b.id).first()).not.toBeNull();
+    for (const t of ["products", "users", "api_keys", "domains"]) expect(await env.DB.prepare(`SELECT 1 FROM ${t} WHERE account_id = ?`).bind(b.id).first(), t).toBeNull();
   });
 });
 

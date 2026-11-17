@@ -456,6 +456,13 @@ admin.post("/accounts/:id/notes", async (c) => {
  * The brand's name must be typed to confirm. AI usage rows are kept for cost totals; the
  * audit log keeps a record of the deletion.
  */
+/**
+ * Delete a brand (any status). Type the brand name to confirm.
+ * - Never paid → removed completely (account, logins, products, photos, tests, usage, unpaid invoices).
+ * - Has payments → the invoices and payments stay (your accounting record); everything else is removed,
+ *   open invoices are voided, and the account is archived: switched off for good, nobody can sign in.
+ * The history (audit log) keeps a line saying who deleted it and why.
+ */
 admin.post("/accounts/:id/delete", async (c) => {
   const body = z.object({ confirmName: z.string(), reason: z.string().trim().min(3).max(300) }).safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json({ error: "invalid", reason: "Type the brand name and a reason." }, 400);
@@ -463,16 +470,11 @@ admin.post("/accounts/:id/delete", async (c) => {
   const acc = await c.env.DB.prepare("SELECT id, name, status FROM accounts WHERE id = ?").bind(id).first<{ id: string; name: string; status: string }>();
   if (!acc) return c.json({ error: "not_found" }, 404);
   if (body.data.confirmName.trim().toLowerCase() !== acc.name.trim().toLowerCase()) return c.json({ error: "name_mismatch", reason: "The name you typed doesn't match." }, 400);
-  if (acc.status !== "onboarding") return c.json({ error: "not_deletable", reason: "Only brands still in onboarding can be deleted. Use Kill or Pause instead." }, 409);
-  const money = await c.env.DB.prepare(
-    "SELECT (SELECT COUNT(*) FROM invoices WHERE account_id = ?1) + (SELECT COUNT(*) FROM payments WHERE account_id = ?1) + (SELECT COUNT(*) FROM payment_claims WHERE account_id = ?1) AS n",
-  )
-    .bind(id)
-    .first<{ n: number }>();
-  if ((money?.n ?? 0) > 0) return c.json({ error: "not_deletable", reason: "This brand has invoices or payments, so it can't be deleted. Use Kill or Pause instead." }, 409);
+  const paid = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM payments WHERE account_id = ?").bind(id).first<{ n: number }>();
+  const keepMoney = (paid?.n ?? 0) > 0;
 
   const users = "(SELECT id FROM users WHERE account_id = ?1)";
-  await c.env.DB.batch([
+  const common = [
     c.env.DB.prepare(`DELETE FROM sessions WHERE user_id IN ${users}`).bind(id),
     c.env.DB.prepare(`DELETE FROM magic_links WHERE user_id IN ${users}`).bind(id),
     c.env.DB.prepare("DELETE FROM product_tests WHERE account_id = ?1").bind(id),
@@ -486,13 +488,36 @@ admin.post("/accounts/:id/delete", async (c) => {
     c.env.DB.prepare("UPDATE leads SET account_id = NULL WHERE account_id = ?1").bind(id),
     c.env.DB.prepare("UPDATE alerts SET resolved_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE account_id = ?1 AND resolved_at IS NULL").bind(id),
     c.env.DB.prepare("DELETE FROM users WHERE account_id = ?1").bind(id),
-    c.env.DB.prepare("DELETE FROM accounts WHERE id = ?1").bind(id),
-  ]);
+  ];
+  if (keepMoney) {
+    await c.env.DB.batch([
+      ...common,
+      c.env.DB.prepare("UPDATE invoices SET status = 'void' WHERE account_id = ?1 AND status = 'open'").bind(id),
+      c.env.DB.prepare("UPDATE payment_claims SET status = 'rejected' WHERE account_id = ?1 AND status = 'pending'").bind(id),
+      c.env.DB.prepare(
+        "UPDATE accounts SET status = 'archived', status_version = status_version + 1, manual_hold = 0, buy_url = NULL, button_selector = NULL WHERE id = ?1",
+      ).bind(id),
+    ]);
+  } else {
+    await c.env.DB.batch([
+      ...common,
+      c.env.DB.prepare("DELETE FROM payment_claims WHERE account_id = ?1").bind(id),
+      c.env.DB.prepare("DELETE FROM invoices WHERE account_id = ?1").bind(id),
+      c.env.DB.prepare("DELETE FROM usage_events WHERE account_id = ?1").bind(id),
+      c.env.DB.prepare("DELETE FROM accounts WHERE id = ?1").bind(id),
+    ]);
+  }
   // Test result images and uploaded product photos in R2.
   for (const prefix of [`tests/${id}/`, `products/${id}/`]) await deletePrefix(c.env, prefix);
   invalidateStatus(id);
-  await audit(c.env, id, c.get("admin"), "delete_invitation", `${acc.name}: ${body.data.reason}`);
-  return c.json({ ok: true });
+  await audit(c.env, id, c.get("admin"), keepMoney ? "delete_brand_keep_invoices" : "delete_brand", `${acc.name} (was ${acc.status}): ${body.data.reason}`);
+  return c.json({
+    ok: true,
+    kept: keepMoney ? "invoices" : null,
+    message: keepMoney
+      ? `${acc.name} was deleted. Its invoices and payments are kept for your records; try-on is off for good and nobody can sign in.`
+      : `${acc.name} was deleted completely.`,
+  });
 });
 
 admin.post("/accounts/:id/resend", async (c) => {

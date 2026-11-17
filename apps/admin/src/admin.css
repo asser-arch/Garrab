@@ -61,3 +61,6 @@ details.history[open] > summary::before { transform: rotate(90deg); }
 details.history > summary:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; border-radius: 8px; }
 details.history[open] > .timeline { margin-top: 12px; }
 @media (prefers-reduced-motion: reduce) { details.history > summary::before { transition: none; } }
+/* Destructive action: red text on the usual ghost button (no new colours, no shadows). */
+.btn.ghost.danger { color: #8a2f12; border-color: #e3b7a6; }
+.btn.ghost.danger:hover { background: #fbe9e2; }

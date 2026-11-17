@@ -77,6 +77,17 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           node ../../scripts/cf-provision.mjs staging >/dev/null
+          echo "== Newest brands =="
+          pnpm exec wrangler d1 execute DB --env staging --remote --json \
+            --command "SELECT name, category, status, onboarding_step, approved_at, created_at FROM accounts ORDER BY created_at DESC LIMIT 4"
+          echo "== Their products =="
+          pnpm exec wrangler d1 execute DB --env staging --remote --json \
+            --command "SELECT a.name AS brand, p.title, p.kind, p.selected, p.test_score, p.enabled, p.approved, p.brand_decision, p.disabled_reason FROM products p JOIN accounts a ON a.id = p.account_id WHERE p.selected = 1 ORDER BY p.created_at DESC LIMIT 8"
+          echo "== Newest product tests =="
+          pnpm exec wrangler d1 execute DB --env staging --remote --json \
+            --command "SELECT fixture, score, reason, created_at FROM product_tests ORDER BY created_at DESC LIMIT 6"
+          echo "== Test photos in R2 =="
+          pnpm exec wrangler r2 object get garrab-files-staging/fixtures/room-a.jpg --remote --file /tmp/ra.jpg >/dev/null 2>&1 && echo "room-a present" || echo "room-a MISSING"
           echo "== Recent shopper try-ons (newest first) =="
           pnpm exec wrangler d1 execute DB --env staging --remote --json \
             --command "SELECT provider, ok, error_code, created_at FROM usage_events WHERE kind = 'tryon' ORDER BY created_at DESC LIMIT 10"

@@ -213,31 +213,29 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
           </p>
         </div>
         <div className="row">
-          {String(d.account.status) === "onboarding" && (
-            <button
-              className="btn small ghost"
-              title="For a wrong email, a typo or a test brand. Only before any invoice or payment."
-              onClick={async () => {
-                const name = String(d.account.name);
-                const typed = prompt(
-                  `Delete the invitation for "${name}"?\n\nThis removes the account, its sign-in links, products and test results, so you can invite the right email again. It's only possible before any invoice or payment.\n\nType the brand name to confirm:`,
-                );
-                if (typed === null) return;
-                const reason = prompt("Reason (for the history):", "Wrong email, inviting again");
-                if (!reason || reason.trim().length < 3) return;
-                try {
-                  await api(`/accounts/${id}/delete`, { confirmName: typed, reason });
-                  alert(`${name} was deleted. You can invite the right email from the Onboarding tab.`);
-                  onChange();
-                  onClose();
-                } catch (e) {
-                  alert(e instanceof Error ? e.message.replace(/^[a-z_]+: /, "") : "Couldn't delete.");
-                }
-              }}
-            >
-              Delete invitation
-            </button>
-          )}
+          <button
+            className="btn small ghost danger"
+            title="Removes the brand. If it ever paid, its invoices and payments are kept for your records."
+            onClick={async () => {
+              const name = String(d.account.name);
+              const typed = prompt(
+                `Delete "${name}"?\n\nThis switches try-on off for good and removes the brand's sign-in, products, photos and test results. If the brand ever paid you, its invoices and payments are kept for your records.\n\nThis can't be undone. Type the brand name to confirm:`,
+              );
+              if (typed === null) return;
+              const reason = prompt("Reason (for the history):", String(d.account.status) === "onboarding" ? "Wrong email, inviting again" : "Test brand");
+              if (!reason || reason.trim().length < 3) return;
+              try {
+                const r = await api<{ message: string }>(`/accounts/${id}/delete`, { confirmName: typed, reason });
+                alert(r.message);
+                onChange();
+                onClose();
+              } catch (e) {
+                alert(e instanceof Error ? e.message.replace(/^[a-z_]+: /, "") : "Couldn't delete.");
+              }
+            }}
+          >
+            Delete brand
+          </button>
           <button className="btn small ghost" onClick={onClose}>
             Close
           </button>
