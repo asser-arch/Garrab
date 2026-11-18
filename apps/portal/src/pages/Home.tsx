@@ -36,8 +36,8 @@ function NextAction({ me }: { me: Me }) {
           <h2>Testing your products</h2>
           <p>
             {me.account.category === "home"
-              ? "We're placing each product in two test rooms and checking the results."
-              : "We're trying each product on two test models and checking the results."}{" "}
+              ? "We're placing each product in our test rooms and checking the results."
+              : "We're trying each product on our test models and checking the results."}{" "}
             Usually under 10 minutes. This page updates by itself.
           </p>
         </>

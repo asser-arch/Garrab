@@ -334,6 +334,37 @@ describe("onboarding: invite → pilot_live with no admin action", () => {
     await env.FILES.delete("fixtures/room-a.jpg");
   });
 
+  it("more than 15 products: one test preview per product, alternating between the test models", async () => {
+    const { accountId } = await createAccount(env, { brandName: "Big Catalogue", email: `big-${uniq()}@brand.example`, plan: "starter", instagram: "@big" });
+    const add = async (count: number): Promise<string[]> => {
+      const ids: string[] = [];
+      for (let i = 0; i < count; i++) {
+        const pid = `p${uniq()}`;
+        ids.push(pid);
+        await env.DB.prepare(`INSERT INTO products (id, account_id, external_ref, title, images_json, kind, selected, source) VALUES (?, ?, ?, 'Dress', '["https://cdn.shop.example/d.jpg"]', 'clothing', 1, 'manual')`)
+          .bind(pid, accountId, `manual:${pid}`)
+          .run();
+      }
+      return ids;
+    };
+    const tests = async (pid: string) =>
+      (await env.DB.prepare("SELECT fixture FROM product_tests WHERE product_id = ?").bind(pid).all<{ fixture: string }>()).results.map((r) => r.fixture);
+    // 15 products: still two previews each.
+    const first = await add(15);
+    await testProduct(env, accountId, first[0]!);
+    expect(await tests(first[0]!)).toHaveLength(2);
+    // The 16th product on: one preview each, and both models are used across the catalogue.
+    const more = await add(5);
+    const used = new Set<string>();
+    for (const pid of [...first.slice(1, 5), ...more]) {
+      await testProduct(env, accountId, pid);
+      const f = await tests(pid);
+      expect(f).toHaveLength(1);
+      used.add(f[0]!);
+    }
+    expect([...used].sort()).toEqual(["fixtures/model-a.jpg", "fixtures/model-b.jpg"]);
+  });
+
   it("a product is tested once even when duplicate test messages arrive together (no repeat AI spend)", async () => {
     const { accountId } = await createAccount(env, { brandName: "Dup", email: `dup-${uniq()}@brand.example`, plan: "starter", instagram: "@dup" });
     const pid = `p${uniq()}`;

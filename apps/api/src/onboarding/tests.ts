@@ -68,8 +68,16 @@ export async function testProduct(
   if (claim.meta.changes !== 1) return "already_tested";
 
   const mode = product.kind === "decor" ? "room" : "person";
-  const fixtures = await listFixtures(env, mode);
-  if (fixtures.length === 0) return "no_fixtures";
+  const all = await listFixtures(env, mode);
+  if (all.length === 0) return "no_fixtures";
+  // Big catalogues: one test preview per product (half the cost). Products alternate between the test
+  // models/rooms, so the brand still sees both across its catalogue.
+  const count = await env.DB.prepare(
+    "SELECT COUNT(*) AS n, SUM(CASE WHEN test_score IS NOT NULL THEN 1 ELSE 0 END) AS tested FROM products WHERE account_id = ? AND selected = 1",
+  )
+    .bind(accountId)
+    .first<{ n: number; tested: number | null }>();
+  const fixtures = (count?.n ?? 0) > CAPS.singleTestPreviewAbove ? [all[(count?.tested ?? 0) % all.length]!] : all;
   const tryon = deps.tryon ?? tryOnProvider(env, mode);
   const scorer = deps.scorer ?? scoringProvider(env);
   const images = JSON.parse(product.images_json) as string[];

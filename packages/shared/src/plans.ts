@@ -120,6 +120,8 @@ export const CAPS = {
   autoSelectProducts: 10,
   /** Global daily AI spend cap in USD. Overridable in settings. */
   globalDailyUsd: 50,
+  /** Brands with more products than this get 1 test preview per product instead of 2 (Asser, 19 Nov). */
+  singleTestPreviewAbove: 15,
   /** Budget for automatic product quality tests, per account per rolling 30 days, in USD. */
   onboardingTestBudgetUsd: 3,
 } as const;
