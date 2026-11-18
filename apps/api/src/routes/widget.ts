@@ -66,6 +66,30 @@ widget.get("/product-image/:acct/:file", async (c) => {
   });
 });
 
+/** Brand logos uploaded in the portal (public: the brand's own logo). */
+widget.get("/brand-logo/:acct/:file", async (c) => {
+  const { acct, file } = c.req.param();
+  if (!/^[A-Za-z0-9_]{1,40}$/.test(acct) || !PHOTO_FILE_RE.test(file)) return c.text("Not found", 404);
+  const obj = await c.env.FILES.get(`brand/${acct}/${file}`);
+  if (!obj) return c.text("Not found", 404);
+  return new Response(obj.body, {
+    headers: {
+      "content-type": obj.httpMetadata?.contentType ?? "image/png",
+      "cache-control": "public, max-age=31536000, immutable",
+      "x-content-type-options": "nosniff",
+      "access-control-allow-origin": "*",
+    },
+  });
+});
+
+/** The brand's look for its try-on pages: main colour and logo address (or nulls: Garrab's own look). */
+export function brandLook(c: C, a: { id: string; brand_color: string | null; brand_logo: string | null }): { color: string | null; logo: string | null } {
+  return {
+    color: a.brand_color && /^#[0-9a-f]{6}$/i.test(a.brand_color) ? a.brand_color : null,
+    logo: a.brand_logo ? `${c.env.APP_ORIGIN}/bl/${a.id}/${a.brand_logo}` : null,
+  };
+}
+
 widget.get("/config", async (c) => {
   c.header("Cache-Control", "no-store");
   const origin = c.req.header("origin") ?? "";
@@ -95,6 +119,7 @@ widget.get("/config", async (c) => {
       frame: `${c.env.APP_ORIGIN}/frame`,
       selector: account.button_selector,
       sizeFinder: await sizeFinderOn(c.env, account.id),
+      brandColor: brandLook(c, account).color,
       products: products.map((p) => ({ id: p.id, ref: p.external_ref, path: p.url_path, kind: p.kind })),
     });
   } catch {
@@ -116,7 +141,7 @@ widget.get("/hosted/:slug", async (c) => {
     if (products.length === 0) return c.json(DISABLED);
     return c.json({
       enabled: true,
-      brand: { name: account.name },
+      brand: { name: account.name, ...brandLook(c, account) },
       products: products.map((p) => ({ id: p.id, title: p.title, image: (JSON.parse(p.images_json) as string[])[0] ?? null, kind: p.kind })),
     });
   } catch {
@@ -142,7 +167,7 @@ widget.get("/hosted/:slug/:productId", async (c) => {
       enabled: true,
       ctx,
       exp,
-      brand: { name: account.name },
+      brand: { name: account.name, ...brandLook(c, account) },
       product: { id: p.id, title: p.title, image: images[0] ?? null, kind: p.kind },
       sizeFinder: (await sizeFinderOn(c.env, account.id)) && sizeFinderFits(p.kind, JSON.parse(p.sizes_json ?? "[]") as string[]),
       buyUrl: p.url_path && account.buy_url ? new URL(p.url_path, account.buy_url).toString() : account.buy_url,
@@ -165,7 +190,13 @@ widget.get("/frame-info", async (c) => {
     const p = await servableProduct(c.env, claims.a, pid);
     sizeFinder = !!p && sizeFinderFits(p.kind, JSON.parse(p.sizes_json ?? "[]") as string[]);
   }
-  return c.json({ enabled: true, privacyClaim: await getSetting(c.env, "privacy_claim_verified", false), sizeFinder });
+  const acc = await accountCached(c.env, claims.a);
+  return c.json({
+    enabled: true,
+    privacyClaim: await getSetting(c.env, "privacy_claim_verified", false),
+    sizeFinder,
+    brand: acc ? { name: acc.name, ...brandLook(c, acc) } : null,
+  });
 });
 
 /** Size finder is a Growth feature; a pilot gets the features of the plan it converts to. */

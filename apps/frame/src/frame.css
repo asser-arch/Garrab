@@ -107,3 +107,15 @@ main.wide { max-width: 760px; }
 .frame { border-radius: 18px; }
 .frame::after { content: ""; position: absolute; inset: 8px; border: 1px solid rgba(252, 251, 248, .6); border-radius: 12px; pointer-events: none; }
 .size-big { font-weight: 300; font-size: 64px; letter-spacing: -.02em; }
+
+/* ===== The brand's own look (portal → Your brand look) and capitalised buttons ===== */
+.btn { text-transform: uppercase; letter-spacing: .08em; font-size: 15px; }
+html[lang="ar"] .btn, html[lang="ar"] .pick-go { text-transform: none; letter-spacing: 0; }
+.btn.primary { background: var(--brand, var(--forest)); color: var(--on-brand, var(--paper)); }
+.btn.primary:hover { background: var(--brand, #0e2a19); opacity: .9; }
+.btn.ghost { color: var(--brand-ink, var(--ink)); }
+.pick-go { color: var(--brand-ink, var(--forest)); text-transform: uppercase; letter-spacing: .08em; font-size: 13px; }
+.brandmark { margin: 0 0 12px; }
+.brandmark img { display: block; max-height: 44px; max-width: 200px; width: auto; object-fit: contain; }
+@media (prefers-reduced-motion: reduce) { .btn.primary:hover { opacity: 1; } }
+.btn.accent { background: var(--brand, var(--peach)); color: var(--on-brand, var(--forest)); }

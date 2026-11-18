@@ -98,6 +98,9 @@ export default {
     if (p.startsWith("/portal-api/")) return forward(req, env, p);
     const productImage = /^\/pi\/([A-Z0-9]{26})\/([a-z0-9]{26}\.(?:jpg|png|webp))$/.exec(p);
     if (productImage && (req.method === "GET" || req.method === "HEAD")) return forward(req, env, `/v1/product-image/${productImage[1]}/${productImage[2]}`);
+    // Brand logos (portal → Your brand look), served from our own address like product photos.
+    const brandLogo = /^\/bl\/([A-Za-z0-9_]{1,40})\/([a-z0-9]{26}\.(?:jpg|png|webp))$/.exec(p);
+    if (brandLogo && (req.method === "GET" || req.method === "HEAD")) return forward(req, env, `/v1/brand-logo/${brandLogo[1]}/${brandLogo[2]}`);
     const payApi = /^\/pay-api\/([A-Za-z0-9]{32})(\/claim)?$/.exec(p);
     if (payApi) return forward(req, env, `/v1/pay/${payApi[1]}${payApi[2] ?? ""}`);
     const payPdf = /^\/pay\/([A-Za-z0-9]{32})\/invoice\.pdf$/.exec(p);

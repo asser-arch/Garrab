@@ -23,6 +23,8 @@ interface Config {
   frame: string;
   selector: string | null;
   sizeFinder: boolean;
+  /** The brand's main colour, set in its portal (overrides the colour read from the page). */
+  brandColor?: string | null;
   products: WidgetProduct[];
 }
 
@@ -150,10 +152,15 @@ interface Config {
 
     const css = `
       :host{all:initial;display:block;margin-top:8px}
-      button{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:center;width:100%;min-height:44px;
-        padding:0 24px;border-radius:${radius.pill};background:${colors.forest};color:${colors.paper};
-        font:700 15px/1.2 ${font};cursor:pointer;text-align:center}
-      button:focus-visible{outline:3px solid ${colors.teal};outline-offset:2px}
+      button{all:unset;box-sizing:border-box;display:flex;align-items:center;justify-content:center;width:100%;
+        min-height:var(--g-h,48px);padding:0 24px;border-radius:var(--g-r,${radius.pill});
+        background:transparent;color:var(--g-c,${colors.forest});border:1px solid var(--g-c,${colors.forest});
+        font-family:var(--g-f,${font});font-size:var(--g-s,15px);font-weight:var(--g-w,600);line-height:1.2;
+        letter-spacing:.08em;text-transform:uppercase;cursor:pointer;text-align:center;transition:background-color 150ms ease,color 150ms ease}
+      button:hover{background:var(--g-c,${colors.forest});color:var(--g-on,${colors.paper})}
+      button:lang(ar){letter-spacing:0;text-transform:none}
+      button:focus-visible{outline:2px solid var(--g-c,${colors.forest});outline-offset:3px}
+      @media (prefers-reduced-motion:reduce){button{transition:none}}
       .overlay{position:fixed;inset:0;z-index:2147483647;background:rgba(15,26,19,.55);display:flex;align-items:center;justify-content:center;
         opacity:0;transition:opacity 200ms ease}
       .overlay.on{opacity:1}
@@ -170,6 +177,55 @@ interface Config {
       host = null;
       shadow = null;
       product = null;
+    }
+
+    // ------------------------------------------------------------------ the shop's own look
+
+    function rgb(s: string): [number, number, number, number] | null {
+      const m = /rgba?\(([\d.]+)[, ]+([\d.]+)[, ]+([\d.]+)(?:[,/ ]+([\d.]+))?/.exec(s);
+      return m ? [Number(m[1]), Number(m[2]), Number(m[3]), m[4] === undefined ? 1 : Number(m[4])] : null;
+    }
+    function hexRgb(h: string): [number, number, number, number] | null {
+      const m = /^#?([0-9a-f]{6})$/i.exec(h.trim());
+      if (!m) return null;
+      const n = parseInt(m[1]!, 16);
+      return [n >> 16, (n >> 8) & 255, n & 255, 1];
+    }
+    function lum(c: [number, number, number, number]): number {
+      const f = (v: number): number => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+      return 0.2126 * f(c[0]) + 0.7152 * f(c[1]) + 0.0722 * f(c[2]);
+    }
+    const css3 = (c: [number, number, number, number]): string => `rgb(${c[0]},${c[1]},${c[2]})`;
+
+    /**
+     * Dress the button like the shop's own Add to cart button: same corners, font and height, in the shop's main
+     * colour, as its outlined partner. The brand's chosen colour (portal) wins; a colour too pale to read on the
+     * page falls back to the button's text colour, then to Garrab Forest.
+     */
+    function shopLook(h: HTMLElement, at: Element, c: Config): void {
+      const ref = at.matches("button,input,a,[role=button]") ? at : at.querySelector("button,[type=submit]");
+      const cs = ref ? getComputedStyle(ref) : null;
+      const pageBg = rgb(getComputedStyle(document.body).backgroundColor) ?? [255, 255, 255, 1];
+      const bgL = lum(pageBg[3] === 0 ? [255, 255, 255, 1] : pageBg);
+      const readable = (x: [number, number, number, number] | null): boolean =>
+        !!x && x[3] > 0.5 && (Math.max(lum(x), bgL) + 0.05) / (Math.min(lum(x), bgL) + 0.05) >= 3;
+      const candidates = [c.brandColor ? hexRgb(c.brandColor) : null, cs ? rgb(cs.backgroundColor) : null, cs ? rgb(cs.color) : null];
+      const color = candidates.find(readable) ?? null;
+      const set = (k: string, v: string | undefined | null): void => {
+        if (v) h.style.setProperty(k, v);
+      };
+      if (color) {
+        set("--g-c", css3(color));
+        set("--g-on", lum(color) > 0.35 ? "#0F1A13" : "#FCFBF8");
+      }
+      if (cs) {
+        set("--g-r", cs.borderRadius);
+        set("--g-f", cs.fontFamily);
+        set("--g-s", cs.fontSize);
+        set("--g-w", Number(cs.fontWeight) >= 500 ? cs.fontWeight : "600");
+        const hgt = (ref as HTMLElement).offsetHeight;
+        if (hgt >= 36 && hgt <= 72) set("--g-h", `${hgt}px`);
+      }
     }
 
     function render(c: Config, p: WidgetProduct): void {
@@ -189,6 +245,11 @@ interface Config {
       shadow.append(style, btn);
       if (at.hasAttribute("data-garrab-product")) at.append(host);
       else at.insertAdjacentElement("afterend", host);
+      try {
+        shopLook(host, at, c);
+      } catch {
+        /* never break the shop: keep the Garrab look */
+      }
       product = p;
       if (!viewSent) {
         viewSent = true;

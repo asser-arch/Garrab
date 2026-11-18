@@ -226,6 +226,16 @@ describe("/v1/hosted and /v1/events", () => {
     expect(await r2.json()).toEqual({ enabled: false });
   });
 
+  it("try-on pages and the website button get the brand's colour (and Garrab's look when none is set)", async () => {
+    const s = await seedAccount();
+    expect(((await (await exports.default.fetch(`https://api.test/v1/hosted/${s.slug}`)).json()) as { brand: { color: string | null } }).brand.color).toBeNull();
+    await env.DB.prepare("UPDATE accounts SET brand_color = '#112233' WHERE id = ?").bind(s.accountId).run();
+    invalidateStatus();
+    const page = (await (await exports.default.fetch(`https://api.test/v1/hosted/${s.slug}/${s.productId}`)).json()) as { brand: { color: string } };
+    expect(page.brand.color).toBe("#112233");
+    expect((await getConfig(s)).body.brandColor).toBe("#112233");
+  });
+
   it("brand page (bio link) lists live products and hides a suspended brand", async () => {
     const s = await seedAccount();
     const r = await exports.default.fetch(`https://api.test/v1/hosted/${s.slug}`);

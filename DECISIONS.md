@@ -295,3 +295,8 @@ Asked for a more premium, designer-made look. Within the brand guideline (Forest
 
 ## 2026-11-18 — Staging uses free fake AI
 `AI_MOCK=true` on staging only: try-ons, room previews, product tests, scoring and size answers use the built-in fakes (no Google calls, no cost). Everything else is real. Live ignores the flag (`ENVIRONMENT=prod` never mocks). Picture quality is judged on live.
+
+## 2026-11-18 — Brand-tailored try-on: capitals, the shop's own button style, logo and colour
+- **Capitals:** every shopper-facing button (website button, try-on window, try-on links) is set in capitals with letter spacing, like a shop's ADD TO CART. Arabic is unchanged (no capitals in Arabic).
+- **Website button follows the shop:** it reads the shop's Add to cart button and copies its corners, font, size and height, drawn as its outlined partner in the shop's main colour (the brand's chosen colour wins; a colour too pale to read falls back to the button's text colour, then Garrab Forest). Fills with that colour on hover.
+- **Your brand look (portal → Install & links):** the brand uploads its logo (PNG/JPG/WEBP, 2 MB) and picks its main colour, with a live preview. Try-on window and links show the logo and use the colour on buttons; text on buttons is dark or light, whichever passes WCAG AA; links fall back to ink when the colour is too pale to read. Logos are stored in R2 (`brand/<account>/…`) and served from `app.<domain>/bl/…`. Without a look set, Garrab's own look stays.

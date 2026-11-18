@@ -1,3 +1,4 @@
+import { BrandLook } from "./BrandLook.js";
 import { captions } from "@garrab/shared/captions";
 import qrcode from "qrcode-generator";
 import { useState } from "react";
@@ -61,6 +62,7 @@ export function Install({ me, refresh }: { me: Me; refresh: () => Promise<void> 
         Install <span className="soft">and share</span>
       </h1>
       {!approved && <p className="note">Approve at least one product first. Then this page shows how to go live.</p>}
+      <BrandLook me={me} refresh={refresh} />
 
       <div className="card">
         <h2>On your website</h2>

@@ -34,6 +34,8 @@ interface State {
   /** Growth plan and a clothing product with sizes: offer "Find my size". */
   sizeFinder: boolean;
   hosted?: { slug: string; brand: string; title: string; image: string | null; buyUrl: string | null };
+  /** The brand's look (colour, logo). */
+  look?: Look | null;
   resultUrl: string | null;
   hadPhoto: boolean;
 }
@@ -54,6 +56,41 @@ function h<K extends keyof HTMLElementTagNameMap>(
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
   for (const c of children) if (c !== null) el.append(c);
   return el;
+}
+
+// ---------------------------------------------------------------------------
+// The brand's own look (portal → Your brand look): its colour on buttons and links, its logo on top.
+
+interface Look {
+  name: string;
+  color?: string | null;
+  logo?: string | null;
+}
+
+function lum(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  const f = (v: number): number => ((v /= 255) <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * f(n >> 16) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255);
+}
+const ratio = (a: number, b: number): number => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+
+/** Paint buttons and links in the brand's colour; text on it is dark or light, whichever reads (WCAG AA). */
+function applyLook(look: Look | null | undefined): void {
+  const c = look?.color;
+  if (!c || !/^#[0-9a-f]{6}$/i.test(c)) return;
+  const s = document.documentElement.style;
+  const L = lum(c);
+  const paper = lum("#FCFBF8");
+  s.setProperty("--brand", c);
+  s.setProperty("--on-brand", ratio(L, lum("#0F1A13")) > ratio(L, lum("#FFFFFF")) ? "#0F1A13" : "#FFFFFF");
+  s.setProperty("--brand-ink", ratio(L, paper) >= 4.5 ? c : "#0F1A13"); // links and small text stay readable
+}
+
+/** The brand's logo (or its name), for the top of the page. */
+function brandMark(look: Look | null | undefined, cls = "brandmark"): HTMLElement | null {
+  if (!look) return null;
+  if (look.logo) return h("p", { class: cls }, h("img", { src: look.logo, alt: look.name }));
+  return null;
 }
 
 function show(...nodes: (Node | null)[]): void {
@@ -167,9 +204,14 @@ function startScreen(st: State, error?: string): void {
           "header",
           { class: "product hosted-hero" },
           hosted.image ? h("figure", { class: "look" }, h("img", { src: hosted.image, alt: "" })) : null,
-          h("div", { class: "product-text" }, h("p", { class: "brand" }, hosted.brand), h("h1", { tabindex: "-1" }, hosted.title)),
+          h(
+            "div",
+            { class: "product-text" },
+            brandMark(st.look) ?? h("p", { class: "brand" }, hosted.brand),
+            h("h1", { tabindex: "-1" }, hosted.title),
+          ),
         )
-      : h("h1", { tabindex: "-1", class: "title" }, st.kind === "decor" ? t.buttonRoom : t.buttonTryOn),
+      : h("div", {}, brandMark(st.look), h("h1", { tabindex: "-1", class: "title" }, st.kind === "decor" ? t.buttonRoom : t.buttonTryOn)),
     error ? h("p", { class: "error", role: "alert" }, error) : null,
     pick,
     input,
@@ -409,19 +451,20 @@ function unavailable(lang: Lang): void {
 /** /t/<slug>: the brand page (one link for an Instagram bio). Lists every live product. */
 async function brandPage(slug: string, lang: Lang): Promise<void> {
   const t = tryOnStrings(lang);
-  let j: { enabled: boolean; brand?: { name: string }; products?: { id: string; title: string; image: string | null; kind?: Kind }[] };
+  let j: { enabled: boolean; brand?: Look; products?: { id: string; title: string; image: string | null; kind?: Kind }[] };
   try {
     j = (await (await fetch(`${cfg.api}/v1/hosted/${slug}`, { credentials: "omit" })).json()) as typeof j;
   } catch {
     return unavailable(lang);
   }
   if (!j.enabled || !j.brand || !j.products?.length) return unavailable(lang);
+  applyLook(j.brand);
   const home = j.products.every((p) => p.kind === "decor");
   document.title = `${j.brand.name} · ${home ? t.buttonRoom : t.buttonTryOn}`;
   const q = new URLSearchParams(location.search).get("lang") ? `?lang=${lang}` : "";
   root.classList.add("wide"); // the lookbook uses a wider page
   show(
-    h("header", {}, h("p", { class: "brand" }, j.brand.name), h("h1", { tabindex: "-1" }, home ? t.pickRoomProduct : t.pickProduct)),
+    h("header", {}, brandMark(j.brand) ?? h("p", { class: "brand" }, j.brand.name), h("h1", { tabindex: "-1" }, home ? t.pickRoomProduct : t.pickProduct)),
     h(
       "ul",
       { class: "picks" },
@@ -462,7 +505,7 @@ async function boot(): Promise<void> {
       const j = (await r.json()) as {
         enabled: boolean;
         ctx?: string;
-        brand?: { name: string };
+        brand?: Look;
         product?: { id: string; title: string; image: string | null; kind: Kind };
         buyUrl?: string | null;
         privacyClaim?: boolean;
@@ -479,6 +522,7 @@ async function boot(): Promise<void> {
         t: tryOnStrings(lang),
         privacyClaim: j.privacyClaim === true,
         sizeFinder: j.sizeFinder === true,
+        look: j.brand,
         hosted: { slug: hostedMatch[1]!, brand: j.brand.name, title: j.product.title, image: j.product.image, buyUrl: j.buyUrl ?? null },
         resultUrl: null,
         hadPhoto: false,
@@ -491,6 +535,7 @@ async function boot(): Promise<void> {
         enabled: boolean;
         privacyClaim?: boolean;
         sizeFinder?: boolean;
+        brand?: Look | null;
       };
       if (!info.enabled) return unavailable(lang);
       const k = hash.get("k");
@@ -503,6 +548,7 @@ async function boot(): Promise<void> {
         t: tryOnStrings(lang),
         privacyClaim: info.privacyClaim === true,
         sizeFinder: info.sizeFinder === true,
+        look: info.brand ?? null,
         resultUrl: null,
         hadPhoto: false,
       };
@@ -511,6 +557,7 @@ async function boot(): Promise<void> {
     return unavailable(lang);
   }
 
+  applyLook(st.look);
   if (st.mode === "hosted") sendEvent(st, "link_view");
 
   document.addEventListener("keydown", (e) => {

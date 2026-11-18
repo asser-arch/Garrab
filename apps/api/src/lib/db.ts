@@ -14,6 +14,9 @@ export interface AccountRow {
   button_selector: string | null;
   buy_url: string | null;
   paid_through: string | null;
+  /** The brand's own look (portal → Your brand look). */
+  brand_color: string | null;
+  brand_logo: string | null;
 }
 
 export interface ProductRow {
@@ -30,7 +33,7 @@ export interface ProductRow {
   provider_synced_at: string | null;
 }
 
-const ACCOUNT_COLS = "id, slug, name, plan_id, status, status_version, cycle_start, button_selector, buy_url, paid_through";
+const ACCOUNT_COLS = "id, slug, name, plan_id, status, status_version, cycle_start, button_selector, buy_url, paid_through, brand_color, brand_logo";
 
 export function isServing(status: AccountStatus): boolean {
   return (SERVING_STATUSES as readonly string[]).includes(status);

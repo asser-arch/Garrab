@@ -2,6 +2,7 @@
  * Brand portal API (served same-origin under app.<domain>/portal-api via the site Worker).
  * Every query is scoped to the session's account: a brand only ever sees its own data.
  */
+import { invalidateStatus } from "../lib/db.js";
 import { buildReport, defaultPeriod } from "../lib/report.js";
 import { EXTRA_PACK, PLANS, productLimit, type PlanId } from "@garrab/shared/plans";
 import { Hono, type Context } from "hono";
@@ -113,7 +114,7 @@ portal.get("/me", async (c) => {
     if (step?.onboarding_step === "products_tested" && (await confirmApproval(c.env, id))) await advance(c.env, id);
   }
   const a = await c.env.DB.prepare(
-    `SELECT name, slug, status, platform, website, target_plan_id, plan_id, onboarding_step, pilot_started_at, pilot_ends_at, cycle_start, category
+    `SELECT name, slug, status, platform, website, target_plan_id, plan_id, onboarding_step, pilot_started_at, pilot_ends_at, cycle_start, category, brand_color, brand_logo
        FROM accounts WHERE id = ?`,
   )
     .bind(id)
@@ -129,6 +130,8 @@ portal.get("/me", async (c) => {
       pilot_started_at: string | null;
       pilot_ends_at: string | null;
       category: "fashion" | "home";
+      brand_color: string | null;
+      brand_logo: string | null;
       cycle_start: string | null;
     }>();
   if (!a) return c.json({ error: "not_found" }, 404);
@@ -158,6 +161,7 @@ portal.get("/me", async (c) => {
       pilotEndsAt: a.pilot_ends_at,
       category: a.category,
     },
+    look: { color: a.brand_color, logo: a.brand_logo ? `${c.env.APP_ORIGIN}/bl/${id}/${a.brand_logo}` : null },
     step: a.onboarding_step,
     steps: STEPS.filter((s) => s !== "expired" && s !== "converted").map((s) => ({
       step: s,
@@ -345,6 +349,46 @@ portal.post("/products/upload", async (c) => {
   }
   await c.env.JOBS.send({ t: "advance", a: id });
   return c.json({ ok: true, imageUrl });
+});
+
+/**
+ * The brand's look on its try-on pages and website button: main colour and logo.
+ * multipart: color ("#rrggbb" or "" to reset), logo (PNG/JPG/WEBP, max 2 MB), removeLogo ("1").
+ */
+export const LOGO_MAX_BYTES = 2 * 1024 * 1024;
+portal.post("/brand", async (c) => {
+  const id = acct(c);
+  const form = await c.req.formData().catch(() => null);
+  if (!form) return c.json({ error: "invalid" }, 400);
+  const cur = await c.env.DB.prepare("SELECT brand_logo FROM accounts WHERE id = ?").bind(id).first<{ brand_logo: string | null }>();
+  const colorRaw = form.get("color");
+  let color: string | null | undefined;
+  if (typeof colorRaw === "string") {
+    if (colorRaw === "") color = null;
+    else if (/^#[0-9a-f]{6}$/i.test(colorRaw)) color = colorRaw.toLowerCase();
+    else return c.json({ error: "bad_color" }, 400);
+  }
+  let logo: string | null | undefined;
+  const file = form.get("logo");
+  if (file instanceof File && file.size > 0) {
+    if (file.size > LOGO_MAX_BYTES) return c.json({ error: "too_large" }, 413);
+    let bytes: Uint8Array = new Uint8Array(await file.arrayBuffer());
+    const type = sniffImage(bytes);
+    if (!type || type === "image/heic") return c.json({ error: "not_an_image" }, 415);
+    if (type === "image/jpeg") bytes = stripJpegMetadata(bytes);
+    logo = `${ulid().toLowerCase()}.${type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg"}`;
+    await c.env.FILES.put(`brand/${id}/${logo}`, bytes, { httpMetadata: { contentType: type, cacheControl: "public, max-age=31536000, immutable" } });
+  } else if (form.get("removeLogo") === "1") {
+    logo = null;
+  }
+  if (logo !== undefined && cur?.brand_logo) await c.env.FILES.delete(`brand/${id}/${cur.brand_logo}`);
+  await c.env.DB.prepare(
+    `UPDATE accounts SET brand_color = CASE WHEN ?1 THEN ?2 ELSE brand_color END, brand_logo = CASE WHEN ?3 THEN ?4 ELSE brand_logo END WHERE id = ?5`,
+  )
+    .bind(color !== undefined ? 1 : 0, color ?? null, logo !== undefined ? 1 : 0, logo ?? null, id)
+    .run();
+  invalidateStatus(id);
+  return c.json({ ok: true });
 });
 
 /** CSV: name,image_url,product_url,description (header row optional). */

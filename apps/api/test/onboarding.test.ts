@@ -512,6 +512,33 @@ describe("magic links and sessions", () => {
     expect(await status(b.accountId)).toEqual({ status: "pilot", onboarding_step: "pilot_live" });
   });
 
+  it("brand look: the brand saves its colour and logo; try-on pages, the website button and the logo address use them", async () => {
+    const email = `look-${uniq()}@brand.example`;
+    const { accountId } = await createAccount(env, { brandName: "Look Co", email, plan: "starter", instagram: "@look" });
+    const cookie = await login(email);
+    const send = (fd: FormData) => exports.default.fetch("https://api.test/portal-api/brand", { method: "POST", headers: { cookie, origin: APP }, body: fd });
+    const bad = new FormData();
+    bad.set("color", "red");
+    expect((await send(bad)).status).toBe(400);
+    const fd = new FormData();
+    fd.set("color", "#A0522D");
+    fd.set("logo", new Blob([fakeJpeg("LOGO")], { type: "image/jpeg" }), "logo.jpg");
+    expect((await send(fd)).status).toBe(200);
+    const me = (await (await portalGet("/me", cookie)).json()) as { look: { color: string; logo: string } };
+    expect(me.look.color).toBe("#a0522d");
+    expect(me.look.logo).toMatch(new RegExp(`^${APP}/bl/${accountId}/[a-z0-9]{26}\\.jpg$`));
+    const file = me.look.logo.split("/").pop()!;
+    const img = await exports.default.fetch(`https://api.test/v1/brand-logo/${accountId}/${file}`);
+    expect(img.status).toBe(200);
+    expect(img.headers.get("content-type")).toBe("image/jpeg");
+    // Removing the logo deletes the file.
+    const rm = new FormData();
+    rm.set("color", "#a0522d");
+    rm.set("removeLogo", "1");
+    expect((await send(rm)).status).toBe(200);
+    expect((await exports.default.fetch(`https://api.test/v1/brand-logo/${accountId}/${file}`)).status).toBe(404);
+  });
+
   it("no session → 401; cross-site writes refused", async () => {
     expect((await portalGet("/me", "")).status).toBe(401);
     const email = `csrf-${uniq()}@brand.example`;
