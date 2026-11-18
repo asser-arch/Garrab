@@ -267,6 +267,6 @@ th { text-transform: none; letter-spacing: .01em; font-weight: 600; }
 .look-btn { display: flex; align-items: center; justify-content: center; min-height: 48px; border-radius: var(--radius-pill); font: 600 13px/1 var(--font);
   letter-spacing: .08em; text-transform: uppercase; padding: 0 16px; text-align: center; }
 /* Company line (Powered by Infinisync by Arotech): quiet, centred under the page. */
-p.powered { text-align: center; margin: 8px 0 0; }
+p.powered { text-align: right; margin: 8px 0 0; }
 p.powered a { color: var(--muted); text-decoration: none; }
 p.powered a:hover { text-decoration: underline; }

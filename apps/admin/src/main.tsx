@@ -1193,7 +1193,7 @@ function App() {
       )}
     </main>
     <footer className="foot">
-      Garrab Admin · {ENV} · Signed in through Cloudflare Access ·{" "}
+      <span>Garrab Admin · {ENV} · Signed in through Cloudflare Access</span>
       <a href="https://www.theinfinisync.com" target="_blank" rel="noopener">
         Powered by Infinisync by Arotech
       </a>

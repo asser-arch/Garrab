@@ -50,7 +50,7 @@ td a:hover { border-color: var(--ink); }
 .search { position: relative; }
 .search input { width: 280px; padding-left: 38px; }
 .search svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); }
-footer.foot { max-width: 1200px; margin: 0 auto; padding: 0 16px 32px; color: var(--muted); font-size: 12px; }
+footer.foot { max-width: 1200px; margin: 0 auto; padding: 0 16px 32px; color: var(--muted); font-size: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; }
 
 /* Collapsible History: closed until the operator opens it. */
 details.history > summary { cursor: pointer; list-style: none; display: flex; align-items: baseline; gap: 8px; }
