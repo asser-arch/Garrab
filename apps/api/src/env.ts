@@ -25,6 +25,8 @@ export interface Env {
   GENLOOK_MOCK?: string;
   /** "gemini" (default: nano-banana, flash-image backup) or "genlook". */
   TRYON_PROVIDER?: string;
+  /** "true": free fake AI (no Google calls). Staging uses it so testing costs nothing; live never. */
+  AI_MOCK?: string;
   GENLOOK_USD_PER_CREDIT?: string;
   GEMINI_API_KEY?: string;
   GEMINI_TEXT_MODEL?: string;

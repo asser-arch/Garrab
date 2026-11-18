@@ -127,6 +127,7 @@ export class MockScorer implements ScoringProvider {
 }
 
 export function scoringProvider(env: Env): ScoringProvider {
+  if (env.AI_MOCK === "true" && env.ENVIRONMENT !== "prod") return new MockScorer();
   if (env.GEMINI_API_KEY && env.ENVIRONMENT !== "test") return new GeminiScorer(env.GEMINI_API_KEY, env.GEMINI_TEXT_MODEL ?? "gemini-3.5-flash-lite", appFetch(env));
   if (isLocal(env)) return new MockScorer();
   throw new Error("GEMINI_API_KEY missing");

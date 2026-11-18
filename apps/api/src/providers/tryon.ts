@@ -250,6 +250,7 @@ export class FallbackTryOnProvider implements TryOnProvider {
  * "genlook" = Genlook (kept for a later re-test).
  */
 export function tryOnProvider(env: Env, mode: "person" | "room" = "person"): TryOnProvider {
+  if (env.AI_MOCK === "true" && env.ENVIRONMENT !== "prod") return new MockTryOnProvider(); // free fake AI (staging)
   if (env.ENVIRONMENT !== "test") {
     // Room preview is Google only (Genlook dresses people; it doesn't place objects in rooms).
     if ((mode === "room" || (env.TRYON_PROVIDER ?? "gemini") === "gemini") && env.GEMINI_API_KEY) {

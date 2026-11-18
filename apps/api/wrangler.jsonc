@@ -100,7 +100,8 @@
         "GENLOOK_USD_PER_CREDIT": "0.04",
         "EMAIL_FROM": "Garrab <hello@garrabb.com>",
         "BILLING_CONTACT": "Garrab \u00b7 hello@garrabb.com",
-        "TRYON_PROVIDER": "gemini"
+        "TRYON_PROVIDER": "gemini",
+        "AI_MOCK": "true"
       },
       "d1_databases": [
         {

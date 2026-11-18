@@ -292,3 +292,6 @@ Asked for a more premium, designer-made look. Within the brand guideline (Forest
 - **Sign-in and /start:** split layout, a Forest brand panel (statement + three facts) beside the form; a compact band on phones.
 - **Shopper pages:** the product leads, large, in a portrait "mirror" frame (fine inset hairline); the brand page is a 2–3 column lookbook; the preview uses the same frame.
 - **Fields and buttons:** taller, calmer, one hairline language, radius by hierarchy (panels 24, items 14, pills for buttons).
+
+## 2026-11-18 — Staging uses free fake AI
+`AI_MOCK=true` on staging only: try-ons, room previews, product tests, scoring and size answers use the built-in fakes (no Google calls, no cost). Everything else is real. Live ignores the flag (`ENVIRONMENT=prod` never mocks). Picture quality is judged on live.
