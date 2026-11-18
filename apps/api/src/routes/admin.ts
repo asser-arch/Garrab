@@ -601,7 +601,12 @@ admin.post("/accounts/:id/rotate-key", async (c) => {
 /** A brand's domains (the widget only works from these). */
 admin.get("/accounts/:id/domains", async (c) => {
   const r = await c.env.DB.prepare("SELECT id, host, install_status, last_checked_at FROM domains WHERE account_id = ? ORDER BY host").bind(c.req.param("id")).all();
-  return c.json({ domains: r.results });
+  const key = await c.env.DB.prepare("SELECT key_public FROM api_keys WHERE account_id = ? AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1")
+    .bind(c.req.param("id"))
+    .first<{ key_public: string | null }>();
+  // The brand's install line, to paste on their website (the same line their portal shows).
+  const snippet = key?.key_public ? `<script src="${cdnOrigin(c.env)}/w.js" data-key="${key.key_public}" async></script>` : null;
+  return c.json({ domains: r.results, snippet });
 });
 
 admin.post("/accounts/:id/domains", async (c) => {

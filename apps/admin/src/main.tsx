@@ -1,6 +1,7 @@
 import "@garrab/shared/ui.css";
 import "./admin.css";
 import { StrictMode, useCallback, useEffect, useState } from "react";
+import { InstallGuide } from "./InstallGuide.js";
 import { createRoot } from "react-dom/client";
 
 async function api<T>(path: string, body?: unknown): Promise<T> {
@@ -446,12 +447,39 @@ function Access({ id }: { id: string }) {
   const [host, setHost] = useState("");
   const [snippet, setSnippet] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const load = useCallback(async () => setDomains((await api<{ domains: typeof domains }>(`/accounts/${id}/domains`)).domains), [id]);
+  const [line, setLine] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const load = useCallback(async () => {
+    const r = await api<{ domains: typeof domains; snippet: string | null }>(`/accounts/${id}/domains`);
+    setDomains(r.domains);
+    setLine(r.snippet);
+  }, [id]);
   useEffect(() => void load(), [load]);
   return (
     <>
       <div className="section">
       <h3>Portal, widget key and domains</h3>
+      {line && (
+        <div style={{ marginBottom: 12 }}>
+          <p className="small muted" style={{ margin: "0 0 4px" }}>
+            The line to paste on the brand's website, just before <code>&lt;/body&gt;</code>.{" "}
+            <a href="#" onClick={(e) => (e.preventDefault(), dispatchEvent(new Event("garrab:install-guide")))}>
+              How to install, platform by platform
+            </a>
+          </p>
+          <pre className="code" aria-label="Install line">{line}</pre>
+          <button
+            className="btn small"
+            onClick={async () => {
+              await navigator.clipboard.writeText(line).catch(() => undefined);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+            }}
+          >
+            {copied ? "Copied ✓" : "Copy the line"}
+          </button>
+        </div>
+      )}
       <div className="row">
         <button
           className="btn small ghost"
@@ -952,7 +980,13 @@ function App() {
   const [funnel, setFunnel] = useState<Stage[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const [tab, setTab] = useState<"dashboard" | "onboarding">("dashboard");
+  const [tab, setTab] = useState<"dashboard" | "onboarding" | "install">("dashboard");
+  // The brand card's "How to install" link opens the guide.
+  useEffect(() => {
+    const go = () => (setTab("install"), setOpen(null), scrollTo(0, 0));
+    addEventListener("garrab:install-guide", go);
+    return () => removeEventListener("garrab:install-guide", go);
+  }, []);
   const load = useCallback(async () => {
     const [a, f] = await Promise.all([api<{ accounts: Row[] }>("/accounts"), api<{ stages: Stage[] }>("/funnel")]);
     setRows(a.accounts);
@@ -976,12 +1010,14 @@ function App() {
         <nav aria-label="Admin">
           <a href="#" aria-current={tab === "dashboard" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("dashboard"))}>Dashboard</a>
           <a href="#" aria-current={tab === "onboarding" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("onboarding"))}>Onboarding</a>
+          <a href="#" aria-current={tab === "install" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("install"), setOpen(null))}>Install guide</a>
         </nav>
       </div>
     </header>
     <main className="page">
       {open && <Detail id={open} onClose={() => setOpen(null)} onChange={load} />}
       {tab === "dashboard" && <Dashboard open={setOpen} />}
+      {tab === "install" && <InstallGuide onBrands={() => setTab("dashboard")} />}
       {tab === "onboarding" && (
       <>
       <div className="page-head">
