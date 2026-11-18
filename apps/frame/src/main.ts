@@ -165,9 +165,9 @@ function startScreen(st: State, error?: string): void {
     hosted
       ? h(
           "header",
-          { class: "product" },
-          hosted.image ? h("img", { src: hosted.image, alt: "", class: "thumb" }) : null,
-          h("div", {}, h("p", { class: "brand" }, hosted.brand), h("h1", { tabindex: "-1" }, hosted.title)),
+          { class: "product hosted-hero" },
+          hosted.image ? h("figure", { class: "look" }, h("img", { src: hosted.image, alt: "" })) : null,
+          h("div", { class: "product-text" }, h("p", { class: "brand" }, hosted.brand), h("h1", { tabindex: "-1" }, hosted.title)),
         )
       : h("h1", { tabindex: "-1", class: "title" }, st.kind === "decor" ? t.buttonRoom : t.buttonTryOn),
     error ? h("p", { class: "error", role: "alert" }, error) : null,
@@ -419,6 +419,7 @@ async function brandPage(slug: string, lang: Lang): Promise<void> {
   const home = j.products.every((p) => p.kind === "decor");
   document.title = `${j.brand.name} · ${home ? t.buttonRoom : t.buttonTryOn}`;
   const q = new URLSearchParams(location.search).get("lang") ? `?lang=${lang}` : "";
+  root.classList.add("wide"); // the lookbook uses a wider page
   show(
     h("header", {}, h("p", { class: "brand" }, j.brand.name), h("h1", { tabindex: "-1" }, home ? t.pickRoomProduct : t.pickProduct)),
     h(
@@ -431,7 +432,7 @@ async function brandPage(slug: string, lang: Lang): Promise<void> {
           h(
             "a",
             { href: `/t/${slug}/${p.id}${q}`, class: "pick" },
-            p.image ? h("img", { src: p.image, alt: "", class: "thumb", loading: "lazy" }) : h("span", { class: "thumb" }),
+            h("span", { class: "look" }, p.image ? h("img", { src: p.image, alt: "", loading: "lazy" }) : null),
             h("span", { class: "pick-title" }, p.title),
             h("span", { class: "pick-go", "aria-hidden": "true" }, p.kind === "decor" ? t.buttonRoom : t.buttonTryOn),
           ),

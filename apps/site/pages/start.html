@@ -2,20 +2,28 @@
 <html lang="en">
 <head>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#F4F2EB"><meta name="referrer" content="no-referrer">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#143822"><meta name="referrer" content="no-referrer">
 <title>Start your free pilot · Garrab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap">
 <link rel="stylesheet" href="/site.css">
 <script>window.__GARRAB__ = /*GARRAB_CONFIG*/{"api":"","turnstileSiteKey":"mock"}/*END*/;</script>
 <!--TURNSTILE-->
 </head>
 <body>
-<div class="shell" style="max-width:640px">
-  <header class="top"><a class="logo" href="/start"><span class="tile">G</span> Garrab</a></header>
-  <main>
-    <h1>See it on you. <span class="soft">Before you buy.</span></h1>
-    <p>AI try-on for your shop, set up and run for you. Start a free 14-day pilot: up to 10 products, no setup fee, no card.</p>
+<div class="auth">
+  <aside class="auth-brand">
+    <a class="logo" href="/start"><span class="tile">G</span> Garrab</a>
+    <h1 class="statement">See it on you. <span>Before you buy.</span></h1>
+    <ul class="facts">
+      <li>AI try-on for your shop, set up and run for you.</li>
+      <li>A free 14-day pilot: up to 10 products, no setup fee, no card.</li>
+      <li>You approve every product before anything goes live.</li>
+    </ul>
+  </aside>
+  <main class="auth-form">
+    <h2 style="font-weight:300;font-size:30px;letter-spacing:-.015em;margin:0 0 6px">Start your free pilot</h2>
+    <p class="muted" style="margin:0 0 8px">Fourteen days, up to 10 products, no card. We set everything up for you.</p>
     <form id="start" class="card" novalidate>
       <label for="brandName">Brand name</label><input id="brandName" name="brandName" required autocomplete="organization">
       <label for="contactName">Your name</label><input id="contactName" name="contactName" required autocomplete="name">
@@ -34,12 +42,12 @@
       <select id="plan" name="plan" required><option value="starter">Starter</option><option value="growth">Growth (adds the size finder)</option></select>
       <div id="ts" style="margin-top:16px"></div>
       <p id="msg" role="alert" class="small"></p>
-      <button class="btn" type="submit">Start my free pilot</button>
-      <p class="small muted">We'll email you a sign-in link. You approve every product before anything goes live.</p>
+      <button class="btn" type="submit" style="width:100%">Start my free pilot</button>
+      <p class="small muted" style="margin-bottom:0">We'll email you a sign-in code. You approve every product before anything goes live.</p>
     </form>
-    <div id="done" class="card note" hidden tabindex="-1"><h2>Check your email</h2><p>We've sent your sign-in link. We're already reading your products.</p></div>
+    <div id="done" class="card note" hidden tabindex="-1"><h2>Check your email</h2><p>We've sent your sign-in code. We're already reading your products.</p></div>
+    <p class="small muted"><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
   </main>
-  <p class="small muted"><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
 </div>
 <script src="/start.js" defer></script>
 </body>

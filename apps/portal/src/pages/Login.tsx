@@ -64,12 +64,21 @@ export function Login({ onSignedIn }: { onSignedIn: () => void }) {
   };
 
   return (
-    <div className="shell" style={{ maxWidth: 480 }}>
-      <header className="top">
-        <span className="logo">
+    <div className="auth">
+      <aside className="auth-brand">
+        <a className="logo" href="/portal">
           <span className="tile">G</span> Garrab
-        </span>
-      </header>
+        </a>
+        <p className="statement">
+          Your shop&rsquo;s fitting room, <span>open all day.</span>
+        </p>
+        <ul className="facts">
+          <li>Shoppers see your pieces on themselves before they buy.</li>
+          <li>You approve every product before anything goes live.</li>
+          <li>Set up and run for you. No password needed.</li>
+        </ul>
+      </aside>
+      <main className="auth-form">
       <div className="card">
         <h1>
           Sign in <span className="soft">to your portal</span>
@@ -158,6 +167,7 @@ export function Login({ onSignedIn }: { onSignedIn: () => void }) {
           </form>
         )}
       </div>
+      </main>
     </div>
   );
 }

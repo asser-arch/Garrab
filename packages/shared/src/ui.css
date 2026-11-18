@@ -169,3 +169,90 @@ table.data thead th { border-top: 0; font-size: 11px; font-weight: 700; letter-s
   .card { break-inside: avoid; border-color: #ccc; }
   .kpi, .rank.top, .daychart-bar { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* =====================================================================================
+   Atelier (design v2, 18 Nov 2026). Same brand tokens; a tailored, editorial finish.
+   Signature: the Forest atelier band across the top. Light Cairo display type, generous
+   space, one hairline language (Sand), radius by hierarchy, sentence-case labels.
+   No shadows, no gradients; motion only as 150–250 ms fades.
+   ===================================================================================== */
+:root { --radius-panel: 24px; --radius-item: 14px; --hair: 1px solid var(--sand); }
+html, body { font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+
+/* Atelier band: the portal's header runs edge to edge in Forest. */
+.shell { padding: 0 20px 40px; }
+header.top { margin: 0 calc(50% - 50vw) 40px; padding: 14px max(20px, calc(50vw - 460px)); background: var(--forest); color: var(--paper); gap: 20px; }
+header.top .logo { color: var(--paper); font-weight: 600; font-size: 19px; letter-spacing: .01em; gap: 10px; }
+header.top .logo .tile { background: var(--paper); color: var(--forest); width: 34px; height: 34px; border-radius: 10px; }
+header.top nav.tabs { gap: 2px; }
+header.top nav.tabs a { background: transparent; border: 0; color: var(--sage); border-radius: 0; padding: 8px 12px; min-height: 44px; font-weight: 600; font-size: 15px;
+  box-shadow: none; position: relative; transition: color 150ms ease; }
+header.top nav.tabs a:hover { color: var(--paper); }
+header.top nav.tabs a[aria-current="page"] { background: transparent; color: var(--paper); }
+header.top nav.tabs a[aria-current="page"]::after { content: ""; position: absolute; left: 12px; right: 12px; bottom: 4px; height: 2px; border-radius: 2px; background: var(--peach); }
+header.top a:focus-visible { outline: 3px solid var(--peach); outline-offset: 2px; border-radius: 6px; }
+@media (max-width: 600px) { header.top { margin-bottom: 28px; padding-bottom: 6px; } header.top nav.tabs { margin: 0 -20px; padding: 0 12px; } }
+
+/* Type: light display, tight tracking; quiet secondary half. */
+h1 { font-weight: 300; font-size: clamp(32px, 4.4vw, 46px); line-height: 1.08; letter-spacing: -.02em; margin: 0 0 20px; }
+h1 .soft { color: var(--grey); font-weight: 300; }
+h2 { font-weight: 600; font-size: 20px; letter-spacing: -.005em; margin: 0 0 10px; }
+h3 { font-weight: 600; font-size: 16px; }
+.lede { font-size: 18px; line-height: 1.6; color: var(--muted); max-width: 60ch; margin: 0 0 28px; }
+
+/* Panels and items: one hairline, radius by hierarchy. */
+.card { border: var(--hair); border-radius: var(--radius-panel); padding: 28px; margin-bottom: 20px; }
+.grid { gap: 20px; }
+.grid > .card { border-radius: var(--radius-item); }
+.dark { border: 0; }
+.dark h2 { font-weight: 300; font-size: 28px; letter-spacing: -.015em; }
+
+/* Buttons: taller, quieter weight, crisp. */
+.btn { min-height: 48px; padding: 0 28px; font: 600 15px/1 var(--font); letter-spacing: .01em; transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease; }
+.btn.small { min-height: 38px; padding: 0 18px; font-size: 14px; }
+.btn.ghost { background: transparent; border-color: var(--grey); }
+.dark .btn.ghost { color: var(--paper); border-color: var(--sage); }
+.dark .btn.ghost:hover:not(:disabled) { background: rgba(252, 251, 248, .08); border-color: var(--paper); }
+
+/* Fields: tailored, generous, calm until focused. */
+label { font-weight: 600; font-size: 14px; color: var(--ink); margin: 18px 0 6px; }
+input, select, textarea { font-size: 16px; min-height: 50px; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--grey); background: var(--paper);
+  transition: border-color 150ms ease; }
+input:hover, select:hover, textarea:hover { border-color: var(--ink); }
+input::placeholder, textarea::placeholder { color: #7a7b74; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--forest); outline-offset: 1px; border-color: var(--forest); }
+
+/* Labels and chips in sentence case, not shouting. */
+.chip { font: 600 12px/1.9 var(--font); letter-spacing: .01em; text-transform: none; padding: 1px 12px; }
+.kpi-label { text-transform: none; letter-spacing: .01em; font-size: 13px; font-weight: 600; }
+th { text-transform: none; letter-spacing: .01em; font-weight: 600; }
+
+/* Notes: quieter boxes. */
+.note { border-radius: var(--radius-item); padding: 14px 18px; }
+.warn { border-radius: var(--radius-item); padding: 14px 18px; }
+
+/* The fitting-room frame: portrait imagery with a fine inset line, like a mirror. */
+.preview { border-radius: var(--radius-item); border: var(--hair); }
+.preview::after { content: ""; position: absolute; inset: 6px; border: 1px solid rgba(252, 251, 248, .55); border-radius: 9px; pointer-events: none; }
+
+/* Auth: brand panel beside the form on wide screens. */
+.auth { display: grid; grid-template-columns: 1fr; grid-template-rows: auto 1fr; align-content: start; min-height: 100dvh; background: var(--cream); }
+.auth-brand { background: var(--forest); color: var(--paper); padding: 28px 24px 32px; display: flex; flex-direction: column; gap: 28px; }
+.auth-brand .logo { color: var(--paper); font-weight: 600; font-size: 19px; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.auth-brand .logo .tile { background: var(--paper); color: var(--forest); width: 34px; height: 34px; border-radius: 10px; }
+.auth-brand .statement { font-weight: 300; font-size: clamp(30px, 4vw, 48px); line-height: 1.08; letter-spacing: -.02em; margin: 0; max-width: 14ch; }
+.auth-brand .statement span { color: var(--sage); }
+.auth-brand .facts { display: none; list-style: none; margin: 0; padding: 0; color: var(--sage); font-size: 15px; gap: 10px; }
+.auth-brand .facts li { padding-top: 10px; border-top: 1px solid rgba(157, 181, 163, .35); }
+.auth-form { padding: 32px 20px 48px; width: 100%; max-width: 480px; margin: 0 auto; align-self: start; }
+.auth-form h1 { font-size: clamp(30px, 3.4vw, 40px); }
+.auth-form .card { padding: 28px; }
+@media (min-width: 900px) {
+  .auth { grid-template-columns: minmax(380px, 5fr) 7fr; grid-template-rows: 1fr; }
+  .auth-brand { padding: 40px 48px; justify-content: space-between; position: sticky; top: 0; height: 100dvh; }
+  .auth-brand .facts { display: grid; }
+  .auth-form { align-self: center; padding: 48px; max-width: 520px; }
+}
+
+/* Results numbers and stats a touch lighter and larger. */
+.kpi-value, .stat { font-weight: 600; letter-spacing: -.01em; }

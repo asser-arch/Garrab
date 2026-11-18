@@ -284,3 +284,11 @@ Asser: "home decor customers will have no access to clothes preview and vice ver
 - **Spend leak:** the home décor test brand's 5 products were tested 21 times (42 paid room previews + 42 scorings, about 1.60 USD) instead of 5 times. Each finished test, portal visit and approval re-queued "test the untested products", and products still being tested were started again. Fix: a test now **claims** the product (`products.test_started_at`) before any paid call; duplicates stop at no cost (a stuck claim frees itself after 15 minutes). Test added: five simultaneous test messages → one test.
 - Garrab's own records show ~2.50 USD of AI spend on staging over 4 days (plus a few diagnostic calls from Checks). Anything beyond that on the Google bill isn't from Garrab's app and is worth checking per API key in Google Cloud.
 - **Safari icons:** Safari ignores SVG favicons. Every page now also links a 32 px PNG, `/favicon.ico` and a 180 px `apple-touch-icon.png` (iPhone home screen), made from the Garrab mark (`docs/brand/icons/`).
+
+## 2026-11-18 — Design v2 "Atelier"
+Asked for a more premium, designer-made look. Within the brand guideline (Forest, Cream, Paper, Cairo; no shadows, no gradients; fades 150–250 ms):
+- **Atelier band:** the portal header is a full-width Forest band with the wordmark; menu as quiet underline tabs (Peach underline on the current page).
+- **Type:** Cairo 300/400/600/700 now loaded; light display headlines with tight tracking; sentence-case labels and chips (no all-caps).
+- **Sign-in and /start:** split layout, a Forest brand panel (statement + three facts) beside the form; a compact band on phones.
+- **Shopper pages:** the product leads, large, in a portrait "mirror" frame (fine inset hairline); the brand page is a 2–3 column lookbook; the preview uses the same frame.
+- **Fields and buttons:** taller, calmer, one hairline language, radius by hierarchy (panels 24, items 14, pills for buttons).
