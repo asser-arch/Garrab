@@ -73,3 +73,25 @@ export async function deleteUnusedPhotos(env: Env, accountId: string, urls: stri
 }
 
 export { deletePrefix };
+
+/**
+ * Remove a product. Added by hand (photo or link): deleted for good, with its test pictures and any
+ * uploaded photo no other product uses. Read from the brand's website: hidden instead, so the nightly
+ * re-read doesn't bring it back. Returns true when hidden, false when deleted.
+ */
+export async function removeProduct(env: Env, accountId: string, productId: string): Promise<boolean> {
+  const p = await env.DB.prepare("SELECT source, images_json FROM products WHERE id = ? AND account_id = ?")
+    .bind(productId, accountId)
+    .first<{ source: string; images_json: string }>();
+  if (!p) return false;
+  if (p.source !== "manual") {
+    await env.DB.prepare("UPDATE products SET selected = 0, enabled = 0, approved = 0, needs_review = 0, brand_decision = 'hidden' WHERE id = ?").bind(productId).run();
+    await env.JOBS.send({ t: "advance", a: accountId });
+    return true;
+  }
+  await clearProductTests(env, accountId, productId);
+  await env.DB.prepare("DELETE FROM products WHERE id = ?").bind(productId).run();
+  await deleteUnusedPhotos(env, accountId, JSON.parse(p.images_json) as string[]);
+  await env.JOBS.send({ t: "advance", a: accountId });
+  return false;
+}

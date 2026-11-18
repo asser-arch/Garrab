@@ -24,7 +24,7 @@ import {
 } from "../lib/auth.js";
 import { ulid } from "../lib/crypto.js";
 import { sniffImage, stripJpegMetadata } from "../lib/photo.js";
-import { productPhotoUrl } from "../lib/products.js";
+import { productPhotoUrl, removeProduct } from "../lib/products.js";
 import { sendOnce } from "../lib/email.js";
 import { saveProducts, guessKind } from "../onboarding/import.js";
 import { accountFacts, billingPlan, createInvoice, ensurePlanInvoice, payUrl, pdfUrl } from "../billing/ledger.js";
@@ -185,7 +185,7 @@ portal.get("/me", async (c) => {
 portal.get("/products", async (c) => {
   const id = acct(c);
   const rows = await c.env.DB.prepare(
-    `SELECT id, title, images_json, kind, selected, test_score, enabled, needs_review, disabled_reason, brand_decision, product_url
+    `SELECT id, title, images_json, kind, selected, test_score, enabled, needs_review, disabled_reason, brand_decision, product_url, source
        FROM products WHERE account_id = ? ORDER BY selected DESC, title LIMIT 500`,
   )
     .bind(id)
@@ -201,6 +201,7 @@ portal.get("/products", async (c) => {
       disabled_reason: string | null;
       brand_decision: string | null;
       product_url: string | null;
+      source: string;
     }>();
   const tests = await c.env.DB.prepare("SELECT id, product_id, fixture FROM product_tests WHERE account_id = ? AND r2_key IS NOT NULL ORDER BY created_at")
     .bind(id)
@@ -218,6 +219,7 @@ portal.get("/products", async (c) => {
       image: (JSON.parse(p.images_json) as string[])[0] ?? null,
       kind: p.kind,
       url: p.product_url,
+      manual: p.source === "manual",
       selected: p.selected === 1,
       tested: p.test_score !== null,
       result: p.test_score === null ? "pending" : p.enabled ? "passed" : p.needs_review ? "review" : "failed",
@@ -389,6 +391,16 @@ portal.post("/brand", async (c) => {
     .run();
   invalidateStatus(id);
   return c.json({ ok: true });
+});
+
+/** The brand removes one of its products: added by hand → deleted; read from its website → hidden. */
+portal.post("/products/:id/delete", async (c) => {
+  const id = acct(c);
+  const pid = c.req.param("id");
+  const own = await c.env.DB.prepare("SELECT title FROM products WHERE id = ? AND account_id = ?").bind(pid, id).first<{ title: string }>();
+  if (!own) return c.json({ error: "not_found" }, 404);
+  const hidden = await removeProduct(c.env, id, pid);
+  return c.json({ ok: true, hidden });
 });
 
 /** CSV: name,image_url,product_url,description (header row optional). */

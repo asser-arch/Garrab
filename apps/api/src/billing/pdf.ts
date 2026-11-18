@@ -1,3 +1,4 @@
+import { COMPANY } from "@garrab/shared/plans";
 /**
  * Invoice PDF, generated on demand from the stored invoice (English only: see DECISIONS).
  * VAT is shown only when the rate is above 0.
@@ -76,5 +77,6 @@ export async function invoicePdf(
     text(`InstaPay to ${/^\+?[0-9 ]{10,15}$/.test(seller.instapay) ? "mobile number " : ""}${seller.instapay}. Write ${inv.number} in the note.`, 48, y - 16);
   }
   text("Garrab: AI try-on for Egyptian brands. Payment is due before each month starts.", 48, 60, 9, regular, GREY);
+  text(`${COMPANY.poweredBy} · theinfinisync.com`, 48, 46, 9, regular, GREY);
   return doc.save();
 }

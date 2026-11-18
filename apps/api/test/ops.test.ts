@@ -127,13 +127,15 @@ describe("Asser's answers (14 Nov): product limits, account name, test budget", 
       body: JSON.stringify({ title: `Product ${i}`, imageUrl: `https://cdn.example/${i}.jpg` }),
     });
 
-  it("paid plans have no product limit; the pilot keeps 10; a per-brand limit applies", async () => {
+  it("no product limit on any plan, the pilot included; a per-brand limit can still be set", async () => {
     const b = await liveBrand(); // starter, active
+    await env.DB.prepare("UPDATE accounts SET plan_id = 'pilot', status = 'pilot' WHERE id = ?").bind(b.id).run();
     const cookie = await portalCookie(b.email);
-    for (let i = 0; i < 14; i++) expect((await add(cookie, i)).status).toBe(200);
+    for (let i = 0; i < 14; i++) expect((await add(cookie, i)).status).toBe(200); // more than the old pilot limit of 10
     const list = (await (await exports.default.fetch("https://api.test/portal-api/products", { headers: { cookie } })).json()) as { maxProducts: number | null };
     expect(list.maxProducts).toBeNull();
 
+    await env.DB.prepare("UPDATE accounts SET plan_id = 'starter', status = 'active' WHERE id = ?").bind(b.id).run();
     // 1 seeded + 14 added = 15 products. A per-brand limit of 15 stops the next one.
     await post(`/accounts/${b.id}/product-limit`, { limit: 15 });
     expect((await add(cookie, 100)).status).toBe(400);
@@ -145,7 +147,7 @@ describe("Asser's answers (14 Nov): product limits, account name, test budget", 
     const pilot = await createAccount(env, { brandName: "Pilot", email: `p-${uniq()}@x.example`, plan: "starter" });
     const pc = await portalCookie((await env.DB.prepare("SELECT email FROM users WHERE account_id = ?").bind(pilot.accountId).first<{ email: string }>())!.email);
     for (let i = 0; i < 10; i++) await add(pc, i);
-    expect((await add(pc, 10)).status).toBe(400);
+    expect((await add(pc, 10)).status).toBe(200); // a new pilot brand is no longer stopped at 10 (18 Nov)
   });
 
   it("the pay page shows the InstaPay account name", async () => {
@@ -257,6 +259,31 @@ describe("invite again and delete an invitation", () => {
     expect(await env.DB.prepare("SELECT 1 FROM payments WHERE account_id = ?").bind(b.id).first()).not.toBeNull();
     expect(await env.DB.prepare("SELECT 1 FROM invoices WHERE account_id = ?").bind(b.id).first()).not.toBeNull();
     for (const t of ["products", "users", "api_keys", "domains"]) expect(await env.DB.prepare(`SELECT 1 FROM ${t} WHERE account_id = ?`).bind(b.id).first(), t).toBeNull();
+  });
+});
+
+describe("brand deletes its own products", () => {
+  it("a product added by hand is deleted; one read from the website is hidden; another brand's product is untouchable", async () => {
+    const { sha256Hex, ulid } = await import("../src/lib/crypto.js");
+    const b = await liveBrand();
+    const other = await liveBrand();
+    const u = (await env.DB.prepare("SELECT id FROM users WHERE account_id = ?").bind(b.id).first<{ id: string }>())!;
+    const token = "D".repeat(20) + uniq().padEnd(20, "E").slice(0, 20);
+    await env.DB.prepare("INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, '2099-01-01T00:00:00Z')").bind(ulid(), u.id, await sha256Hex(token)).run();
+    const cookie = `__Host-garrab_s=${token}`;
+    const del = (pid: string) => exports.default.fetch(`https://api.test/portal-api/products/${pid}/delete`, { method: "POST", headers: { cookie, origin: APP, "content-type": "application/json" }, body: "{}" });
+    const manual = `pm${uniq()}`;
+    await env.DB.prepare(`INSERT INTO products (id, account_id, external_ref, title, images_json, selected, source) VALUES (?, ?, ?, 'Hand added', '["https://cdn.example/h.jpg"]', 1, 'manual')`).bind(manual, b.id, `manual:${manual}`).run();
+    const imported = `pi${uniq()}`;
+    await env.DB.prepare(`INSERT INTO products (id, account_id, external_ref, title, images_json, selected, enabled, approved, source) VALUES (?, ?, ?, 'From the shop', '["https://cdn.example/s.jpg"]', 1, 1, 1, 'shopify')`).bind(imported, b.id, `shop:${imported}`).run();
+    const theirs = (await env.DB.prepare("SELECT id FROM products WHERE account_id = ? LIMIT 1").bind(other.id).first<{ id: string }>())!.id;
+
+    expect(await (await del(manual)).json()).toEqual({ ok: true, hidden: false });
+    expect(await env.DB.prepare("SELECT 1 FROM products WHERE id = ?").bind(manual).first()).toBeNull();
+    expect(await (await del(imported)).json()).toEqual({ ok: true, hidden: true });
+    expect(await env.DB.prepare("SELECT selected, approved, brand_decision FROM products WHERE id = ?").bind(imported).first()).toEqual({ selected: 0, approved: 0, brand_decision: "hidden" });
+    expect((await del(theirs)).status).toBe(404);
+    expect(await env.DB.prepare("SELECT 1 FROM products WHERE id = ?").bind(theirs).first()).not.toBeNull();
   });
 });
 

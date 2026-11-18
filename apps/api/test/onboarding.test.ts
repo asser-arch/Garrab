@@ -608,6 +608,37 @@ describe("/v1/start", () => {
     expect(leads?.c).toBe(2);
   });
 
+  it("a sign-up from a brand's try-on page records the referring brand and alerts", async () => {
+    const ref = await createAccount(env, { brandName: "Noor Ref", email: `noor-${uniq()}@brand.example`, plan: "starter", instagram: "@noor" });
+    const slug = (await env.DB.prepare("SELECT slug FROM accounts WHERE id = ?").bind(ref.accountId).first<{ slug: string }>())!.slug;
+    const email = `refd-${uniq()}@brand.example`;
+    const body = { brandName: "Referred Co", contactName: "Sara", email, whatsapp: "01001234567", instagram: "@refd", platform: "social_only", niche: "clothing", plan: "starter", turnstileToken: "x", ref: slug };
+    const r = await exports.default.fetch("https://api.test/v1/start", { method: "POST", headers: { origin: APP, "content-type": "application/json" }, body: JSON.stringify(body) });
+    expect(r.status).toBe(200);
+    expect(await env.DB.prepare("SELECT referred_by FROM accounts WHERE email = ?").bind(email).first()).toEqual({ referred_by: slug });
+    expect(await env.DB.prepare("SELECT referred_by FROM leads WHERE email = ?").bind(email).first()).toEqual({ referred_by: slug });
+    const a = await env.DB.prepare("SELECT message FROM alerts WHERE kind = 'referral' ORDER BY created_at DESC LIMIT 1").first<{ message: string }>();
+    expect(a?.message).toContain("New lead via Noor Ref");
+    // An unknown ref is ignored, not stored.
+    const email2 = `refx-${uniq()}@brand.example`;
+    await exports.default.fetch("https://api.test/v1/start", { method: "POST", headers: { origin: APP, "content-type": "application/json" }, body: JSON.stringify({ ...body, email: email2, ref: "no-such-brand" }) });
+    expect(await env.DB.prepare("SELECT referred_by FROM accounts WHERE email = ?").bind(email2).first()).toEqual({ referred_by: null });
+  });
+
+  it("call-back request: stored with the referring brand, alerted, listed in the admin, marked done", async () => {
+    const ref = await createAccount(env, { brandName: "Call Ref", email: `cref-${uniq()}@brand.example`, plan: "starter", instagram: "@cref" });
+    const slug = (await env.DB.prepare("SELECT slug FROM accounts WHERE id = ?").bind(ref.accountId).first<{ slug: string }>())!.slug;
+    const send = (b: unknown, origin = APP) =>
+      exports.default.fetch("https://api.test/v1/contact", { method: "POST", headers: { origin, "content-type": "application/json" }, body: JSON.stringify(b) });
+    expect((await send({ name: "Hana", whatsapp: "123", turnstileToken: "x" })).status).toBe(400);
+    expect((await send({ name: "Hana", whatsapp: "01001234567", turnstileToken: "x" }, "https://evil.example")).status).toBe(403);
+    expect((await send({ name: "Hana", whatsapp: "01001234567", brand: "Hana Wear", ref: slug, turnstileToken: "x" })).status).toBe(200);
+    const row = await env.DB.prepare("SELECT id, whatsapp, brand, referred_by FROM contact_requests WHERE name = 'Hana'").first<{ id: string; whatsapp: string; brand: string; referred_by: string }>();
+    expect(row).toMatchObject({ whatsapp: "+201001234567", brand: "Hana Wear", referred_by: slug });
+    const a = await env.DB.prepare("SELECT message FROM alerts WHERE kind = 'contact_request' ORDER BY created_at DESC LIMIT 1").first<{ message: string }>();
+    expect(a?.message).toContain("via Call Ref");
+  });
+
   it("rejects bad input with field errors", async () => {
     const r = await exports.default.fetch("https://api.test/v1/start", {
       method: "POST",

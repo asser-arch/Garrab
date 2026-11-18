@@ -1,3 +1,4 @@
+import { COMPANY } from "@garrab/shared/plans";
 /**
  * The branded results report email (pilot day 10 and day 14). Email-safe: tables and inline
  * styles only, no images required (brand tile is text), brand colours from tokens, no shadows
@@ -190,7 +191,7 @@ ${section(
 </td></tr>
 
 </table>
-<p style="font-family:${FONT};font-size:12px;color:#8A8B84;margin:16px 0 0;max-width:600px">Garrab · AI try-on for Egyptian brands. Counts are anonymous: we never know who your shoppers are. Previews are AI images, a guide rather than a promise.</p>
+<p style="font-family:${FONT};font-size:12px;color:#8A8B84;margin:16px 0 0;max-width:600px">Garrab · AI try-on for Egyptian brands. Counts are anonymous: we never know who your shoppers are. Previews are AI images, a guide rather than a promise.<br><a href="${COMPANY.url}" style="color:#8A8B84">${COMPANY.poweredBy}</a></p>
 </td></tr></table>
 </body></html>`;
 
@@ -214,6 +215,8 @@ ${section(
     ...next,
     "",
     `${o.cta.label}: ${o.cta.url}`,
+    "",
+    COMPANY.poweredBy,
   ].join("\n");
 
   return { to, subject, html, text };

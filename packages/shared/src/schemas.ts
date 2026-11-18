@@ -58,12 +58,23 @@ export const LeadForm = z
     niche: Niche,
     plan: z.enum(["starter", "growth"]),
     turnstileToken: z.string().min(1),
+    /** The brand whose try-on page sent this lead (its slug), from /start?ref=… */
+    ref: z.string().trim().regex(/^[a-z0-9-]{1,60}$/).optional(),
   })
   .refine((v) => v.website !== undefined || v.instagram !== undefined, {
     message: "Add a website or an Instagram handle",
     path: ["website"],
   });
 export type LeadForm = z.infer<typeof LeadForm>;
+
+/** "Leave your number and we'll call you" on /start. */
+export const ContactRequest = z.object({
+  name: z.string().trim().min(2).max(80),
+  whatsapp: egyptPhone,
+  brand: z.string().trim().max(80).optional(),
+  ref: z.string().trim().regex(/^[a-z0-9-]{1,60}$/).optional(),
+  turnstileToken: z.string().min(1),
+});
 
 /** Admin "Invite brand". */
 export const BrandCategory = z.enum(["fashion", "home"]);

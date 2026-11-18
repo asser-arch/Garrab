@@ -2,7 +2,7 @@
  * Brand-facing email templates. Plain words, short, honest (brand guideline "How we sound").
  * English for now; Arabic versions follow the Pitch Kit wording.
  */
-import { BILLING, EXTRA_PACK, PILOT, PLANS, type PlanId } from "@garrab/shared/plans";
+import { BILLING, COMPANY, EXTRA_PACK, PILOT, PLANS, type PlanId } from "@garrab/shared/plans";
 import type { EmailMessage } from "./lib/email.js";
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -18,7 +18,7 @@ function layout(title: string, bodyHtml: string, cta?: { label: string; url: str
 <h1 style="font-size:22px;font-weight:400;margin:0 0 16px">${esc(title)}</h1>
 ${bodyHtml}${button}
 </div>
-<p style="color:#8A8B84;font-size:12px">Garrab · AI try-on for Egyptian brands. A preview, not a promise.</p>
+<p style="color:#8A8B84;font-size:12px">Garrab · AI try-on for Egyptian brands. A preview, not a promise.<br><a href="${COMPANY.url}" style="color:#8A8B84">${COMPANY.poweredBy}</a></p>
 </div></body></html>`;
 }
 
@@ -26,7 +26,7 @@ const p = (s: string): string => `<p style="font-size:15px;line-height:1.6;margi
 
 function msg(to: string, subject: string, title: string, paras: string[], cta?: { label: string; url: string }): EmailMessage {
   const html = layout(title, paras.map((x) => p(esc(x))).join(""), cta);
-  const text = [title, "", ...paras, ...(cta ? ["", `${cta.label}: ${cta.url}`] : [])].join("\n");
+  const text = [title, "", ...paras, ...(cta ? ["", `${cta.label}: ${cta.url}`] : []), "", COMPANY.poweredBy].join("\n");
   return { to, subject, html, text };
 }
 
@@ -69,7 +69,7 @@ export const emails = {
       "We couldn't read your products",
       [
         `We couldn't import products from ${brand}'s website automatically. That's normal for Instagram and WhatsApp shops.`,
-        "Add up to 10 products in the portal: a name, a photo and the link where people buy it. It takes about 5 minutes.",
+        "Add your products in the portal: a name, a photo and the link where people buy it. About a minute each.",
       ],
       { label: "Add products", url: portal },
     ),

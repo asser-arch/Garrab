@@ -141,7 +141,7 @@ widget.get("/hosted/:slug", async (c) => {
     if (products.length === 0) return c.json(DISABLED);
     return c.json({
       enabled: true,
-      brand: { name: account.name, ...brandLook(c, account) },
+      brand: { name: account.name, slug: account.slug, ...brandLook(c, account) },
       products: products.map((p) => ({ id: p.id, title: p.title, image: (JSON.parse(p.images_json) as string[])[0] ?? null, kind: p.kind })),
     });
   } catch {
@@ -167,7 +167,7 @@ widget.get("/hosted/:slug/:productId", async (c) => {
       enabled: true,
       ctx,
       exp,
-      brand: { name: account.name, ...brandLook(c, account) },
+      brand: { name: account.name, slug: account.slug, ...brandLook(c, account) },
       product: { id: p.id, title: p.title, image: images[0] ?? null, kind: p.kind },
       sizeFinder: (await sizeFinderOn(c.env, account.id)) && sizeFinderFits(p.kind, JSON.parse(p.sizes_json ?? "[]") as string[]),
       buyUrl: p.url_path && account.buy_url ? new URL(p.url_path, account.buy_url).toString() : account.buy_url,
@@ -195,7 +195,7 @@ widget.get("/frame-info", async (c) => {
     enabled: true,
     privacyClaim: await getSetting(c.env, "privacy_claim_verified", false),
     sizeFinder,
-    brand: acc ? { name: acc.name, ...brandLook(c, acc) } : null,
+    brand: acc ? { name: acc.name, slug: acc.slug, ...brandLook(c, acc) } : null,
   });
 });
 

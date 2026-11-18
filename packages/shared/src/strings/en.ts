@@ -30,6 +30,9 @@ export const en = {
   pickRoomProduct: "Choose a piece to see in your room",
   /** On a product's try-on link: back to the brand page listing every product. */
   allProducts: "See all products",
+  /** Footer on try-on pages: brings other shops to Garrab (carries the brand as referrer). */
+  getGarrab: "Want try-on for your shop? Get Garrab",
+  poweredBy: "Powered by Infinisync by Arotech",
   // Size finder (Growth plan), English and Arabic
   sizeIntro: "Answer a few quick questions and we'll suggest a size for this piece.",
   sizeHeight: "Height (cm)",
@@ -82,6 +85,8 @@ export const TRY_ON_KEYS = [
   "pickProduct",
   "pickRoomProduct",
   "allProducts",
+  "getGarrab",
+  "poweredBy",
   "buttonSize",
   "sizeIntro",
   "sizeHeight",

@@ -204,6 +204,7 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
           <p className="small muted" style={{ margin: "6px 0 0" }}>
             <StatusChip status={String(d.account.status)} /> <span className="chip">{nice(STEP_NAME, String(d.account.onboarding_step))}</span>{" "}
             <span className="chip lavender">{String(d.account.category) === "home" ? "Home décor · room preview" : "Fashion · try-on"}</span>{" "}
+            {d.account.referred_by ? <span className="chip peach">Referred by {String(d.account.referred_by)}</span> : null}{" "}
             {String(d.account.email ?? "")}
             {site && (
               <>
@@ -438,6 +439,56 @@ const cairo = (ts: string | null | undefined): string => {
   return d.toLocaleString("en-GB", { timeZone: "Africa/Cairo", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 };
 const statusClass = (st: string): string => (st === "suspended" || st === "killed" ? "bad" : st === "past_due" ? "peach" : st === "active" ? "mint" : st === "pilot" ? "lavender" : "");
+/** Selling through customers: call-back requests from /start and leads per referring brand. */
+function Leads() {
+  const [d, setD] = useState<{
+    requests: { id: string; name: string; whatsapp: string; brand: string | null; created_at: string; via: string | null }[];
+    referrals: { via: string; leads: number }[];
+  } | null>(null);
+  const load = useCallback(async () => setD(await api("/leads")), []);
+  useEffect(() => void load(), [load]);
+  if (!d) return null;
+  const wa = (n: string) => `https://wa.me/${n.replace(/\D/g, "").replace(/^0/, "20")}`;
+  return (
+    <div className="card">
+      <h2>Call-back requests</h2>
+      <p className="sub">People who left their number on the sign-up page. Message them on WhatsApp, then mark them done.</p>
+      {d.requests.length === 0 ? (
+        <p className="small muted">No open requests.</p>
+      ) : (
+        <ul className="list">
+          {d.requests.map((r) => (
+            <li key={r.id}>
+              <span>
+                <strong>{r.name}</strong>
+                {r.brand ? ` · ${r.brand}` : ""} · <a href={wa(r.whatsapp)} target="_blank" rel="noopener">{r.whatsapp}</a>
+                {r.via ? <span className="muted"> · via {r.via}</span> : null}
+                <span className="muted"> · {cairo(r.created_at)}</span>
+              </span>
+              <button className="btn small ghost" onClick={async () => (await api(`/contact-requests/${r.id}/done`, {}), load())}>
+                Mark done
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <h3 style={{ marginTop: 20 }}>New brands from your brands' try-on pages (90 days)</h3>
+      {d.referrals.length === 0 ? (
+        <p className="small muted">None yet. Each try-on page has a small "Want try-on for your shop? Get Garrab" link; sign-ups through it show here.</p>
+      ) : (
+        <ul className="list">
+          {d.referrals.map((r) => (
+            <li key={r.via}>
+              <span>{r.via}</span>
+              <strong>{r.leads}</strong>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 function StatusChip({ status }: { status: string }) {
   return <span className={`chip ${statusClass(status)}`}>{nice(STATUS_NAME, status)}</span>;
 }
@@ -1067,6 +1118,7 @@ function App() {
           <p className="small muted">Every brand moves through these steps on its own; you only step in when something is stuck.</p>
         </div>
       </div>
+      <Leads />
       <div className="stats" aria-label="Funnel">
         {funnel.map((s) => (
           <div className="card" key={s.stage}>
@@ -1140,7 +1192,12 @@ function App() {
       </>
       )}
     </main>
-    <footer className="foot">Garrab Admin · {ENV} · Signed in through Cloudflare Access</footer>
+    <footer className="foot">
+      Garrab Admin · {ENV} · Signed in through Cloudflare Access ·{" "}
+      <a href="https://www.theinfinisync.com" target="_blank" rel="noopener">
+        Powered by Infinisync by Arotech
+      </a>
+    </footer>
     </>
   );
 }

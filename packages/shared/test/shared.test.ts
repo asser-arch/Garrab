@@ -38,12 +38,12 @@ describe("plans.ts matches the brief (§1)", () => {
     expect(PLANS.growth.maxProducts).toBeNull();
     expect(productLimit("growth", null)).toBeNull();
     expect(productLimit("growth", 40)).toBe(40);
-    expect(productLimit("pilot", null)).toBe(10);
+    expect(productLimit("pilot", null)).toBeNull(); // unlimited pilot (18 Nov)
   });
 
   it("pilot and billing rules", () => {
     expect(PILOT.days).toBe(14);
-    expect(PILOT.maxProducts).toBe(10);
+    expect(PILOT.maxProducts).toBeNull(); // unlimited during the pilot (18 Nov)
     expect(PILOT.previews).toBe(300);
     expect(PILOT.setupFee).toBe(0);
     expect(BILLING.graceDays).toBe(5);

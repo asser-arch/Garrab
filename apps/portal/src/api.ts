@@ -46,6 +46,8 @@ export interface Product {
   image: string | null;
   kind: string;
   url: string | null;
+  /** Added by hand in the portal (so it can be deleted); otherwise read from the brand's website. */
+  manual: boolean;
   selected: boolean;
   tested: boolean;
   result: "pending" | "passed" | "review" | "failed";

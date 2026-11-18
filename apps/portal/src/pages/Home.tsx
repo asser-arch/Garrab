@@ -11,7 +11,7 @@ function NextAction({ me }: { me: Me }) {
         <>
           <h2>Add your products</h2>
           <p>
-            Add up to 10 products: a name, a photo and the link where people
+            Add your products: a name, a photo and the link where people
             buy. About 5 minutes.
           </p>
           <button className="btn" onClick={() => go("/portal/products")}>

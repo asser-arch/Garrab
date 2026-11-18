@@ -34,7 +34,7 @@ export const PLANS: Readonly<Record<PlanId, Plan>> = {
     name: "Founding pilot",
     monthlyPrice: 0,
     includedPreviews: 300,
-    maxProducts: 10,
+    maxProducts: null, // unlimited during the pilot (Asser, 18 Nov); the test budget still caps automatic tests
     sizeFinder: false,
     extraPacks: false,
   },
@@ -73,12 +73,21 @@ export const EXTRA_PACK = {
 
 export const PILOT = {
   days: 14,
-  maxProducts: PLANS.pilot.maxProducts ?? 10,
+  maxProducts: PLANS.pilot.maxProducts, // null = unlimited
   previews: PLANS.pilot.includedPreviews,
   setupFee: 0,
   cardRequired: false,
   /** Pilot clock emails, by day number after pilot_live (day 1 = first day). */
   emailDays: { welcome: 1, checkIn: 7, report: 10, endingSoon: 12, results: 14 },
+} as const;
+
+/** Garrab's company line and contact (shown in footers, emails, invoices and the sign-up page). */
+export const COMPANY = {
+  poweredBy: "Powered by Infinisync by Arotech",
+  name: "Infinisync by Arotech",
+  url: "https://www.theinfinisync.com",
+  /** WhatsApp for "Talk to us" (international format, digits only). */
+  whatsapp: "201009110001",
 } as const;
 
 export const BILLING = {

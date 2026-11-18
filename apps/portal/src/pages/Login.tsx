@@ -167,6 +167,11 @@ export function Login({ onSignedIn }: { onSignedIn: () => void }) {
           </form>
         )}
       </div>
+      <p className="small muted powered">
+        <a href="https://www.theinfinisync.com" target="_blank" rel="noopener">
+          Powered by Infinisync by Arotech
+        </a>
+      </p>
       </main>
     </div>
   );

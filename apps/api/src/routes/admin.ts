@@ -16,7 +16,7 @@ import { sendOnce } from "../lib/email.js";
 import { cairoDay } from "../lib/time.js";
 import { getSetting, invalidateStatus, originHost, setSetting } from "../lib/db.js";
 import { alert, transitionStatus } from "../lib/ops.js";
-import { clearProductTests, deletePrefix, deleteUnusedPhotos } from "../lib/products.js";
+import { removeProduct, clearProductTests, deletePrefix } from "../lib/products.js";
 import { log } from "../lib/log.js";
 import { cycleStartOf } from "../lib/metering.js";
 import { addDays } from "../billing/dates.js";
@@ -84,6 +84,27 @@ admin.post("/invite", async (c) => {
       ? ((await c.env.DB.prepare("SELECT error FROM notifications WHERE dedupe_key = ?").bind(`welcome:${accountId}`).first<{ error: string | null }>())?.error ?? null)
       : null;
   return c.json({ ok: true, accountId, created, link, existing: { name: acc?.name ?? null, status: acc?.status ?? null, welcome, reason } });
+});
+
+/** Selling through customers: call-back requests and new brands per referring brand. */
+admin.get("/leads", async (c) => {
+  const [requests, referrals] = await Promise.all([
+    c.env.DB.prepare(
+      `SELECT r.id, r.name, r.whatsapp, r.brand, r.created_at, a.name AS via FROM contact_requests r LEFT JOIN accounts a ON a.slug = r.referred_by
+        WHERE r.handled_at IS NULL ORDER BY r.created_at DESC LIMIT 100`,
+    ).all(),
+    c.env.DB.prepare(
+      `SELECT a.name AS via, COUNT(*) AS leads FROM leads l JOIN accounts a ON a.slug = l.referred_by
+        WHERE l.created_at >= datetime('now', '-90 days') GROUP BY l.referred_by ORDER BY leads DESC LIMIT 20`,
+    ).all(),
+  ]);
+  return c.json({ requests: requests.results, referrals: referrals.results });
+});
+
+admin.post("/contact-requests/:id/done", async (c) => {
+  await c.env.DB.prepare("UPDATE contact_requests SET handled_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?").bind(c.req.param("id")).run();
+  await audit(c.env, null, c.get("admin"), "contact_request_done", c.req.param("id"));
+  return c.json({ ok: true });
 });
 
 admin.get("/funnel", async (c) => {
@@ -179,19 +200,9 @@ admin.post("/products/:id/delete", async (c) => {
     .bind(pid)
     .first<{ account_id: string; title: string; source: string; images_json: string }>();
   if (!p) return c.json({ error: "not_found" }, 404);
-  const meta = { product: pid, title: p.title, source: p.source };
-  if (p.source !== "manual") {
-    await c.env.DB.prepare("UPDATE products SET selected = 0, enabled = 0, approved = 0, needs_review = 0, brand_decision = 'hidden' WHERE id = ?").bind(pid).run();
-    await audit(c.env, p.account_id, c.get("admin"), "product_hide", p.title, meta);
-    await c.env.JOBS.send({ t: "advance", a: p.account_id });
-    return c.json({ ok: true, hidden: true });
-  }
-  await clearProductTests(c.env, p.account_id, pid);
-  await c.env.DB.prepare("DELETE FROM products WHERE id = ?").bind(pid).run();
-  await deleteUnusedPhotos(c.env, p.account_id, JSON.parse(p.images_json) as string[]);
-  await audit(c.env, p.account_id, c.get("admin"), "product_delete", p.title, meta);
-  await c.env.JOBS.send({ t: "advance", a: p.account_id });
-  return c.json({ ok: true, hidden: false });
+  const hidden = await removeProduct(c.env, p.account_id, pid);
+  await audit(c.env, p.account_id, c.get("admin"), hidden ? "product_hide" : "product_delete", p.title, { product: pid, title: p.title, source: p.source });
+  return c.json({ ok: true, hidden });
 });
 
 /** Clear a product's test so it runs again (e.g. after switching from test mode to real try-ons). */

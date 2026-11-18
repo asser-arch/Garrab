@@ -39,6 +39,8 @@ export const ar: Record<TryOnKey, string> = {
   pickProduct: "اختر قطعة لتجربتها",
   pickRoomProduct: "اختر قطعة لتراها في غرفتك",
   allProducts: "شاهد كل المنتجات",
+  getGarrab: "تريد التجربة الافتراضية لمتجرك؟ احصل على Garrab",
+  poweredBy: "Powered by Infinisync by Arotech",
   // Size finder (Growth plan). Same register as the rest, for native review.
   buttonSize: "اعرف مقاسك",
   sizeIntro: "أجب عن بعض الأسئلة السريعة وسنقترح عليك مقاسًا لهذه القطعة.",

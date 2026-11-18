@@ -106,6 +106,7 @@ export default {
     const payPdf = /^\/pay\/([A-Za-z0-9]{32})\/invoice\.pdf$/.exec(p);
     if (payPdf) return forward(req, env, `/v1/pay/${payPdf[1]}/pdf`);
     if (p === "/api/start" && req.method === "POST") return forward(req, env, "/v1/start");
+    if (p === "/api/contact" && req.method === "POST") return forward(req, env, "/v1/contact");
     if (req.method !== "GET" && req.method !== "HEAD") return new Response("Method not allowed", { status: 405 });
 
     const cfg = { api: env.API_ORIGIN, turnstileSiteKey: env.TURNSTILE_SITE_KEY };

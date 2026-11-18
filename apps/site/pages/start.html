@@ -17,13 +17,13 @@
     <h1 class="statement">See it on you. <span>Before you buy.</span></h1>
     <ul class="facts">
       <li>AI try-on for your shop, set up and run for you.</li>
-      <li>A free 14-day pilot: up to 10 products, no setup fee, no card.</li>
+      <li>A free 14-day pilot with all your products: no setup fee, no card.</li>
       <li>You approve every product before anything goes live.</li>
     </ul>
   </aside>
   <main class="auth-form">
     <h2 style="font-weight:300;font-size:30px;letter-spacing:-.015em;margin:0 0 6px">Start your free pilot</h2>
-    <p class="muted" style="margin:0 0 8px">Fourteen days, up to 10 products, no card. We set everything up for you.</p>
+    <p class="muted" style="margin:0 0 8px">Fourteen days, all your products, no card. We set everything up for you.</p>
     <form id="start" class="card" novalidate>
       <label for="brandName">Brand name</label><input id="brandName" name="brandName" required autocomplete="organization">
       <label for="contactName">Your name</label><input id="contactName" name="contactName" required autocomplete="name">
@@ -40,13 +40,29 @@
       <select id="niche" name="niche" required><option value="clothing">Clothing</option><option value="accessories">Accessories</option><option value="home_decor">Home decor</option></select>
       <label for="plan">Plan after the pilot</label>
       <select id="plan" name="plan" required><option value="starter">Starter</option><option value="growth">Growth (adds the size finder)</option></select>
+      <input type="hidden" name="ref" id="ref">
       <div id="ts" style="margin-top:16px"></div>
       <p id="msg" role="alert" class="small"></p>
       <button class="btn" type="submit" style="width:100%">Start my free pilot</button>
       <p class="small muted" style="margin-bottom:0">We'll email you a sign-in code. You approve every product before anything goes live.</p>
     </form>
     <div id="done" class="card note" hidden tabindex="-1"><h2>Check your email</h2><p>We've sent your sign-in code. We're already reading your products.</p></div>
+
+    <section class="card talk" aria-labelledby="talk-h">
+      <h2 id="talk-h">Rather talk first?</h2>
+      <p class="muted" style="margin-top:0">Ask us anything on WhatsApp, or leave your number and we'll call you.</p>
+      <a class="btn ghost" id="wa" href="https://wa.me/201009110001?text=Hi%20Garrab%2C%20I%27d%20like%20to%20know%20more%20about%20try-on%20for%20my%20shop." target="_blank" rel="noopener">Talk to us on WhatsApp</a>
+      <form id="callback" novalidate style="margin-top:8px">
+        <label for="cb-name">Name</label><input id="cb-name" name="name" required autocomplete="name">
+        <label for="cb-phone">Phone (WhatsApp)</label><input id="cb-phone" name="whatsapp" type="tel" required placeholder="01xxxxxxxxx" autocomplete="tel">
+        <label for="cb-brand">Brand (optional)</label><input id="cb-brand" name="brand" autocomplete="organization">
+        <p id="cb-msg" role="status" class="small"></p>
+        <button class="btn" type="submit">Call me back</button>
+      </form>
+    </section>
+
     <p class="small muted"><a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></p>
+    <p class="powered small muted"><a href="https://www.theinfinisync.com" target="_blank" rel="noopener">Powered by Infinisync by Arotech</a></p>
   </main>
 </div>
 <script src="/start.js" defer></script>

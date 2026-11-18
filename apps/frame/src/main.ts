@@ -63,6 +63,7 @@ function h<K extends keyof HTMLElementTagNameMap>(
 
 interface Look {
   name: string;
+  slug?: string;
   color?: string | null;
   logo?: string | null;
 }
@@ -91,6 +92,24 @@ function brandMark(look: Look | null | undefined, cls = "brandmark"): HTMLElemen
   if (!look) return null;
   if (look.logo) return h("p", { class: cls }, h("img", { src: look.logo, alt: look.name }));
   return null;
+}
+
+/**
+ * Footer on every try-on page: a quiet "get this for your shop" link that remembers which brand's page it
+ * came from (/start?ref=<brand>), and the company line. Lives outside #app, so screens never wipe it.
+ */
+function footer(lang: Lang, slug: string | undefined): void {
+  if (document.querySelector("footer.powered")) return;
+  const t = tryOnStrings(lang);
+  const start = `${location.origin}/start${slug ? `?ref=${encodeURIComponent(slug)}` : ""}`;
+  document.body.append(
+    h(
+      "footer",
+      { class: "powered" },
+      h("a", { href: start, target: "_blank", rel: "noopener" }, t.getGarrab),
+      h("a", { href: "https://www.theinfinisync.com", target: "_blank", rel: "noopener" }, t.poweredBy),
+    ),
+  );
 }
 
 function show(...nodes: (Node | null)[]): void {
@@ -459,6 +478,7 @@ async function brandPage(slug: string, lang: Lang): Promise<void> {
   }
   if (!j.enabled || !j.brand || !j.products?.length) return unavailable(lang);
   applyLook(j.brand);
+  footer(lang, j.brand.slug ?? slug);
   const home = j.products.every((p) => p.kind === "decor");
   document.title = `${j.brand.name} · ${home ? t.buttonRoom : t.buttonTryOn}`;
   const q = new URLSearchParams(location.search).get("lang") ? `?lang=${lang}` : "";
@@ -558,6 +578,7 @@ async function boot(): Promise<void> {
   }
 
   applyLook(st.look);
+  footer(st.lang, st.look?.slug ?? st.hosted?.slug);
   if (st.mode === "hosted") sendEvent(st, "link_view");
 
   document.addEventListener("keydown", (e) => {

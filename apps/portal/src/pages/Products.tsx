@@ -84,40 +84,47 @@ export function Products({
           </p>
           <div className="grid">
             {list.map((p) => (
-              <label
-                key={p.id}
-                className="card"
-                style={{ margin: 0, cursor: "pointer", fontWeight: 400 }}
-              >
-                {p.image && (
-                  <img
-                    src={p.image}
-                    alt=""
-                    style={{
-                      width: "100%",
-                      aspectRatio: "4/5",
-                      objectFit: "cover",
-                      borderRadius: 12,
-                    }}
-                    referrerPolicy="no-referrer"
-                  />
-                )}
-                <span className="row" style={{ marginTop: 8 }}>
-                  <input
-                    type="checkbox"
-                    style={{ width: 20, minHeight: 20 }}
-                    checked={chosen.has(p.id)}
-                    disabled={p.tested && p.selected}
-                    onChange={() => toggle(p.id)}
-                  />
-                  <span>{p.title}</span>
-                </span>
-                {p.kind === "decor" && (
-                  <span className="chip lavender">
-                    Room preview: coming soon
+              <div key={p.id} className="card product-card" style={{ margin: 0 }}>
+                <label style={{ margin: 0, cursor: "pointer", fontWeight: 400, display: "block" }}>
+                  {p.image && (
+                    <img
+                      src={p.image}
+                      alt=""
+                      style={{ width: "100%", aspectRatio: "4/5", objectFit: "cover", borderRadius: 12 }}
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                  <span className="row" style={{ marginTop: 8 }}>
+                    <input
+                      type="checkbox"
+                      style={{ width: 20, minHeight: 20 }}
+                      checked={chosen.has(p.id)}
+                      disabled={p.tested && p.selected}
+                      onChange={() => toggle(p.id)}
+                    />
+                    <span>{p.title}</span>
                   </span>
-                )}
-              </label>
+                </label>
+                <button
+                  type="button"
+                  className="linkish small"
+                  style={{ marginTop: 8 }}
+                  onClick={async () => {
+                    const ok = confirm(
+                      p.manual
+                        ? `Delete "${p.title}"? It's removed from Garrab, with its photo and test pictures. You can add it again later.`
+                        : `Remove "${p.title}" from Garrab? It stays on your website; it just won't have try-on.`,
+                    );
+                    if (!ok) return;
+                    await api(`/products/${p.id}/delete`, { body: {} });
+                    setMsg(p.manual ? `"${p.title}" was deleted.` : `"${p.title}" was removed from try-on.`);
+                    await load();
+                    await refresh();
+                  }}
+                >
+                  {p.manual ? "Delete product" : "Remove from try-on"}
+                </button>
+              </div>
             ))}
           </div>
         </div>
