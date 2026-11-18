@@ -2,9 +2,10 @@
  * Brand portal API (served same-origin under app.<domain>/portal-api via the site Worker).
  * Every query is scoped to the session's account: a brand only ever sees its own data.
  */
-import { invalidateStatus } from "../lib/db.js";
+import { accountFresh, invalidateStatus } from "../lib/db.js";
+import { brandUnread, brandWrites, markBrandSeen, messages } from "../lib/support.js";
 import { buildReport, defaultPeriod } from "../lib/report.js";
-import { EXTRA_PACK, PLANS, productLimit, type PlanId } from "@garrab/shared/plans";
+import { EXTRA_PACK, PLANS, SUPPORT, productLimit, type PlanId } from "@garrab/shared/plans";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
 import { emails } from "../emails.js";
@@ -526,4 +527,39 @@ portal.post("/billing/resume", async (c) => {
     c.env.DB.prepare("INSERT INTO audit_log (id, account_id, actor, action, reason) VALUES (?, ?, 'brand', 'resume', 'cancellation withdrawn')").bind(ulid(), id),
   ]);
   return c.json({ ok: true });
+});
+
+// ---------------------------------------------------------------- support chat
+
+const chatView = (m: { id: string; sender: string; body: string; created_at: string }) => ({
+  id: m.id,
+  from: m.sender === "brand" ? "you" : m.sender === "bot" ? "auto" : "support",
+  body: m.body,
+  at: m.created_at,
+});
+
+/** Unread count only (the chat button's badge; cheap enough to poll). */
+portal.get("/support/unread", async (c) => c.json({ unread: await brandUnread(c.env, acct(c)) }));
+
+/** The conversation. Opening it marks Garrab's replies as seen (not in the admin's read-only view). */
+portal.get("/support", async (c) => {
+  const id = acct(c);
+  const list = await messages(c.env, id);
+  if (!c.get("user").readonly) await markBrandSeen(c.env, id);
+  return c.json({ messages: list.map(chatView) });
+});
+
+portal.post("/support", async (c) => {
+  const body = z.object({ body: z.string().trim().min(1).max(SUPPORT.maxMessageChars) }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  const id = acct(c);
+  const recent = await c.env.DB.prepare("SELECT COUNT(*) AS n FROM support_messages WHERE account_id = ? AND sender = 'brand' AND created_at > ?")
+    .bind(id, new Date(Date.now() - 3_600_000).toISOString())
+    .first<{ n: number }>();
+  if ((recent?.n ?? 0) >= SUPPORT.brandMessagesPerHour) return c.json({ error: "rate_limited" }, 429);
+  const account = await accountFresh(c.env, id);
+  if (!account) return c.json({ error: "not_found" }, 404);
+  const added = await brandWrites(c.env, account, body.data.body);
+  await markBrandSeen(c.env, id);
+  return c.json({ messages: added.map(chatView) });
 });

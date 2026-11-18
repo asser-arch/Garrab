@@ -4,7 +4,7 @@
  * one-click reminders, review "needs review" products.
  */
 import { InviteBrand, OnboardingStep } from "@garrab/shared";
-import { CAPS, PLANS, SETUP_FEE, type PlanId } from "@garrab/shared/plans";
+import { CAPS, PLANS, SETUP_FEE, SUPPORT, type PlanId } from "@garrab/shared/plans";
 import { Hono } from "hono";
 import { z } from "zod";
 import { emails } from "../emails.js";
@@ -18,6 +18,7 @@ import { getSetting, invalidateStatus, originHost, setSetting } from "../lib/db.
 import { alert, transitionStatus } from "../lib/ops.js";
 import { removeProduct, clearProductTests, deletePrefix } from "../lib/products.js";
 import { log } from "../lib/log.js";
+import { adminWrites, messages as supportMessages, threads as supportThreads } from "../lib/support.js";
 import { cycleStartOf } from "../lib/metering.js";
 import { addDays } from "../billing/dates.js";
 import { accountFacts, applyPayment, ensurePlanInvoice, openPlanInvoice, payUrl, pdfUrl, reconcileAccount } from "../billing/ledger.js";
@@ -497,6 +498,8 @@ admin.post("/accounts/:id/delete", async (c) => {
     c.env.DB.prepare("DELETE FROM notifications WHERE account_id = ?1").bind(id),
     c.env.DB.prepare("DELETE FROM daily_counters WHERE account_id = ?1").bind(id),
     c.env.DB.prepare("DELETE FROM cycle_usage WHERE account_id = ?1").bind(id),
+    c.env.DB.prepare("DELETE FROM support_messages WHERE account_id = ?1").bind(id),
+    c.env.DB.prepare("DELETE FROM support_seen WHERE account_id = ?1").bind(id),
     c.env.DB.prepare("UPDATE leads SET account_id = NULL WHERE account_id = ?1").bind(id),
     c.env.DB.prepare("UPDATE alerts SET resolved_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE account_id = ?1 AND resolved_at IS NULL").bind(id),
     c.env.DB.prepare("DELETE FROM users WHERE account_id = ?1").bind(id),
@@ -682,4 +685,36 @@ admin.post("/accounts/:id/product-limit", async (c) => {
   await c.env.DB.prepare("UPDATE accounts SET max_products = ? WHERE id = ?").bind(body.data.limit, c.req.param("id")).run();
   await audit(c.env, c.req.param("id"), c.get("admin"), "product_limit", body.data.limit === null ? "plan default" : String(body.data.limit));
   return c.json({ ok: true, limit: body.data.limit });
+});
+
+// ---------------------------------------------------------------- support chat
+
+/** All conversations, newest first; `waiting` = the brand wrote after Garrab support last replied. */
+admin.get("/support", async (c) => {
+  const list = await supportThreads(c.env);
+  return c.json({ threads: list, waiting: list.filter((t) => t.waiting).length });
+});
+
+admin.get("/support/:accountId", async (c) => {
+  const id = c.req.param("accountId");
+  const a = await c.env.DB.prepare("SELECT id, name, status, onboarding_step, plan_id FROM accounts WHERE id = ?").bind(id).first();
+  if (!a) return c.json({ error: "not_found" }, 404);
+  return c.json({ account: a, messages: await supportMessages(c.env, id) });
+});
+
+/** Reply as Garrab support. The bot stops answering this brand for a while; the brand gets an email (at most one per half hour). */
+admin.post("/support/:accountId", async (c) => {
+  const body = z.object({ body: z.string().trim().min(1).max(SUPPORT.maxMessageChars) }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  const id = c.req.param("accountId");
+  const a = await c.env.DB.prepare("SELECT id FROM accounts WHERE id = ?").bind(id).first();
+  if (!a) return c.json({ error: "not_found" }, 404);
+  const m = await adminWrites(c.env, id, body.data.body);
+  const to = (await c.env.DB.prepare("SELECT email FROM users WHERE account_id = ? ORDER BY created_at LIMIT 1").bind(id).first<{ email: string }>())?.email;
+  if (to) {
+    const bucket = Math.floor(Date.now() / (SUPPORT.replyEmailEveryMinutes * 60_000));
+    await sendOnce(c.env, { accountId: id, template: "support_reply", dedupeKey: `support_reply:${id}:${bucket}`, msg: emails.supportReply(to, body.data.body, portalUrl(c.env, "?chat=1")) });
+  }
+  await audit(c.env, id, c.get("admin"), "support_reply", null);
+  return c.json({ message: m });
 });

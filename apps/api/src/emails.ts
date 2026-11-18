@@ -220,6 +220,12 @@ export const emails = {
       { label: "Open billing", url: portal },
     ),
 
+  supportReply: (to: string, reply: string, portal: string): EmailMessage =>
+    msg(to, "Garrab support replied", "Garrab support replied", [reply.length > 600 ? `${reply.slice(0, 600)}…` : reply, "Open your portal to read it and reply."], {
+      label: "Open the chat",
+      url: portal,
+    }),
+
   cancelled: (to: string, until: string | null): EmailMessage =>
     msg(to, "Your Garrab plan will end", "Cancellation confirmed", [
       until ? `Try-on stays on until ${until}, then switches off. No more invoices.` : "Try-on switches off at the end of your pilot.",

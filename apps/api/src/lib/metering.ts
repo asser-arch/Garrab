@@ -9,7 +9,7 @@ import { sendOnce } from "./email.js";
 import { emails } from "../emails.js";
 import { addDays, addMonths } from "../billing/dates.js";
 
-export type UsageKind = "tryon" | "room" | "size" | "fit_read" | "test" | "score";
+export type UsageKind = "tryon" | "room" | "size" | "fit_read" | "test" | "score" | "support";
 
 /**
  * Start of the current usage cycle. Paid accounts: the billing month that contains today

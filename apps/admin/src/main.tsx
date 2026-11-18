@@ -2,6 +2,7 @@ import "@garrab/shared/ui.css";
 import "./admin.css";
 import { StrictMode, useCallback, useEffect, useState } from "react";
 import { InstallGuide } from "./InstallGuide.js";
+import { Support, useSupportWaiting } from "./Support.js";
 import { createRoot } from "react-dom/client";
 
 async function api<T>(path: string, body?: unknown): Promise<T> {
@@ -1070,7 +1071,9 @@ function App() {
   const [funnel, setFunnel] = useState<Stage[]>([]);
   const [open, setOpen] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const [tab, setTab] = useState<"dashboard" | "onboarding" | "install">("dashboard");
+  const supportFor = /support=([A-Z0-9]+)/.exec(location.hash)?.[1] ?? null;
+  const [tab, setTab] = useState<"dashboard" | "onboarding" | "support" | "install">(supportFor ? "support" : "dashboard");
+  const waiting = useSupportWaiting();
   // The brand card's "How to install" link opens the guide.
   useEffect(() => {
     const go = () => (setTab("install"), setOpen(null), scrollTo(0, 0));
@@ -1100,6 +1103,9 @@ function App() {
         <nav aria-label="Admin">
           <a href="#" aria-current={tab === "dashboard" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("dashboard"))}>Dashboard</a>
           <a href="#" aria-current={tab === "onboarding" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("onboarding"))}>Onboarding</a>
+          <a href="#" aria-current={tab === "support" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("support"), setOpen(null))}>
+            Support{waiting > 0 && <span className="nav-badge" aria-label={`${waiting} waiting`}>{waiting}</span>}
+          </a>
           <a href="#" aria-current={tab === "install" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("install"), setOpen(null))}>Install guide</a>
         </nav>
       </div>
@@ -1107,6 +1113,7 @@ function App() {
     <main className="page">
       {open && <Detail id={open} onClose={() => setOpen(null)} onChange={load} />}
       {tab === "dashboard" && <Dashboard open={setOpen} />}
+      {tab === "support" && <Support initial={supportFor} openBrand={(id) => (setOpen(id), scrollTo(0, 0))} />}
       {tab === "install" && <InstallGuide onBrands={() => setTab("dashboard")} />}
       {tab === "onboarding" && (
       <>

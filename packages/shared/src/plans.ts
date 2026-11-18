@@ -165,3 +165,19 @@ export function dailyCap(plan: Plan): number {
 export function productLimit(planId: PlanId, override: number | null | undefined): number | null {
   return override ?? PLANS[planId].maxProducts;
 }
+
+/** Support chat (portal ↔ admin). The bot answers until a person from Garrab replies. */
+export const SUPPORT = {
+  /** Automatic replies per conversation before only a person answers. */
+  botReplies: 3,
+  /** After Garrab support replies, the bot stays quiet this long (the person is handling it). */
+  quietHoursAfterReply: 12,
+  /** A conversation "starts again" (bot may answer again) after this long without messages. */
+  newConversationHours: 12,
+  maxMessageChars: 2000,
+  /** Brand messages per hour (spam guard). */
+  brandMessagesPerHour: 30,
+  /** Don't email the brand about every reply: at most one "support replied" email per this many minutes. */
+  replyEmailEveryMinutes: 30,
+  handoff: { en: "Someone from Garrab's support team will be here shortly.", ar: "سيكون أحد أفراد فريق دعم جرّاب معك قريبًا." },
+} as const;

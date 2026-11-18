@@ -307,3 +307,9 @@ Asked for a more premium, designer-made look. Within the brand guideline (Forest
 - **"Powered by Infinisync by Arotech"** (links to www.theinfinisync.com) on try-on pages, portal, sign-in, admin, sign-up, pay, privacy, terms, every email, the pilot report and invoice PDFs. Not on the website button itself.
 - **Pilot products unlimited** (Asser, 18 Nov). The 30-day automatic test budget still caps paid tests; the rest go to review.
 - **Brands delete products** from the portal: added by hand → deleted (photo and tests too); read from their website → removed from try-on (stays hidden after the nightly re-read). Same rule as the admin's remove.
+
+## Support chat (18 Nov 2026)
+- Brands chat with Garrab support from the portal (Help button, bottom right). Asser answers in admin → Support; every brand message also goes to Telegram with an "Open chat" button.
+- Until a person replies, the first 3 messages of a conversation get an automatic answer (Gemini 3.5 Flash, from a fixed Garrab fact sheet in providers/support.ts plus the brand's own status). It never promises refunds, discounts, prices or dates. The first and last automatic replies end with "Someone from Garrab's support team will be here shortly." (Arabic when the brand writes Arabic). No personal names anywhere: replies show as "Garrab support".
+- After a support reply the bot stays quiet for 12 hours; a conversation restarts after 12 hours without messages. The brand gets at most one "Garrab support replied" email per 30 minutes.
+- Cost: under 1 US cent per automatic reply, logged as usage kind 'support' and counted toward the global daily cap; past the cap a fixed acknowledgement is sent instead. Staging uses a fake reply (AI_MOCK).

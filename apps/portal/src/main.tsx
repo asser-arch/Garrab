@@ -9,6 +9,7 @@ import { Install } from "./pages/Install.js";
 import { Login } from "./pages/Login.js";
 import { Results } from "./pages/Results.js";
 import { Products } from "./pages/Products.js";
+import { Support } from "./Support.js";
 
 export type Route = "/portal" | "/portal/products" | "/portal/approve" | "/portal/install" | "/portal/results" | "/portal/billing" | "/portal/login";
 
@@ -103,7 +104,11 @@ function App() {
         {route === "/portal/results" && <Results />}
       </main>
       <p className="small muted">
-        Need help? Reply to any Garrab email. ·{" "}
+        Need help?{" "}
+        <button type="button" className="linkish" onClick={() => dispatchEvent(new Event("garrab:chat"))}>
+          Chat with Garrab support
+        </button>{" "}
+        ·{" "}
         <a
           href="#"
           onClick={async (e) => {
@@ -120,6 +125,7 @@ function App() {
           Powered by Infinisync by Arotech
         </a>
       </p>
+      <Support readonly={!!me.readonly} />
     </div>
   );
 }

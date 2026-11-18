@@ -79,3 +79,24 @@ ol.steps > li, ul.steps > li { display: list-item; padding: 0; border: 0; }
 ol.steps > li::marker { color: var(--forest); font-weight: 700; }
 ol.steps { list-style: decimal; }
 ul.steps { list-style: disc; }
+
+/* Support inbox */
+.nav-badge { margin-left: 8px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: var(--peach); color: var(--forest);
+  font-size: 12px; font-weight: 700; display: inline-grid; place-items: center; font-variant-numeric: tabular-nums; }
+.support { display: grid; grid-template-columns: 1fr; gap: 16px; align-items: start; }
+@media (min-width: 900px) { .support { grid-template-columns: 340px 1fr; } }
+.support-threads ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 70vh; overflow-y: auto; }
+.support-threads button { width: 100%; text-align: left; display: grid; gap: 4px; padding: 12px 14px; border: 1px solid var(--sand); border-radius: 14px;
+  background: var(--paper); font: inherit; color: inherit; cursor: pointer; }
+.support-threads button:hover { border-color: var(--grey); }
+.support-threads button[aria-current="true"] { border-color: var(--forest); background: var(--cream); }
+.support-threads button:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.support-threads .chip { justify-self: start; }
+.st-top { display: flex; justify-content: space-between; gap: 8px; }
+.st-body { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-list { display: flex; flex-direction: column; gap: 10px; max-height: 55vh; overflow-y: auto; margin: 16px 0; padding: 12px; background: var(--cream); border-radius: 14px; }
+.sc-msg { max-width: 85%; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: 14px; background: var(--paper); border: 1px solid var(--sand); align-self: flex-start; }
+.sc-msg.from-admin { align-self: flex-end; background: var(--forest); color: var(--paper); border-color: var(--forest); }
+.sc-msg.from-admin .muted { color: var(--sage); }
+.sc-msg.from-bot { border-style: dashed; }
+.sc-text { white-space: pre-wrap; overflow-wrap: anywhere; }
