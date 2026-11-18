@@ -708,6 +708,7 @@ interface Dash {
   mrr: number;
   month: { label: string; revenue: number; aiCostUsd: number; aiCostEgp: number | null; margin: number | null };
   egpPerUsd: number | null;
+  dailyCapUsd: number;
   globalKill: boolean;
   privacyClaim: boolean;
   clients: { id: string; name: string; status: string; plan: string; paidThrough: string | null; previews: string; revenue30: number; costUsd30: number; margin30: number | null; manualHold: boolean }[];
@@ -814,6 +815,44 @@ function Dashboard({ open }: { open: (id: string) => void }) {
           <p className="label">Invoices due soon</p>
           <p className="stat">{d.dueSoon}</p>
           <p className="hint">In the next 3 days</p>
+        </div>
+      </div>
+      <div className="card">
+        <h2>AI spending</h2>
+        <p className="sub">
+          If AI spend reaches the daily cap, all previews pause on their own and you get an alert. Keep it below your Google balance.
+        </p>
+        <div className="row">
+          <span>
+            Daily cap: <strong>{d.dailyCapUsd} USD</strong>
+          </span>
+          <button
+            className="btn small ghost"
+            onClick={async () => {
+              const v = Number(prompt("Daily AI spending cap, in USD (for example 2):", String(d.dailyCapUsd)) ?? "");
+              if (v > 0) {
+                await api("/settings", { globalDailyCapUsd: v });
+                await load();
+              }
+            }}
+          >
+            Change daily cap
+          </button>
+          <span style={{ marginInlineStart: 16 }}>
+            Rate: <strong>{d.egpPerUsd === null ? "not set" : `${d.egpPerUsd} EGP per USD`}</strong>
+          </span>
+          <button
+            className="btn small ghost"
+            onClick={async () => {
+              const v = Number(prompt("EGP per 1 USD (today's rate):", d.egpPerUsd === null ? "" : String(d.egpPerUsd)) ?? "");
+              if (v > 0) {
+                await api("/settings", { egpPerUsd: v });
+                await load();
+              }
+            }}
+          >
+            {d.egpPerUsd === null ? "Set rate" : "Change rate"}
+          </button>
         </div>
       </div>
       {d.pendingClaims.length > 0 && (

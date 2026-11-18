@@ -4,7 +4,7 @@
  * one-click reminders, review "needs review" products.
  */
 import { InviteBrand, OnboardingStep } from "@garrab/shared";
-import { PLANS, SETUP_FEE, type PlanId } from "@garrab/shared/plans";
+import { CAPS, PLANS, SETUP_FEE, type PlanId } from "@garrab/shared/plans";
 import { Hono } from "hono";
 import { z } from "zod";
 import { emails } from "../emails.js";
@@ -301,6 +301,7 @@ admin.get("/dashboard", async (c) => {
     mrr,
     month: { label: month, revenue: monthRevenue, aiCostUsd: monthCostUsd, aiCostEgp: monthCostEgp, margin: monthCostEgp === null ? null : monthRevenue - monthCostEgp },
     egpPerUsd: fx,
+    dailyCapUsd: await getSetting<number>(env, "global_daily_cap_usd", CAPS.globalDailyUsd),
     globalKill,
     privacyClaim: await getSetting(env, "privacy_claim_verified", false),
     clients: rows,
