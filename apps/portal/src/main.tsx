@@ -103,6 +103,7 @@ function App() {
         {route === "/portal/billing" && <Billing />}
         {route === "/portal/results" && <Results />}
       </main>
+      <footer className="foot-row">
       <p className="small muted">
         Need help?{" "}
         <button type="button" className="linkish" onClick={() => dispatchEvent(new Event("garrab:chat"))}>
@@ -125,6 +126,7 @@ function App() {
           Powered by Infinisync by Arotech
         </a>
       </p>
+      </footer>
       <Support readonly={!!me.readonly} />
     </div>
   );

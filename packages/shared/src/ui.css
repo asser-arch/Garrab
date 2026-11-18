@@ -269,6 +269,10 @@ th { text-transform: none; letter-spacing: .01em; font-weight: 600; }
 /* Company line (Powered by Infinisync by Arotech): quiet, bottom right of the page. */
 p.powered { text-align: right; margin: 8px 0 0; }
 p.powered a { color: var(--muted); text-decoration: none; }
+/* A page's last line: links on the left, the company line on the right, on one row (stacks on narrow screens). */
+.foot-row { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 24px; margin: 24px 0 0; }
+.foot-row > p { margin: 0; }
+.foot-row > p.powered { margin-inline-start: auto; }
 p.powered a:hover { text-decoration: underline; }
 
 /* ---------------------------------------------------------------- support chat (portal)
