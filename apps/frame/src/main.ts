@@ -65,6 +65,8 @@ interface Look {
   name: string;
   slug?: string;
   color?: string | null;
+  /** Text and links (null = automatic from the button colour). */
+  textColor?: string | null;
   logo?: string | null;
 }
 
@@ -77,14 +79,23 @@ const ratio = (a: number, b: number): number => (Math.max(a, b) + 0.05) / (Math.
 
 /** Paint buttons and links in the brand's colour; text on it is dark or light, whichever reads (WCAG AA). */
 function applyLook(look: Look | null | undefined): void {
-  const c = look?.color;
-  if (!c || !/^#[0-9a-f]{6}$/i.test(c)) return;
+  const hex = (v: string | null | undefined): string | null => (v && /^#[0-9a-f]{6}$/i.test(v) ? v : null);
+  const c = hex(look?.color);
+  const t = hex(look?.textColor);
+  if (!c && !t) return;
   const s = document.documentElement.style;
-  const L = lum(c);
   const paper = lum("#FCFBF8");
-  s.setProperty("--brand", c);
-  s.setProperty("--on-brand", ratio(L, lum("#0F1A13")) > ratio(L, lum("#FFFFFF")) ? "#0F1A13" : "#FFFFFF");
-  s.setProperty("--brand-ink", ratio(L, paper) >= 4.5 ? c : "#0F1A13"); // links and small text stay readable
+  const readable = (x: string | null): x is string => !!x && ratio(lum(x), paper) >= 4.5;
+  if (c) {
+    const L = lum(c);
+    s.setProperty("--brand", c);
+    s.setProperty("--on-brand", ratio(L, lum("#0F1A13")) > ratio(L, lum("#FFFFFF")) ? "#0F1A13" : "#FFFFFF");
+  }
+  // Links and small text: the brand's text colour if it chose one, else the button colour; each only when
+  // readable on the page (4.5:1), otherwise near-black.
+  s.setProperty("--brand-ink", readable(t) ? t : readable(c) ? c : "#0F1A13");
+  // Headings take the text colour only when the brand chose one.
+  if (readable(t)) s.setProperty("--brand-text", t);
 }
 
 /** The brand's logo (or its name), for the top of the page. */

@@ -234,6 +234,10 @@ describe("/v1/hosted and /v1/events", () => {
     const page = (await (await exports.default.fetch(`https://api.test/v1/hosted/${s.slug}/${s.productId}`)).json()) as { brand: { color: string } };
     expect(page.brand.color).toBe("#112233");
     expect((await getConfig(s)).body.brandColor).toBe("#112233");
+    await env.DB.prepare("UPDATE accounts SET brand_text_color = '#6b2737' WHERE id = ?").bind(s.accountId).run();
+    invalidateStatus();
+    const again = (await (await exports.default.fetch(`https://api.test/v1/hosted/${s.slug}`)).json()) as { brand: { color: string; textColor: string } };
+    expect(again.brand).toMatchObject({ color: "#112233", textColor: "#6b2737" });
   });
 
   it("brand page (bio link) lists live products and hides a suspended brand", async () => {

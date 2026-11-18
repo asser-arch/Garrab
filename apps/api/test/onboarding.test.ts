@@ -539,6 +539,35 @@ describe("magic links and sessions", () => {
     expect((await exports.default.fetch(`https://api.test/v1/brand-logo/${accountId}/${file}`)).status).toBe(404);
   });
 
+  it("brand look: a separate text colour (or automatic), passed to the try-on pages", async () => {
+    const email = `text-${uniq()}@brand.example`;
+    const { accountId } = await createAccount(env, { brandName: "Text Co", email, plan: "starter", instagram: "@text" });
+    const cookie = await login(email);
+    const send = (fd: FormData) => exports.default.fetch("https://api.test/portal-api/brand", { method: "POST", headers: { cookie, origin: APP }, body: fd });
+    const bad = new FormData();
+    bad.set("textColor", "blue");
+    expect((await send(bad)).status).toBe(400);
+    const fd = new FormData();
+    fd.set("color", "#F3D6A8");
+    fd.set("textColor", "#6B2737");
+    expect((await send(fd)).status).toBe(200);
+    let me = (await (await portalGet("/me", cookie)).json()) as { look: { color: string; textColor: string | null } };
+    expect(me.look).toMatchObject({ color: "#f3d6a8", textColor: "#6b2737" });
+    const row = await env.DB.prepare("SELECT brand_text_color FROM accounts WHERE id = ?").bind(accountId).first<{ brand_text_color: string }>();
+    expect(row?.brand_text_color).toBe("#6b2737"); // try-on pages read it (api.test: hosted pages)
+    // Changing only the button colour keeps the text colour; "" goes back to automatic.
+    const onlyButton = new FormData();
+    onlyButton.set("color", "#112233");
+    await send(onlyButton);
+    me = (await (await portalGet("/me", cookie)).json()) as typeof me;
+    expect(me.look).toMatchObject({ color: "#112233", textColor: "#6b2737" });
+    const auto = new FormData();
+    auto.set("textColor", "");
+    await send(auto);
+    me = (await (await portalGet("/me", cookie)).json()) as typeof me;
+    expect(me.look).toMatchObject({ color: "#112233", textColor: null });
+  });
+
   it("no session → 401; cross-site writes refused", async () => {
     expect((await portalGet("/me", "")).status).toBe(401);
     const email = `csrf-${uniq()}@brand.example`;
@@ -653,10 +682,13 @@ describe("/v1/start", () => {
 
 // ---------------------------------------------------------------- pilot clock, stuck detector, cron
 
+/** A live pilot that started `daysAgo` days ago; a whole number means noon (Cairo date) that many days back, so the pilot day doesn't depend on the time the test runs. */
 async function livePilot(daysAgo: number): Promise<{ id: string; email: string }> {
   const email = `pilot-${uniq()}@brand.example`;
   const { accountId } = await createAccount(env, { brandName: "Pilot", email, plan: "starter" });
-  const start = new Date(Date.now() - daysAgo * 86_400_000);
+  const start = Number.isInteger(daysAgo)
+    ? new Date(Date.parse(cairoDay(new Date(Date.now() - daysAgo * 86_400_000))) + 10 * 3_600_000)
+    : new Date(Date.now() - daysAgo * 86_400_000);
   await env.DB.prepare(
     "UPDATE accounts SET status = 'pilot', onboarding_step = 'pilot_live', pilot_started_at = ?, pilot_ends_at = ?, cycle_start = ? WHERE id = ?",
   )
@@ -674,7 +706,7 @@ describe("pilot clock", () => {
   });
 
   it("day 10: the branded pilot report, once, with the brand's real numbers and top product", async () => {
-    const a = await livePilot(9.5);
+    const a = await livePilot(9);
     const pid = `p${uniq()}`;
     await env.DB.prepare(`INSERT INTO products (id, account_id, external_ref, title, images_json, selected, enabled, approved) VALUES (?, ?, 'r', 'Olive kaftan', '[]', 1, 1, 1)`)
       .bind(pid, a.id)

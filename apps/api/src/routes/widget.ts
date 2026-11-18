@@ -82,10 +82,15 @@ widget.get("/brand-logo/:acct/:file", async (c) => {
   });
 });
 
-/** The brand's look for its try-on pages: main colour and logo address (or nulls: Garrab's own look). */
-export function brandLook(c: C, a: { id: string; brand_color: string | null; brand_logo: string | null }): { color: string | null; logo: string | null } {
+/** The brand's look for its try-on pages: button colour, text colour and logo address (or nulls: Garrab's own look). */
+export function brandLook(
+  c: C,
+  a: { id: string; brand_color: string | null; brand_logo: string | null; brand_text_color?: string | null },
+): { color: string | null; textColor: string | null; logo: string | null } {
+  const hex = (v: string | null | undefined): string | null => (v && /^#[0-9a-f]{6}$/i.test(v) ? v : null);
   return {
-    color: a.brand_color && /^#[0-9a-f]{6}$/i.test(a.brand_color) ? a.brand_color : null,
+    color: hex(a.brand_color),
+    textColor: hex(a.brand_text_color),
     logo: a.brand_logo ? `${c.env.APP_ORIGIN}/bl/${a.id}/${a.brand_logo}` : null,
   };
 }

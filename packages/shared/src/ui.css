@@ -318,3 +318,22 @@ p.powered a:hover { text-decoration: underline; }
   .chat { right: 0; bottom: 0; width: 100vw; height: 100dvh; border-radius: 0; border: 0; }
   .chat-fab[aria-expanded="true"] { display: none; }
 }
+
+/* Brand look: colours read from the logo */
+.swatch-box { margin: 16px 0 4px; padding: 16px; border: var(--hair, 1px solid var(--sand)); border-radius: var(--radius-item, 14px); background: var(--cream); display: grid; gap: 12px; }
+.swatch-head { margin: 0; font-size: 14px; font-weight: 600; }
+.seg { display: inline-flex; justify-self: start; padding: 3px; gap: 2px; border: 1px solid var(--sand); border-radius: var(--radius-pill); background: var(--paper); }
+.seg-btn { min-height: 38px; padding: 0 16px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--ink); font: 600 14px/1 var(--font); cursor: pointer; transition: background-color .15s, color .15s; }
+.seg-btn[aria-checked="true"] { background: var(--forest); color: var(--paper); }
+.seg-btn:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.swatches { display: flex; flex-wrap: wrap; gap: 10px; }
+.swatch { width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(15, 26, 19, .18); cursor: pointer; padding: 0; position: relative; }
+.swatch[aria-pressed="true"] { outline: 2px solid var(--ink); outline-offset: 3px; }
+.swatch:focus-visible { outline: 3px solid var(--teal); outline-offset: 3px; }
+.look-warn { color: #8a2f12; }
+.look-link { font-size: 13px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; text-decoration: underline; text-underline-offset: 4px; align-self: flex-start; }
+.look-site { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 10px; }
+.look-cart, .look-outline { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; border-radius: 8px;
+  font: 600 13px/1 var(--font); letter-spacing: .06em; text-transform: uppercase; }
+.look-cart { background: var(--ink); color: var(--paper); }
+.look-outline { border: 1.5px solid; background: transparent; }

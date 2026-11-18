@@ -115,7 +115,7 @@ portal.get("/me", async (c) => {
     if (step?.onboarding_step === "products_tested" && (await confirmApproval(c.env, id))) await advance(c.env, id);
   }
   const a = await c.env.DB.prepare(
-    `SELECT name, slug, status, platform, website, target_plan_id, plan_id, onboarding_step, pilot_started_at, pilot_ends_at, cycle_start, category, brand_color, brand_logo
+    `SELECT name, slug, status, platform, website, target_plan_id, plan_id, onboarding_step, pilot_started_at, pilot_ends_at, cycle_start, category, brand_color, brand_logo, brand_text_color
        FROM accounts WHERE id = ?`,
   )
     .bind(id)
@@ -133,6 +133,7 @@ portal.get("/me", async (c) => {
       category: "fashion" | "home";
       brand_color: string | null;
       brand_logo: string | null;
+      brand_text_color: string | null;
       cycle_start: string | null;
     }>();
   if (!a) return c.json({ error: "not_found" }, 404);
@@ -162,7 +163,7 @@ portal.get("/me", async (c) => {
       pilotEndsAt: a.pilot_ends_at,
       category: a.category,
     },
-    look: { color: a.brand_color, logo: a.brand_logo ? `${c.env.APP_ORIGIN}/bl/${id}/${a.brand_logo}` : null },
+    look: { color: a.brand_color, textColor: a.brand_text_color, logo: a.brand_logo ? `${c.env.APP_ORIGIN}/bl/${id}/${a.brand_logo}` : null },
     step: a.onboarding_step,
     steps: STEPS.filter((s) => s !== "expired" && s !== "converted").map((s) => ({
       step: s,
@@ -364,13 +365,12 @@ portal.post("/brand", async (c) => {
   const form = await c.req.formData().catch(() => null);
   if (!form) return c.json({ error: "invalid" }, 400);
   const cur = await c.env.DB.prepare("SELECT brand_logo FROM accounts WHERE id = ?").bind(id).first<{ brand_logo: string | null }>();
-  const colorRaw = form.get("color");
-  let color: string | null | undefined;
-  if (typeof colorRaw === "string") {
-    if (colorRaw === "") color = null;
-    else if (/^#[0-9a-f]{6}$/i.test(colorRaw)) color = colorRaw.toLowerCase();
-    else return c.json({ error: "bad_color" }, 400);
-  }
+  // "" = back to automatic; absent = unchanged.
+  const readColor = (v: unknown): string | null | undefined | false =>
+    typeof v !== "string" ? undefined : v === "" ? null : /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : false;
+  const color = readColor(form.get("color"));
+  const textColor = readColor(form.get("textColor"));
+  if (color === false || textColor === false) return c.json({ error: "bad_color" }, 400);
   let logo: string | null | undefined;
   const file = form.get("logo");
   if (file instanceof File && file.size > 0) {
@@ -386,9 +386,10 @@ portal.post("/brand", async (c) => {
   }
   if (logo !== undefined && cur?.brand_logo) await c.env.FILES.delete(`brand/${id}/${cur.brand_logo}`);
   await c.env.DB.prepare(
-    `UPDATE accounts SET brand_color = CASE WHEN ?1 THEN ?2 ELSE brand_color END, brand_logo = CASE WHEN ?3 THEN ?4 ELSE brand_logo END WHERE id = ?5`,
+    `UPDATE accounts SET brand_color = CASE WHEN ?1 THEN ?2 ELSE brand_color END, brand_logo = CASE WHEN ?3 THEN ?4 ELSE brand_logo END,
+            brand_text_color = CASE WHEN ?6 THEN ?7 ELSE brand_text_color END WHERE id = ?5`,
   )
-    .bind(color !== undefined ? 1 : 0, color ?? null, logo !== undefined ? 1 : 0, logo ?? null, id)
+    .bind(color !== undefined ? 1 : 0, color ?? null, logo !== undefined ? 1 : 0, logo ?? null, id, textColor !== undefined ? 1 : 0, textColor ?? null)
     .run();
   invalidateStatus(id);
   return c.json({ ok: true });
