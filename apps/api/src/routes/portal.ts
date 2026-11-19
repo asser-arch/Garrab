@@ -329,30 +329,34 @@ export const PRODUCT_PHOTO_MAX_BYTES = 10 * 1024 * 1024;
  * served from a public, unguessable address on our own site (the AI providers fetch it by URL).
  * JPEG metadata (camera, GPS) is removed first.
  */
-portal.post("/products/upload", async (c) => {
-  const form = await c.req.formData().catch(() => null);
+/** Save one uploaded product photo for an account (brand portal, or Garrab support in the admin). */
+export async function uploadProduct(env: Env, id: string, form: FormData | null): Promise<{ status: 200 | 400 | 413 | 415; body: Record<string, unknown> }> {
   const file = form?.get("photo");
   const title = String(form?.get("title") ?? "").trim();
   const productUrl = String(form?.get("productUrl") ?? "").trim() || undefined;
   const sizes = String(form?.get("sizes") ?? "").trim().slice(0, 120) || undefined;
-  if (!form || !(file instanceof File) || title.length < 2 || title.length > 200) return c.json({ error: "invalid" }, 400);
-  if (file.size > PRODUCT_PHOTO_MAX_BYTES) return c.json({ error: "too_large" }, 413);
-  if (productUrl && !z.string().url().max(1000).safeParse(productUrl).success) return c.json({ error: "invalid", fields: ["productUrl"] }, 400);
+  if (!form || !(file instanceof File) || title.length < 2 || title.length > 200) return { status: 400, body: { error: "invalid" } };
+  if (file.size > PRODUCT_PHOTO_MAX_BYTES) return { status: 413, body: { error: "too_large" } };
+  if (productUrl && !z.string().url().max(1000).safeParse(productUrl).success) return { status: 400, body: { error: "invalid", fields: ["productUrl"] } };
   let bytes: Uint8Array = new Uint8Array(await file.arrayBuffer());
   const type = sniffImage(bytes);
-  if (!type) return c.json({ error: "not_an_image" }, 415);
+  if (!type || type === "image/heic") return { status: 415, body: { error: "not_an_image" } };
   if (type === "image/jpeg") bytes = stripJpegMetadata(bytes);
-  const id = acct(c);
   const name = `${ulid().toLowerCase()}.${type === "image/png" ? "png" : type === "image/webp" ? "webp" : "jpg"}`;
-  await c.env.FILES.put(`products/${id}/${name}`, bytes, { httpMetadata: { contentType: type, cacheControl: "public, max-age=31536000, immutable" } });
-  const imageUrl = productPhotoUrl(c.env, id, name);
-  const added = await addManual(c.env, id, [{ title, imageUrl, productUrl, sizes }]);
+  await env.FILES.put(`products/${id}/${name}`, bytes, { httpMetadata: { contentType: type, cacheControl: "public, max-age=31536000, immutable" } });
+  const imageUrl = productPhotoUrl(env, id, name);
+  const added = await addManual(env, id, [{ title, imageUrl, productUrl, sizes }]);
   if (!added) {
-    await c.env.FILES.delete(`products/${id}/${name}`);
-    return c.json({ error: "limit_reached" }, 400);
+    await env.FILES.delete(`products/${id}/${name}`);
+    return { status: 400, body: { error: "limit_reached" } };
   }
-  await c.env.JOBS.send({ t: "advance", a: id });
-  return c.json({ ok: true, imageUrl });
+  await env.JOBS.send({ t: "advance", a: id });
+  return { status: 200, body: { ok: true, imageUrl } };
+}
+
+portal.post("/products/upload", async (c) => {
+  const r = await uploadProduct(c.env, acct(c), await c.req.formData().catch(() => null));
+  return c.json(r.body, r.status);
 });
 
 /**

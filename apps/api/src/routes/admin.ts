@@ -18,6 +18,7 @@ import { getSetting, invalidateStatus, originHost, setSetting } from "../lib/db.
 import { alert, transitionStatus } from "../lib/ops.js";
 import { removeProduct, clearProductTests, deletePrefix } from "../lib/products.js";
 import { log } from "../lib/log.js";
+import { uploadProduct } from "./portal.js";
 import { adminWrites, messages as supportMessages, threads as supportThreads } from "../lib/support.js";
 import { cycleStartOf } from "../lib/metering.js";
 import { addDays } from "../billing/dates.js";
@@ -717,4 +718,14 @@ admin.post("/support/:accountId", async (c) => {
   }
   await audit(c.env, id, c.get("admin"), "support_reply", null);
   return c.json({ message: m });
+});
+
+/** Garrab support adds a product photo for a brand (e.g. photos the brand sent on WhatsApp). */
+admin.post("/accounts/:id/products/upload", async (c) => {
+  const id = c.req.param("id");
+  const a = await c.env.DB.prepare("SELECT id FROM accounts WHERE id = ?").bind(id).first();
+  if (!a) return c.json({ error: "not_found" }, 404);
+  const r = await uploadProduct(c.env, id, await c.req.formData().catch(() => null));
+  if (r.status === 200) await audit(c.env, id, c.get("admin"), "add_product_photo", null);
+  return c.json(r.body, r.status);
 });

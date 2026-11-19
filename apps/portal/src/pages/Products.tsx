@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { BulkAdd } from "../BulkAdd.js";
 import { api, atOrAfter, type Me, type Product } from "../api.js";
 
 export function Products({
@@ -129,8 +130,18 @@ export function Products({
           </div>
         </div>
       )}
+      {!me.readonly && (
+        <BulkAdd
+          upload={(fd) => api("/products/upload", { form: fd })}
+          sizes={me.account.category !== "home"}
+          onDone={async () => {
+            await load();
+            await refresh();
+          }}
+        />
+      )}
       <div className="card">
-        <h2>Add a product by hand</h2>
+        <h2>Add one product</h2>
         <p className="small muted">
           For Instagram and WhatsApp shops, or products we couldn't read. Upload
           a clear photo of the product on a plain background, straight from your

@@ -337,3 +337,20 @@ p.powered a:hover { text-decoration: underline; }
   font: 600 13px/1 var(--font); letter-spacing: .06em; text-transform: uppercase; }
 .look-cart { background: var(--ink); color: var(--paper); }
 .look-outline { border: 1.5px solid; background: transparent; }
+
+/* Add many products (portal Products, admin brand card) */
+.drop { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 20px; border: 1.5px dashed var(--grey); border-radius: var(--radius-item, 14px); background: var(--cream); transition: border-color .15s, background-color .15s; }
+.drop.over { border-color: var(--forest); background: var(--mint); }
+.bulk-grid { list-style: none; margin: 16px 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.bulk-item { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 8px; border: 1px solid var(--sand); border-radius: var(--radius-item, 14px); background: var(--paper); }
+.bulk-item img { width: 100%; aspect-ratio: 4 / 5; object-fit: cover; border-radius: 10px; background: var(--mist); }
+.bulk-item input { min-height: 40px; padding: 8px 10px; font-size: 14px; border-radius: 10px; }
+.bulk-item.saved { border-color: var(--mint); }
+.bulk-item.saved img { opacity: .6; }
+.bulk-item.error { border-color: #c2410c; }
+.bulk-state { margin: 0; min-height: 1.4em; }
+.bulk-state.saved { color: var(--teal); font-weight: 600; }
+.bulk-state.error { color: #8a2f12; }
+.bulk-remove { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(15, 26, 19, .7); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; }
+.bulk-remove:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
+.bulk-actions { margin-top: 16px; }

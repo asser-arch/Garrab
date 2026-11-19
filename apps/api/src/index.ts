@@ -27,8 +27,11 @@ const tooLarge = { onError: (c: import("hono").Context) => c.json({ error: "too_
 const uploadLimit = bodyLimit({ maxSize: PRODUCT_PHOTO_MAX_BYTES + 64 * 1024, ...tooLarge });
 const portalLimit = bodyLimit({ maxSize: 256 * 1024, ...tooLarge });
 app.use("/portal-api/*", (c, next) => (c.req.path === "/portal-api/products/upload" ? uploadLimit(c, next) : portalLimit(c, next)));
-for (const path of ["/admin-api/*", "/webhooks/*", "/v1/start", "/v1/events", "/v1/pay/*"]) {
-  app.use(path, bodyLimit({ maxSize: 64 * 1024, ...tooLarge }));
+const smallLimit = bodyLimit({ maxSize: 64 * 1024, ...tooLarge });
+// Admin: small bodies, except adding product photos for a brand.
+app.use("/admin-api/*", (c, next) => (/^\/admin-api\/accounts\/[^/]+\/products\/upload$/.test(c.req.path) ? uploadLimit(c, next) : smallLimit(c, next)));
+for (const path of ["/webhooks/*", "/v1/start", "/v1/events", "/v1/pay/*"]) {
+  app.use(path, smallLimit);
 }
 
 app.get("/healthz", async (c) => {

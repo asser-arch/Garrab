@@ -3,6 +3,7 @@ import "./admin.css";
 import { StrictMode, useCallback, useEffect, useState } from "react";
 import { InstallGuide } from "./InstallGuide.js";
 import { Support, useSupportWaiting } from "./Support.js";
+import { BulkAdd } from "../../portal/src/BulkAdd.js";
 import { createRoot } from "react-dom/client";
 
 async function api<T>(path: string, body?: unknown): Promise<T> {
@@ -279,6 +280,23 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
         </button>
       </form>
       </div>
+      <details className="section">
+        <summary>
+          <h3 style={{ display: "inline" }}>Add product photos for this brand</h3>
+        </summary>
+        <p className="small muted">For photos the brand sent you (WhatsApp, email). Same as the brand's own "Add many products".</p>
+        <BulkAdd
+          sizes={d.account.category !== "home"}
+          upload={async (fd) => {
+            const r = await fetch(`/admin-api/accounts/${id}/products/upload`, { method: "POST", body: fd });
+            if (!r.ok) throw new Error(((await r.json().catch(() => ({}))) as { error?: string }).error ?? `HTTP ${r.status}`);
+          }}
+          onDone={async () => {
+            await load();
+            onChange();
+          }}
+        />
+      </details>
       <div className="section">
       <h3>Selected products</h3>
       {d.products.filter((p) => p.selected).length === 0 && <p className="small muted">No products selected yet.</p>}

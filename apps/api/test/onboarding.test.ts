@@ -897,4 +897,32 @@ describe("product photo upload", () => {
     const r = await exports.default.fetch("https://api.test/portal-api/products/upload", { method: "POST", headers: { cookie, origin: APP }, body: fd });
     expect(r.status).toBe(415);
   });
+
+  it("Garrab support adds photos for a brand from the admin (sign-in required; photo-sized bodies allowed only there)", async () => {
+    const { accountId } = await createAccount(env, { brandName: `Neris ${uniq()}`, email: `neris-${uniq()}@brand.example`, plan: "starter" });
+    const form = (title: string, bytes: Uint8Array) => {
+      const fd = new FormData();
+      fd.set("title", title);
+      fd.set("sizes", "S, M, L");
+      fd.set("photo", new Blob([bytes], { type: "image/jpeg" }), "p.jpg");
+      return fd;
+    };
+    const url = `https://api.test/admin-api/accounts/${accountId}/products/upload`;
+    expect((await exports.default.fetch(url, { method: "POST", body: form("Silk scarf", fakeJpeg()) })).status).toBe(401);
+    // A real-sized phone photo (~1 MB) goes through; other admin calls keep their small limit.
+    const big = new Uint8Array(1024 * 1024);
+    big.set(fakeJpeg());
+    const r = await exports.default.fetch(url, { method: "POST", headers: ADMIN, body: form("Silk scarf", big) });
+    expect(r.status).toBe(200);
+    const p = await env.DB.prepare("SELECT title, sizes_json, selected FROM products WHERE account_id = ?").bind(accountId).first<{ title: string; sizes_json: string; selected: number }>();
+    expect(p).toMatchObject({ title: "Silk scarf", selected: 1 });
+    expect(JSON.parse(p!.sizes_json)).toEqual(["S", "M", "L"]);
+    const other = await exports.default.fetch(`https://api.test/admin-api/accounts/${accountId}/notes`, {
+      method: "POST",
+      headers: { ...ADMIN, "content-type": "application/json" },
+      body: JSON.stringify({ notes: "x".repeat(100 * 1024) }),
+    });
+    expect(other.status).toBe(413);
+    expect((await exports.default.fetch(`https://api.test/admin-api/accounts/nope/products/upload`, { method: "POST", headers: ADMIN, body: form("X", fakeJpeg()) })).status).toBe(404);
+  });
 });
