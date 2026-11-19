@@ -4,6 +4,7 @@ import { StrictMode, useCallback, useEffect, useState } from "react";
 import { InstallGuide } from "./InstallGuide.js";
 import { Support, useSupportWaiting } from "./Support.js";
 import { BulkAdd } from "../../portal/src/BulkAdd.js";
+import { stackTables } from "../../portal/src/stackTables.js";
 import { createRoot } from "react-dom/client";
 
 async function api<T>(path: string, body?: unknown): Promise<T> {
@@ -908,7 +909,8 @@ function Dashboard({ open }: { open: (id: string) => void }) {
           >
             Change daily cap
           </button>
-          <span style={{ marginInlineStart: 16 }}>
+          <span style={{ marginInlineEnd: 8 }} aria-hidden="true" />
+          <span>
             Rate: <strong>{d.egpPerUsd === null ? "not set" : `${d.egpPerUsd} EGP per USD`}</strong>
           </span>
           <button
@@ -1119,7 +1121,7 @@ function App() {
         </a>
         <span className={`env ${ENV === "Live" ? "live" : ""}`}>{ENV}</span>
         <nav aria-label="Admin">
-          <a href="#" aria-current={tab === "dashboard" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("dashboard"))}>Dashboard</a>
+          <a href="#" aria-current={tab === "dashboard" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("dashboard"), setOpen(null))}>Dashboard</a>
           <a href="#" aria-current={tab === "onboarding" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("onboarding"))}>Onboarding</a>
           <a href="#" aria-current={tab === "support" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("support"), setOpen(null))}>
             Support{waiting > 0 && <span className="nav-badge" aria-label={`${waiting} waiting`}>{waiting}</span>}
@@ -1227,6 +1229,7 @@ function App() {
   );
 }
 
+stackTables();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

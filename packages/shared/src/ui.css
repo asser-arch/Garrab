@@ -17,7 +17,8 @@ a { color: var(--forest); text-decoration-thickness: 1px; text-underline-offset:
 a:hover { text-decoration-thickness: 2px; }
 a, button, .btn, summary, input[type="checkbox"], input[type="file"], select { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 h1, h2, h3 { text-wrap: balance; }
-p, li, td { text-wrap: pretty; overflow-wrap: anywhere; }
+/* break-word (not anywhere): long links still wrap, but table cells and pills never shrink to one letter per line. */
+p, li, td { text-wrap: pretty; overflow-wrap: break-word; }
 .stat, td, .tabular { font-variant-numeric: tabular-nums; }
 img { max-width: 100%; }
 .shell { max-width: 960px; margin: 0 auto; padding: 16px; }
@@ -354,3 +355,25 @@ p.powered a:hover { text-decoration: underline; }
 .bulk-remove { position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 50%; border: 0; background: rgba(15, 26, 19, .7); color: #fff; font-size: 20px; line-height: 1; cursor: pointer; }
 .bulk-remove:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; }
 .bulk-actions { margin-top: 16px; }
+
+/* ---------------------------------------------------------------- phones */
+.chip { white-space: nowrap; }
+@media (max-width: 640px) {
+  /* Wide tables → one card per row, values labelled (stackTables.ts adds the labels). */
+  table.stack thead { display: none; }
+  table.stack, table.stack tbody, table.stack tr { display: block; width: 100%; }
+  table.stack tr { padding: 14px 0; border-bottom: 1px solid var(--sand); }
+  table.stack tr:first-child { padding-top: 4px; }
+  table.stack td { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 4px 0; border: 0; text-align: right; }
+  table.stack td::before { content: attr(data-label); flex: none; color: var(--muted); font-size: 13px; text-align: left; }
+  table.stack td:first-child { font-size: 16px; font-weight: 600; text-align: left; padding-bottom: 8px; }
+  table.stack td:first-child::before, table.stack td[data-label=""]::before { content: none; }
+  table.stack td[data-label=""] { justify-content: flex-start; flex-wrap: wrap; gap: 8px; padding-top: 10px; }
+  /* Help: a round icon button that covers less of the page. */
+  .chat-fab { right: 16px; bottom: 16px; width: 56px; height: 56px; min-height: 56px; padding: 0; justify-content: center; font-size: 0; gap: 0; }
+  .chat-fab svg { width: 24px; height: 24px; }
+  .chat-badge { position: absolute; top: -4px; right: -4px; font-size: 12px; }
+  .shell:has(.chat-fab) { padding-bottom: 88px; }
+}
+/* Choices inside a card (e.g. Install → platform): wrap onto two lines instead of scrolling out of view. */
+@media (max-width: 600px) { nav.tabs.wrap { flex-wrap: wrap; overflow: visible; margin: 0; padding: 0; } nav.tabs.wrap a { flex: initial; } }

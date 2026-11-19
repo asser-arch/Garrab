@@ -120,7 +120,11 @@ export function Support({ openBrand, initial }: { openBrand: (id: string) => voi
           <ul>
             {threads?.map((t) => (
               <li key={t.accountId}>
-                <button type="button" aria-current={sel === t.accountId ? "true" : undefined} onClick={() => setSel(t.accountId)}>
+                <button type="button" aria-current={sel === t.accountId ? "true" : undefined} onClick={() => {
+                    setSel(t.accountId);
+                    // Phones: the chat is under the list; bring it into view.
+                    if (innerWidth < 900) setTimeout(() => document.querySelector(".support-chat")?.scrollIntoView({ block: "start" }), 50);
+                  }}>
                   <span className="st-top">
                     <strong>{t.name}</strong>
                     <span className="small muted">{when(t.lastAt)}</span>

@@ -100,3 +100,14 @@ ul.steps { list-style: disc; }
 .sc-msg.from-admin .muted { color: var(--sage); }
 .sc-msg.from-bot { border-style: dashed; }
 .sc-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* Phones: the menu is one row you can swipe; footer link on the right. */
+@media (max-width: 640px) {
+  .bar-inner { gap: 12px; padding: 12px 16px; }
+  .bar nav { order: 3; width: calc(100% + 32px); margin: 0 -16px; padding: 0 16px 2px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+  .bar nav::-webkit-scrollbar { display: none; }
+  .bar nav a { flex: none; padding: 8px 16px; }
+  .search input { width: 100%; }
+  .search { width: 100%; }
+}
+footer.foot > a { margin-left: auto; }

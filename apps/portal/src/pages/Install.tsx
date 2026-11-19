@@ -66,7 +66,7 @@ export function Install({ me, refresh }: { me: Me; refresh: () => Promise<void> 
 
       <div className="card">
         <h2>On your website</h2>
-        <nav className="tabs" aria-label="Platform">
+        <nav className="tabs wrap" aria-label="Platform">
           {(["shopify", "woocommerce", "other_website", "social_only"] as Platform[]).map((p) => (
             <a key={p} href="#" aria-current={tab === p ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab(p))}>
               {{ shopify: "Shopify", woocommerce: "WooCommerce", other_website: "Other website", social_only: "Instagram / WhatsApp" }[p]}

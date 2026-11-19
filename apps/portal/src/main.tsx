@@ -10,6 +10,7 @@ import { Login } from "./pages/Login.js";
 import { Results } from "./pages/Results.js";
 import { Products } from "./pages/Products.js";
 import { Support } from "./Support.js";
+import { stackTables } from "./stackTables.js";
 
 export type Route = "/portal" | "/portal/products" | "/portal/approve" | "/portal/install" | "/portal/results" | "/portal/billing" | "/portal/login";
 
@@ -52,6 +53,11 @@ function App() {
       if (e instanceof SignedOut) setSignedOut(true);
     }
   }, []);
+
+  // Phones: the menu scrolls sideways; keep the current page's tab in view.
+  useEffect(() => {
+    document.querySelector('nav.tabs[aria-label="Portal"] a[aria-current="page"]')?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [route, me]);
 
   useEffect(() => {
     const onPop = () => setRoute(currentRoute());
@@ -132,6 +138,7 @@ function App() {
   );
 }
 
+stackTables();
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />
