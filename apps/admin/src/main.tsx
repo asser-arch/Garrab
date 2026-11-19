@@ -442,14 +442,16 @@ const STEP_NAME: Record<string, string> = {
   expired: "Pilot ended",
 };
 const JOB_NAME: Record<string, string> = {
-  billing_run: "Billing",
+  billing_run: "Billing (invoices and reminders)",
   digest: "Daily summary email",
-  install_crawler: "Install check",
-  onboarding_sweep: "Onboarding sweep",
-  payment_claims: "Payment claims",
-  product_resync: "Product sync",
+  install_crawler: "Website button check",
+  onboarding_sweep: "Keep onboarding moving",
+  payment_claims: "Payment claim reminders",
+  product_resync: "Nightly product sync",
   stuck_detector: "Stuck brands check",
-  pilot_clock: "Pilot clock",
+  pilot_clock: "Pilot emails (day 7, 10, 12, 14)",
+  retry_busy_tests: "Re-test products when Google was busy",
+  retry_pending_deletes: "Finish photo deletions",
 };
 /** Times are shown in Cairo time, like everything else in Garrab. */
 const cairo = (ts: string | null | undefined): string => {

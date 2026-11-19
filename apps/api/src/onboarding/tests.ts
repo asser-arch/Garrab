@@ -44,7 +44,7 @@ async function testSpendMicroUsd(env: Env, accountId: string): Promise<number> {
 export type TestOutcome = "enabled" | "needs_review" | "disabled" | "skipped_budget" | "no_fixtures" | "already_tested" | "busy";
 
 /** Temporary AI errors (overloaded, rate limited, timeout) retry after these waits; then a person checks. */
-export const BUSY_RETRY_SECONDS = [120, 300, 600, 900, 1800, 1800, 3600, 3600, 3600, 3600, 7200, 7200];
+export const BUSY_RETRY_SECONDS = [60, 120, 300, 600, 900, 1800, 3600, 3600, 3600, 7200, 7200, 7200];
 
 
 export async function testProduct(
@@ -198,4 +198,43 @@ export async function testProduct(
     .run();
   log("product_test", { account: accountId, code: outcome, count: final });
   return outcome;
+}
+
+/**
+ * Product tests stopped by a temporary AI error (Google overloaded, rate limit, timeout):
+ * - repair products that older code switched off for such an error, so they're tested again;
+ * - retry the ones whose wait is over.
+ * Runs every 15 minutes for all brands, and for one brand whenever it opens its portal (so a refresh
+ * fixes things at once). Returns how many products were sent for testing.
+ */
+export async function retryBusyProducts(env: Env, accountId?: string): Promise<number> {
+  const only = accountId ? " AND account_id = ?" : "";
+  const bind = (q: D1PreparedStatement, ...v: unknown[]) => q.bind(...v, ...(accountId ? [accountId] : []));
+  const broken = await bind(
+    env.DB.prepare(
+      `SELECT id, account_id FROM products
+        WHERE test_score = 1 AND enabled = 0 AND brand_decision IS NULL
+          AND (disabled_reason LIKE '%HTTP 503%' OR disabled_reason LIKE '%HTTP 429%' OR disabled_reason LIKE '%high demand%'
+               OR disabled_reason LIKE '%(provider_busy%' OR disabled_reason LIKE '%(timeout%' OR disabled_reason LIKE '%HTTP 500%' OR disabled_reason LIKE '%HTTP 502%' OR disabled_reason LIKE '%HTTP 504%')${only}
+        LIMIT 200`,
+    ),
+  ).all<{ id: string; account_id: string }>();
+  for (const p of broken.results) {
+    await env.DB.batch([
+      // Only the failed attempts go; any preview that did work is kept and reused.
+      env.DB.prepare("DELETE FROM product_tests WHERE product_id = ? AND r2_key IS NULL").bind(p.id),
+      env.DB.prepare(
+        "UPDATE products SET test_score = NULL, needs_review = 0, disabled_reason = NULL, test_started_at = NULL, test_retry_at = NULL, test_busy_count = 0 WHERE id = ?",
+      ).bind(p.id),
+    ]);
+    await env.JOBS.send({ t: "test", a: p.account_id, p: p.id });
+  }
+  const due = await bind(
+    env.DB.prepare(`SELECT id, account_id FROM products WHERE selected = 1 AND test_score IS NULL AND test_retry_at IS NOT NULL AND test_retry_at <= ?${only} LIMIT 200`),
+    new Date().toISOString(),
+  ).all<{ id: string; account_id: string }>();
+  for (const p of due.results) await env.JOBS.send({ t: "test", a: p.account_id, p: p.id });
+  const count = broken.results.length + due.results.length;
+  if (count) log("busy_retry", { count, account: accountId ?? null });
+  return count;
 }

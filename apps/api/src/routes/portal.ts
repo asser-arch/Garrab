@@ -28,6 +28,7 @@ import { sniffImage, stripJpegMetadata } from "../lib/photo.js";
 import { productPhotoUrl, removeProduct } from "../lib/products.js";
 import { sendOnce } from "../lib/email.js";
 import { saveProducts, guessKind } from "../onboarding/import.js";
+import { retryBusyProducts } from "../onboarding/tests.js";
 import { accountFacts, billingPlan, createInvoice, ensurePlanInvoice, payUrl, pdfUrl } from "../billing/ledger.js";
 import { cycleStartOf } from "../lib/metering.js";
 import { cairoDay } from "../lib/time.js";
@@ -113,6 +114,8 @@ portal.get("/me", async (c) => {
     if (step?.onboarding_step === "products_approved") await advance(c.env, id);
     // Brands that approved products but never tapped the old "Done" button.
     if (step?.onboarding_step === "products_tested" && (await confirmApproval(c.env, id))) await advance(c.env, id);
+    // Products stopped by a temporary Google error: re-test now rather than at the next 15-minute run.
+    await retryBusyProducts(c.env, id);
   }
   const a = await c.env.DB.prepare(
     `SELECT name, slug, status, platform, website, target_plan_id, plan_id, onboarding_step, pilot_started_at, pilot_ends_at, cycle_start, category, brand_color, brand_logo, brand_text_color

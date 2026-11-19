@@ -18,7 +18,7 @@ import { buildReport } from "./lib/report.js";
 import { reportEmail } from "./reportEmail.js";
 import { importForAccount } from "./onboarding/import.js";
 import { STEP_LABEL, advance, checkInstall, portalUrl, type Step } from "./onboarding/machine.js";
-import { testProduct } from "./onboarding/tests.js";
+import { retryBusyProducts, testProduct } from "./onboarding/tests.js";
 import { sendDigest } from "./ops/digest.js";
 import { tryOnProvider } from "./providers/tryon.js";
 
@@ -147,38 +147,9 @@ const installCrawler: JobFn = async (env) => {
   for (const r of rows.results) await checkInstall(env, r.id);
 };
 
-/**
- * Product tests stopped by a temporary AI error (Google overloaded, rate limit, timeout):
- * - retry the ones whose wait is over (any brand status: live brands add products too);
- * - repair products that older code switched off for such an error (before temporary errors were
- *   retried), so they're tested again instead of staying "not available for try-on".
- */
+/** Product tests stopped by a temporary AI error: retry due ones, repair old failures (all brands). */
 export const retryBusyTests: JobFn = async (env) => {
-  const now = new Date().toISOString();
-  const broken = await env.DB.prepare(
-    `SELECT id, account_id FROM products
-      WHERE test_score = 1 AND enabled = 0 AND brand_decision IS NULL
-        AND (disabled_reason LIKE '%HTTP 503%' OR disabled_reason LIKE '%HTTP 429%' OR disabled_reason LIKE '%high demand%'
-             OR disabled_reason LIKE '%(provider_busy%' OR disabled_reason LIKE '%(timeout%' OR disabled_reason LIKE '%HTTP 500%' OR disabled_reason LIKE '%HTTP 502%' OR disabled_reason LIKE '%HTTP 504%')
-      LIMIT 200`,
-  ).all<{ id: string; account_id: string }>();
-  for (const p of broken.results) {
-    await env.DB.batch([
-      // Only the failed attempts go; any preview that did work is kept and reused.
-      env.DB.prepare("DELETE FROM product_tests WHERE product_id = ? AND r2_key IS NULL").bind(p.id),
-      env.DB.prepare(
-        "UPDATE products SET test_score = NULL, needs_review = 0, disabled_reason = NULL, test_started_at = NULL, test_retry_at = NULL, test_busy_count = 0 WHERE id = ?",
-      ).bind(p.id),
-    ]);
-    await env.JOBS.send({ t: "test", a: p.account_id, p: p.id });
-  }
-  const due = await env.DB.prepare(
-    "SELECT id, account_id FROM products WHERE selected = 1 AND test_score IS NULL AND test_retry_at IS NOT NULL AND test_retry_at <= ? LIMIT 200",
-  )
-    .bind(now)
-    .all<{ id: string; account_id: string }>();
-  for (const p of due.results) await env.JOBS.send({ t: "test", a: p.account_id, p: p.id });
-  if (broken.results.length || due.results.length) log("busy_retry", { count: broken.results.length + due.results.length });
+  await retryBusyProducts(env);
 };
 
 const EVERY_TICK: Record<string, JobFn> = {

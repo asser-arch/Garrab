@@ -2,7 +2,7 @@ import { env } from "cloudflare:workers";
 import { beforeEach, describe, expect, it } from "vitest";
 import { createAccount } from "../src/lib/accounts.js";
 import { retryBusyTests } from "../src/jobs.js";
-import { BUSY_RETRY_SECONDS, testProduct } from "../src/onboarding/tests.js";
+import { BUSY_RETRY_SECONDS, retryBusyProducts, testProduct } from "../src/onboarding/tests.js";
 import { FallbackTryOnProvider, isTemporary, type TryOnProvider, type TryOnResult } from "../src/providers/tryon.js";
 import type { ScoringProvider } from "../src/providers/scoring.js";
 import { fakeJpeg } from "./helpers.js";
@@ -121,6 +121,18 @@ describe("Google overloaded during product tests", () => {
     expect((await row(hidden.pid))!.test_score).toBe(1);
     // And the re-test now works.
     expect(await testProduct(env, accountId, pid, { tryon: scripted([OK]), scorer })).toBe("enabled");
+  });
+});
+
+describe("repair when the brand opens its portal", () => {
+  it("only that brand's products are repaired, straight away", async () => {
+    const old = "The try-on failed for this product (provider_error, HTTP 503 high demand).";
+    const a = await product();
+    const b = await product();
+    for (const x of [a, b]) await env.DB.prepare("UPDATE products SET test_score = 1, enabled = 0, disabled_reason = ? WHERE id = ?").bind(old, x.pid).run();
+    expect(await retryBusyProducts(env, a.accountId)).toBe(1);
+    expect((await row(a.pid))!.test_score).toBeNull();
+    expect((await row(b.pid))!.test_score).toBe(1);
   });
 });
 
