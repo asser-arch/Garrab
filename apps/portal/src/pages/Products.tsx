@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BulkAdd } from "../BulkAdd.js";
+import { BulkAdd, prepareProductPhoto } from "../BulkAdd.js";
 import { api, atOrAfter, type Me, type Product } from "../api.js";
 
 export function Products({
@@ -168,7 +168,8 @@ export function Products({
                 const fd = new FormData();
                 fd.set("title", form.title);
                 if (form.productUrl) fd.set("productUrl", form.productUrl);
-                fd.set("photo", photo!);
+                const blob = await prepareProductPhoto(photo!);
+                fd.set("photo", blob, blob === photo ? photo!.name : photo!.name.replace(/\.[a-z0-9]+$/i, "") + ".jpg");
                 await api("/products/upload", { form: fd });
               }
               setForm({ title: "", imageUrl: "", productUrl: "", sizes: "" });

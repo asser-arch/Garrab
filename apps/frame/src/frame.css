@@ -115,8 +115,11 @@ html[lang="ar"] .btn, html[lang="ar"] .pick-go { text-transform: none; letter-sp
 .btn.primary:hover { background: var(--brand, #0e2a19); opacity: .9; }
 .btn.ghost { color: var(--brand-ink, var(--ink)); }
 .pick-go { color: var(--brand-ink, var(--forest)); text-transform: uppercase; letter-spacing: .08em; font-size: 13px; }
-.brandmark { margin: 0 0 12px; }
-.brandmark img { display: block; max-height: 44px; max-width: 200px; width: auto; object-fit: contain; }
+.brandmark { margin: 0 0 16px; }
+/* The brand's logo: large enough to read. multiply makes a white logo background disappear into the page. */
+.brandmark img { display: block; max-height: 64px; max-width: 240px; width: auto; height: auto; object-fit: contain; mix-blend-mode: multiply; }
+main.wide .brandmark img { max-height: 96px; max-width: 300px; }
+@media (max-width: 480px) { main.wide .brandmark img { max-height: 80px; max-width: 240px; } }
 @media (prefers-reduced-motion: reduce) { .btn.primary:hover { opacity: 1; } }
 .btn.accent { background: var(--brand, var(--peach)); color: var(--on-brand, var(--forest)); }
 /* Footer: the quiet "get this for your shop" link and the company line. */
@@ -126,3 +129,8 @@ main.wide ~ footer.powered { max-width: 760px; }
 footer.powered a { color: #5c5d57; font-size: 12px; text-decoration: none; }
 footer.powered a:hover { text-decoration: underline; text-underline-offset: 2px; }
 footer.powered a:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 4px; }
+
+/* Product photos: shown once any stamped shop logo has been removed (no flash of the logo). */
+img.pimg { opacity: 0; }
+img.pimg.ready { opacity: 1; transition: opacity .2s; }
+@media (prefers-reduced-motion: reduce) { img.pimg.ready { transition: none; } }

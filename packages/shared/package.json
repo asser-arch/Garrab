@@ -9,7 +9,8 @@
     "./tokens": "./src/tokens.ts",
     "./strings": "./src/strings/index.ts",
     "./ui.css": "./src/ui.css",
-    "./captions": "./src/strings/captions.ts"
+    "./captions": "./src/strings/captions.ts",
+    "./watermark": "./src/watermark.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

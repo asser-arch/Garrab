@@ -72,6 +72,7 @@ export function tryOnPrompt(req: TryOnRequest): string {
     "Keep their face, skin tone, body shape, pose, background and lighting unchanged.",
     "Reproduce the item faithfully: colour, pattern, fabric, cut and length as in the product photos.",
     head,
+    "The product photos may have a shop logo or watermark printed on them: ignore it, it is not part of the item.",
     "Do not add text, logos or watermarks. Do not change anything else. Return only the image.",
   ].join("\n");
 }
@@ -85,6 +86,7 @@ export function roomPrompt(req: TryOnRequest): string {
     "Create one photorealistic image of the SAME room with this item placed where it would naturally go",
     "(a rug on the floor, a cushion on a sofa or bed, a lamp on a table or the floor, art or a mirror on a wall).",
     "Keep the room's layout, walls, furniture, light and camera angle unchanged. Keep the item's real colour, pattern, material and a believable size for the room.",
+    "The product photos may have a shop logo or watermark printed on them: ignore it, it is not part of the item.",
     "Do not add people, text, logos or watermarks. Do not change anything else. Return only the image.",
   ].join("\n");
 }

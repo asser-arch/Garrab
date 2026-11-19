@@ -3,6 +3,7 @@ import { query } from "./db.js";
 
 const APP = "http://localhost:8788";
 const LOGO = new URL("../fixtures/two-colour-logo.png", import.meta.url).pathname;
+const ON_WHITE = new URL("../fixtures/logo-on-white.png", import.meta.url).pathname;
 
 /** The portal reads the logo's main colours; the brand picks one for buttons and one for text. */
 test("brand look: colours from the logo, for buttons and for text", async ({ page }) => {
@@ -17,7 +18,25 @@ test("brand look: colours from the logo, for buttons and for text", async ({ pag
   await page.goto(`${APP}/portal/install`);
 
   try {
-    await page.getByLabel("Logo (PNG with a transparent background works best)").setInputFiles(LOGO);
+    // A logo on a white background: the white goes, the empty edges are cropped.
+    await page.getByLabel("Logo (we remove a white background and empty edges for you)").setInputFiles(ON_WHITE);
+    const logo = page.locator("img.look-logo");
+    await expect(logo).toHaveAttribute("src", /^blob:/);
+    const info = await logo.evaluate(async (img: HTMLImageElement) => {
+      await img.decode();
+      const c = document.createElement("canvas");
+      c.width = img.naturalWidth;
+      c.height = img.naturalHeight;
+      const x = c.getContext("2d")!;
+      x.drawImage(img, 0, 0);
+      return { w: img.naturalWidth, h: img.naturalHeight, corner: x.getImageData(0, 0, 1, 1).data[3], middle: x.getImageData(Math.floor(c.width / 2), Math.floor(c.height / 2), 1, 1).data[3] };
+    });
+    expect(info.w).toBeLessThan(100); // 80 px logo + a small margin, not the 200 px canvas
+    expect(info.h).toBeLessThan(60);
+    expect(info.corner).toBe(0); // transparent background
+    expect(info.middle).toBe(255); // the logo itself untouched
+
+    await page.getByLabel("Logo (we remove a white background and empty edges for you)").setInputFiles(LOGO);
     const burgundy = page.getByRole("button", { name: "Use #6b2737 for buttons" });
     await expect(burgundy).toBeVisible();
     await expect(page.getByRole("button", { name: "Use #c9a24d for buttons" })).toBeVisible();

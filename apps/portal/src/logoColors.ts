@@ -82,3 +82,78 @@ export function contrastOnWhite(hex: string): number {
     .reduce((s, v, i) => s + v * [0.2126, 0.7152, 0.0722][i]!, 0);
   return (0.9646 + 0.05) / (lum + 0.05); // page background #FCFBF8 ≈ luminance 0.9646
 }
+
+/**
+ * Tidy an uploaded logo in the browser: a plain white (or near-white) background touching the edges is
+ * made transparent, and empty margins are cropped, so the logo shows large and sits on any page.
+ * Logos that are already transparent are only cropped. Returns a PNG, or the original file if anything
+ * goes wrong.
+ */
+export async function cleanLogo(file: File): Promise<File> {
+  try {
+    const bmp = await createImageBitmap(file);
+    const scale = Math.min(1, 1200 / Math.max(bmp.width, bmp.height));
+    const w = Math.max(1, Math.round(bmp.width * scale));
+    const h = Math.max(1, Math.round(bmp.height * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return file;
+    ctx.drawImage(bmp, 0, 0, w, h);
+    bmp.close();
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data;
+    const light = (i: number): number => Math.min(d[i]!, d[i + 1]!, d[i + 2]!);
+    // Flood from the edges through near-white pixels only: white inside the logo (letters, shapes) stays.
+    const seen = new Uint8Array(w * h);
+    const stack: number[] = [];
+    for (let x = 0; x < w; x++) stack.push(x, (h - 1) * w + x);
+    for (let y = 0; y < h; y++) stack.push(y * w, y * w + w - 1);
+    let cleared = 0;
+    while (stack.length) {
+      const p = stack.pop()!;
+      if (seen[p]) continue;
+      seen[p] = 1;
+      const i = p * 4;
+      if (d[i + 3]! < 16) continue; // already see-through: nothing to do, but don't spread through it
+      const l = light(i);
+      if (l < 225) continue;
+      // Soft edge: pure white → fully clear; light grey (anti-aliasing) → partly clear.
+      d[i + 3] = l >= 245 ? 0 : Math.round(d[i + 3]! * ((245 - l) / 20));
+      cleared++;
+      const x = p % w;
+      if (x > 0) stack.push(p - 1);
+      if (x < w - 1) stack.push(p + 1);
+      if (p >= w) stack.push(p - w);
+      if (p < w * (h - 1)) stack.push(p + w);
+    }
+    // Crop to what's visible, with a small margin.
+    let minX = w, minY = h, maxX = -1, maxY = -1;
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++)
+        if (d[(y * w + x) * 4 + 3]! > 16) {
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+    if (maxX < 0) return file; // nothing left: not a logo on white, keep it as it was
+    if (cleared === 0 && minX === 0 && minY === 0 && maxX === w - 1 && maxY === h - 1) return file;
+    ctx.putImageData(img, 0, 0);
+    const pad = Math.round(Math.max(maxX - minX, maxY - minY) * 0.02);
+    const sx = Math.max(0, minX - pad);
+    const sy = Math.max(0, minY - pad);
+    const cw = Math.min(w, maxX + pad + 1) - sx;
+    const ch = Math.min(h, maxY + pad + 1) - sy;
+    const out = document.createElement("canvas");
+    out.width = cw;
+    out.height = ch;
+    out.getContext("2d")!.drawImage(canvas, sx, sy, cw, ch, 0, 0, cw, ch);
+    const blob = await new Promise<Blob | null>((res) => out.toBlob(res, "image/png"));
+    if (!blob || blob.size > 2 * 1024 * 1024) return file;
+    return new File([blob], file.name.replace(/\.[a-z0-9]+$/i, "") + ".png", { type: "image/png" });
+  } catch {
+    return file;
+  }
+}

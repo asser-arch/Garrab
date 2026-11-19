@@ -3,6 +3,7 @@
  * name), save all. Photos are shrunk in the browser first, so a batch of phone photos goes up quickly.
  * Used by the brand portal and by Garrab support in the admin (each passes its own `upload`).
  */
+import { removeCornerMarks } from "@garrab/shared/watermark";
 import { useEffect, useRef, useState } from "react";
 
 interface Item {
@@ -25,21 +26,28 @@ export function nameFromFile(name: string): string {
   return base.charAt(0).toUpperCase() + base.slice(1);
 }
 
-/** Shrink to at most 1600 px on the long side, as JPEG on white. Falls back to the original file. */
-async function shrink(file: File): Promise<Blob> {
+/**
+ * Ready a product photo for upload: at most 1600 px on the long side, any brand logo stamped in a corner
+ * removed (plain-background photos only), JPEG on white. Falls back to the original file.
+ */
+export async function prepareProductPhoto(file: File): Promise<Blob> {
   try {
     const bmp = await createImageBitmap(file);
     const scale = Math.min(1, MAX_SIDE / Math.max(bmp.width, bmp.height));
-    if (scale === 1 && file.type === "image/jpeg" && file.size < 1.5 * 1024 * 1024) return file;
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(bmp.width * scale);
     canvas.height = Math.round(bmp.height * scale);
-    const ctx = canvas.getContext("2d")!;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
     ctx.fillStyle = "#FFFFFF"; // transparent PNGs get a white background, not black
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(bmp, 0, 0, canvas.width, canvas.height);
     bmp.close();
-    return await new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("encode"))), "image/jpeg", 0.88));
+    const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const cleaned = removeCornerMarks(img.data, canvas.width, canvas.height);
+    if (cleaned) ctx.putImageData(img, 0, 0);
+    // Already small, JPEG, nothing removed: send as it is (no extra quality loss).
+    if (!cleaned && scale === 1 && file.type === "image/jpeg" && file.size < 1.5 * 1024 * 1024) return file;
+    return await new Promise<Blob>((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error("encode"))), "image/jpeg", 0.9));
   } catch {
     return file;
   }
@@ -86,7 +94,7 @@ export function BulkAdd({ upload, onDone, sizes = true }: { upload: (fd: FormDat
       for (let it = queue.shift(); it; it = queue.shift()) {
         set(it.key, { state: "saving", error: undefined });
         try {
-          const blob = await shrink(it.file);
+          const blob = await prepareProductPhoto(it.file);
           const fd = new FormData();
           fd.set("title", it.title.trim());
           if (it.sizes.trim()) fd.set("sizes", it.sizes.trim());

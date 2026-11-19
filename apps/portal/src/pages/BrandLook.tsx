@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Me } from "../api.js";
-import { contrastOnWhite, logoColors } from "../logoColors.js";
+import { cleanLogo, contrastOnWhite, logoColors } from "../logoColors.js";
 
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const DEFAULT_BUTTON = "#143822";
@@ -97,13 +97,15 @@ export function BrandLook({ me, refresh }: { me: Me; refresh: () => Promise<void
       </p>
       <div className="look-grid">
         <div>
-          <label htmlFor="logo">Logo (PNG with a transparent background works best)</label>
+          <label htmlFor="logo">Logo (we remove a white background and empty edges for you)</label>
           <input
             id="logo"
             type="file"
             accept="image/png,image/jpeg,image/webp"
-            onChange={(e) => {
-              const f = e.target.files?.[0] ?? null;
+            onChange={async (e) => {
+              const raw = e.target.files?.[0] ?? null;
+              // White background → transparent, empty margins cropped (in the browser, before upload).
+              const f = raw ? await cleanLogo(raw) : null;
               setFile(f);
               if (preview) URL.revokeObjectURL(preview);
               setPreview(f ? URL.createObjectURL(f) : null);

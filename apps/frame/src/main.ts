@@ -8,6 +8,7 @@
  */
 import { dir, langFromPage, tryOnStrings, type Lang } from "@garrab/shared/strings";
 import { PHOTO } from "@garrab/shared/plans";
+import { removeCornerMarks } from "@garrab/shared/watermark";
 
 declare global {
   interface Window {
@@ -96,6 +97,52 @@ function applyLook(look: Look | null | undefined): void {
   s.setProperty("--brand-ink", readable(t) ? t : readable(c) ? c : "#0F1A13");
   // Headings take the text colour only when the brand chose one.
   if (readable(t)) s.setProperty("--brand-text", t);
+}
+
+/**
+ * A product photo with any shop logo stamped in its corner removed before it's shown (our own uploaded
+ * photos: same address as this page, so the browser lets us read the pixels). Hidden until ready so the
+ * logo never flashes; photos from elsewhere show as they are.
+ */
+function productImg(src: string, attrs: Record<string, string> = {}): HTMLElement {
+  const img = h("img", { src, alt: "", class: "pimg", ...attrs }) as HTMLImageElement;
+  let ours = false;
+  try {
+    ours = new URL(src, location.href).origin === location.origin;
+  } catch {
+    /* odd address: show as is */
+  }
+  if (!ours) {
+    img.classList.add("ready");
+    return img;
+  }
+  const done = (): void => img.classList.add("ready");
+  img.addEventListener(
+    "load",
+    () => {
+      try {
+        const scale = Math.min(1, 1200 / Math.max(img.naturalWidth, img.naturalHeight, 1));
+        const c = document.createElement("canvas");
+        c.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        c.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        const ctx = c.getContext("2d", { willReadFrequently: true });
+        if (!ctx) return done();
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        const data = ctx.getImageData(0, 0, c.width, c.height);
+        if (!removeCornerMarks(data.data, c.width, c.height)) return done();
+        ctx.putImageData(data, 0, 0);
+        c.toBlob((b) => {
+          if (b) img.src = URL.createObjectURL(b);
+          done();
+        }, "image/jpeg", 0.92);
+      } catch {
+        done();
+      }
+    },
+    { once: true },
+  );
+  img.addEventListener("error", done, { once: true });
+  return img;
 }
 
 /** The brand's logo (or its name), for the top of the page. */
@@ -233,7 +280,7 @@ function startScreen(st: State, error?: string): void {
       ? h(
           "header",
           { class: "product hosted-hero" },
-          hosted.image ? h("figure", { class: "look" }, h("img", { src: hosted.image, alt: "" })) : null,
+          hosted.image ? h("figure", { class: "look" }, productImg(hosted.image)) : null,
           h(
             "div",
             { class: "product-text" },
@@ -506,7 +553,7 @@ async function brandPage(slug: string, lang: Lang): Promise<void> {
           h(
             "a",
             { href: `/t/${slug}/${p.id}${q}`, class: "pick" },
-            h("span", { class: "look" }, p.image ? h("img", { src: p.image, alt: "", loading: "lazy" }) : null),
+            h("span", { class: "look" }, p.image ? productImg(p.image, { loading: "lazy" }) : null),
             h("span", { class: "pick-title" }, p.title),
             h("span", { class: "pick-go", "aria-hidden": "true" }, p.kind === "decor" ? t.buttonRoom : t.buttonTryOn),
           ),
