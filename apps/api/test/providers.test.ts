@@ -122,11 +122,13 @@ describe("Gemini request", () => {
     if (r.ok) expect(r.costMicroUsd).toBe(68_200);
   });
 
-  it("treats a text-only answer (e.g. a safety refusal) as a failure", async () => {
-    const { fetcher } = fakeFetch((url) =>
-      url.startsWith("https://cdn") ? new Response(PNG, { headers: { "content-type": "image/png" } }) : Response.json({ steps: [{ type: "model_output", content: [{ type: "text", text: "no" }] }] }),
-    );
-    expect(await new GeminiTryOnProvider("k", "gemini-3.1-flash-image", fetcher).tryOn(req())).toMatchObject({ ok: false, code: "content_policy" });
+  it("a text-only answer is a temporary failure; a safety block is a refusal", async () => {
+    const answer = (body: unknown) =>
+      fakeFetch((url) => (url.startsWith("https://cdn") ? new Response(PNG, { headers: { "content-type": "image/png" } }) : Response.json(body))).fetcher;
+    const talk = answer({ steps: [{ type: "model_output", content: [{ type: "text", text: "no" }] }] });
+    expect(await new GeminiTryOnProvider("k", "gemini-3.1-flash-image", talk).tryOn(req())).toMatchObject({ ok: false, code: "provider_error", retryable: true });
+    const blocked = answer({ status: "SAFETY", steps: [{ type: "model_output", content: [{ type: "text", text: "Blocked: prohibited content" }] }] });
+    expect(await new GeminiTryOnProvider("k", "gemini-3.1-flash-image", blocked).tryOn(req())).toMatchObject({ ok: false, code: "content_policy" });
   });
 });
 
@@ -193,11 +195,12 @@ describe("main try-on with automatic backup", () => {
     }
   });
 
-  it("never retries a content refusal or an unusable photo on the backup (it would only cost more)", async () => {
-    for (const code of ["content_policy", "bad_photo"] as const) {
-      const main = fake("nano", { ok: false, code, costMicroUsd: 0, retryable: false }), backup = fake("flash", ok);
-      expect(await new FallbackTryOnProvider(main, backup).tryOn(req())).toMatchObject({ ok: false, code });
-      expect(backup.calls).toBe(0);
-    }
+  it("never retries an unusable photo; a refusal gets one try on the backup (the models differ)", async () => {
+    const main = fake("nano", { ok: false, code: "bad_photo", costMicroUsd: 0, retryable: false }), backup = fake("flash", ok);
+    expect(await new FallbackTryOnProvider(main, backup).tryOn(req())).toMatchObject({ ok: false, code: "bad_photo" });
+    expect(backup.calls).toBe(0);
+    const refusing = fake("nano", { ok: false, code: "content_policy", costMicroUsd: 0, retryable: false }), backup2 = fake("flash", ok);
+    expect((await new FallbackTryOnProvider(refusing, backup2).tryOn(req())).ok).toBe(true);
+    expect(backup2.calls).toBe(1);
   });
 });

@@ -505,7 +505,8 @@ async function run(st: State, file: File): Promise<void> {
     if (!r.ok) {
       const code = ((await r.json().catch(() => ({}))) as { error?: string }).error ?? "";
       // Only blame the photo when the photo was the problem.
-      const photoProblem = code === "bad_photo" || code === "content_policy" || code.startsWith("photo");
+      // (A refusal is usually the AI's whim on an ordinary photo: "try again", not "use a clearer photo".)
+      const photoProblem = code === "bad_photo" || code.startsWith("photo");
       startScreen(st, code === "unavailable" || code === "quota" || code === "session_expired" ? t.unavailable : photoProblem ? t.error : t.errorRetry);
       return;
     }

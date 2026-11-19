@@ -4,6 +4,7 @@ import { createAccount } from "../src/lib/accounts.js";
 import { retryBusyTests } from "../src/jobs.js";
 import { BUSY_RETRY_SECONDS, retryBusyProducts, testProduct } from "../src/onboarding/tests.js";
 import { FallbackTryOnProvider, isTemporary, type TryOnProvider, type TryOnResult } from "../src/providers/tryon.js";
+import { GeminiTryOnProvider } from "../src/providers/google.js";
 import type { ScoringProvider } from "../src/providers/scoring.js";
 import { fakeJpeg } from "./helpers.js";
 
@@ -147,13 +148,34 @@ describe("shopper try-on when Google is overloaded", () => {
     expect([primary.calls, backup.calls]).toEqual([2, 1]);
   });
 
-  it("refusals and bad photos are final (no extra calls)", async () => {
+  it("a refusal gets one try on the backup model; an unusable photo is final", async () => {
     const refused: TryOnResult = { ok: false, code: "content_policy", costMicroUsd: 0, retryable: false };
-    const primary = scripted([refused]);
     const backup = scripted([OK]);
-    expect((await new FallbackTryOnProvider(primary, backup).tryOn({} as never)).ok).toBe(false);
-    expect(backup.calls).toBe(0);
+    expect((await new FallbackTryOnProvider(scripted([refused]), backup).tryOn({} as never)).ok).toBe(true);
+    expect(backup.calls).toBe(1);
+    const badPhoto: TryOnResult = { ok: false, code: "bad_photo", costMicroUsd: 0, retryable: false };
+    const backup2 = scripted([OK]);
+    expect((await new FallbackTryOnProvider(scripted([badPhoto]), backup2).tryOn({} as never)).ok).toBe(false);
+    expect(backup2.calls).toBe(0);
     expect(isTemporary(BUSY)).toBe(true);
     expect(isTemporary(refused)).toBe(false);
+  });
+
+  it("Google answering with text only (no picture) is temporary, a safety block is a refusal", async () => {
+    const answer = (body: unknown) =>
+      (async (input: RequestInfo | URL) =>
+        String(input).includes("generativelanguage")
+          ? new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } })
+          : new Response(fakeJpeg("PRODUCT"), { status: 200, headers: { "content-type": "image/jpeg" } })) as typeof fetch;
+    const req = {
+      product: { externalId: "a_p", title: "Lamp", description: "", imageUrls: ["https://cdn.shop.example/l.jpg"], includesHeadwear: false, synced: false },
+      photo: fakeJpeg("ROOM"),
+      photoType: "image/jpeg",
+      oneTimeUserId: "x",
+    } as never;
+    const talk = await new GeminiTryOnProvider("k", "gemini-nano-banana-2.1", answer({ steps: [{ type: "model_output", content: [{ type: "text", text: "Here is how the lamp could look in your room." }] }] }), "room").tryOn(req);
+    expect(talk).toMatchObject({ ok: false, code: "provider_error", retryable: true });
+    const blocked = await new GeminiTryOnProvider("k", "gemini-nano-banana-2.1", answer({ status: "IMAGE_SAFETY", steps: [] }), "room").tryOn(req);
+    expect(blocked).toMatchObject({ ok: false, code: "content_policy" });
   });
 });

@@ -213,16 +213,16 @@ export class MockTryOnProvider implements TryOnProvider {
   }
 }
 
-/**
- * Try the main provider; on a provider-side failure (busy, error, timeout) try the backup once.
- * A refusal (content rules) or an unusable photo is final: another model would only cost more.
- */
 /** A temporary error (the AI service is overloaded, rate limited or slow), not a problem with the product or photo. */
 export function isTemporary(r: { code: string; retryable: boolean; detail?: string | undefined }): boolean {
   if (r.code === "content_policy" || r.code === "bad_photo" || r.code === "provider_credits") return false;
   return r.retryable || r.code === "provider_busy" || r.code === "timeout" || /\b(429|500|502|503|504)\b|high demand|overloaded|unavailable/i.test(r.detail ?? "");
 }
 
+/**
+ * Try the main provider; on a provider-side failure (busy, error, timeout) try the backup once.
+ * An unusable photo is final; a refusal still gets one try on the backup model (the models differ).
+ */
 export class FallbackTryOnProvider implements TryOnProvider {
   readonly name: string;
   constructor(
@@ -241,7 +241,9 @@ export class FallbackTryOnProvider implements TryOnProvider {
   async tryOn(req: TryOnRequest): Promise<TryOnResult> {
     const r = await this.primary.tryOn(req);
     this.lastUsed = this.primary.name;
-    if (r.ok || r.code === "content_policy" || r.code === "bad_photo") return r;
+    // An unusable photo is final. A content refusal gets one try on the backup model (the two models
+    // differ in what they refuse, e.g. a room with a framed family photo); anything else falls back too.
+    if (r.ok || r.code === "bad_photo") return r;
     this.lastUsed = this.backup.name;
     let b = await this.backup.tryOn(req);
     // Both overloaded (Google "high demand" spikes are usually seconds long): wait a moment, try once more.

@@ -73,7 +73,7 @@ export function tryOnPrompt(req: TryOnRequest): string {
     "Reproduce the item faithfully: colour, pattern, fabric, cut and length as in the product photos.",
     head,
     "The product photos may have a shop logo or watermark printed on them: ignore it, it is not part of the item.",
-    "Do not add text, logos or watermarks. Do not change anything else. Return only the image.",
+    "Do not add text, logos or watermarks. Do not change anything else. Always answer with the edited image, never with text only.",
   ].join("\n");
 }
 
@@ -87,7 +87,7 @@ export function roomPrompt(req: TryOnRequest): string {
     "(a rug on the floor, a cushion on a sofa or bed, a lamp on a table or the floor, art or a mirror on a wall).",
     "Keep the room's layout, walls, furniture, light and camera angle unchanged. Keep the item's real colour, pattern, material and a believable size for the room.",
     "The product photos may have a shop logo or watermark printed on them: ignore it, it is not part of the item.",
-    "Do not add people, text, logos or watermarks. Do not change anything else. Return only the image.",
+    "Do not add people, text, logos or watermarks. Do not change anything else. Always answer with the edited image, never with text only.",
   ].join("\n");
 }
 
@@ -160,7 +160,12 @@ export class GeminiTryOnProvider implements TryOnProvider {
       // No image back: Google's reason (finish reason / short text), never the shopper's photo.
       const text = (j.steps ?? []).flatMap((s) => s.content ?? []).filter((c) => c.type === "text").map((c) => (c as { text?: string }).text ?? "").join(" ");
       const why = [(j as { status?: string }).status, text].filter(Boolean).join(" ").replace(/\s+/g, " ").slice(0, 200);
-      return { ok: false, code: "content_policy", costMicroUsd: 0, retryable: false, detail: `no image: ${why || JSON.stringify(Object.keys(j))}` };
+      // A real safety block is final. A plain text-only answer (the model sometimes "talks" instead of
+      // drawing) is temporary: worth another try or the backup model, and never the shopper's photo's fault.
+      const blocked = /safety|prohibit|blocked|block_reason|policy|recitation|harm|sexual|minor/i.test(why);
+      return blocked
+        ? { ok: false, code: "content_policy", costMicroUsd: 0, retryable: false, detail: `no image: ${why}` }
+        : { ok: false, code: "provider_error", costMicroUsd: 0, retryable: true, detail: `no image (text only): ${why || JSON.stringify(Object.keys(j))}` };
     }
     return { ok: true, image: fromBase64(last.data), contentType: last.mime_type ?? "image/jpeg", costMicroUsd: cost, productSynced: true };
   }
