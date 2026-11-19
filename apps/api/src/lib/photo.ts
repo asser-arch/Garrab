@@ -44,6 +44,99 @@ export function stripJpegMetadata(src: Uint8Array): Uint8Array {
   return concat(out);
 }
 
+/**
+ * Remove metadata from a HEIC/HEIF photo (iPhone format), in place on a copy: the payloads of its
+ * "Exif" items (GPS, device, time) and "mime" items (XMP) are blanked; the picture is untouched.
+ * Browsers that can't read HEIC (Chrome on a Mac) send the original file, so this is the only
+ * cleaning such photos get. Returns null if the file can't be parsed: the caller refuses it rather
+ * than send a photo with its location to the AI provider.
+ */
+export function stripHeicMetadata(src: Uint8Array): Uint8Array | null {
+  const b = src.slice();
+  const dv = new DataView(b.buffer, b.byteOffset, b.byteLength);
+  const u = (o: number, n: number): number => (n === 0 ? 0 : n === 1 ? b[o]! : n === 2 ? dv.getUint16(o) : n === 4 ? dv.getUint32(o) : Number(dv.getBigUint64(o)));
+  const type = (o: number): string => String.fromCharCode(b[o]!, b[o + 1]!, b[o + 2]!, b[o + 3]!);
+  /** Child boxes in [from, to): { type, start (header), body, end }. */
+  const boxes = (from: number, to: number): { type: string; body: number; end: number }[] => {
+    const out: { type: string; body: number; end: number }[] = [];
+    let o = from;
+    while (o + 8 <= to) {
+      let size = u(o, 4);
+      let head = 8;
+      if (size === 1) {
+        if (o + 16 > to) return out;
+        size = u(o + 8, 8);
+        head = 16;
+      } else if (size === 0) size = to - o;
+      if (size < head || o + size > to) return out;
+      out.push({ type: type(o + 4), body: o + head, end: o + size });
+      o += size;
+    }
+    return out;
+  };
+  try {
+    const top = boxes(0, b.length);
+    const meta = top.find((x) => x.type === "meta");
+    if (!meta) return null;
+    const kids = boxes(meta.body + 4, meta.end); // meta is a FullBox
+    const iinf = kids.find((x) => x.type === "iinf");
+    const iloc = kids.find((x) => x.type === "iloc");
+    const idat = kids.find((x) => x.type === "idat");
+    if (!iinf || !iloc) return null;
+    // Items holding metadata.
+    const ivers = b[iinf.body]!;
+    const metaItems = new Set<number>();
+    for (const e of boxes(iinf.body + 4 + (ivers === 0 ? 2 : 4), iinf.end)) {
+      if (e.type !== "infe") continue;
+      const v = b[e.body]!;
+      if (v < 2) continue;
+      const idSize = v === 2 ? 2 : 4;
+      const id = u(e.body + 4, idSize);
+      const itemType = type(e.body + 4 + idSize + 2);
+      if (itemType === "Exif" || itemType === "mime") metaItems.add(id);
+    }
+    if (metaItems.size === 0) return b;
+    // Where each item's bytes are.
+    let o = iloc.body;
+    const v = b[o]!;
+    o += 4;
+    const offsetSize = b[o]! >> 4;
+    const lengthSize = b[o]! & 15;
+    const baseSize = b[o + 1]! >> 4;
+    const indexSize = v === 1 || v === 2 ? b[o + 1]! & 15 : 0;
+    o += 2;
+    const count = v < 2 ? u(o, 2) : u(o, 4);
+    o += v < 2 ? 2 : 4;
+    for (let i = 0; i < count; i++) {
+      const id = v < 2 ? u(o, 2) : u(o, 4);
+      o += v < 2 ? 2 : 4;
+      const method = v === 1 || v === 2 ? u(o, 2) & 15 : 0;
+      if (v === 1 || v === 2) o += 2;
+      o += 2; // data_reference_index
+      const base = u(o, baseSize);
+      o += baseSize;
+      const extents = u(o, 2);
+      o += 2;
+      for (let e = 0; e < extents; e++) {
+        o += indexSize;
+        const off = u(o, offsetSize);
+        o += offsetSize;
+        const len = u(o, lengthSize);
+        o += lengthSize;
+        if (!metaItems.has(id)) continue;
+        const start = (method === 1 ? (idat?.body ?? -1) : 0) + base + off;
+        const end = len === 0 ? b.length : start + len;
+        if (start < 0 || end > b.length || (method !== 0 && method !== 1)) return null;
+        b.fill(0, start, end); // Exif: offset 0 + empty data; XMP: blank. Readers skip both.
+      }
+    }
+    if (o > iloc.end) return null;
+    return b;
+  } catch {
+    return null;
+  }
+}
+
 function concat(parts: Uint8Array[]): Uint8Array {
   const total = parts.reduce((n, p) => n + p.length, 0);
   const out = new Uint8Array(total);
@@ -66,6 +159,7 @@ export async function readPhoto(file: unknown): Promise<PhotoCheck> {
   const raw = new Uint8Array(await file.arrayBuffer());
   const type = sniffImage(raw);
   if (!type) return { ok: false, code: "photo_type" };
-  const bytes = type === "image/jpeg" ? stripJpegMetadata(raw) : raw;
+  const bytes = type === "image/jpeg" ? stripJpegMetadata(raw) : type === "image/heic" ? stripHeicMetadata(raw) : raw;
+  if (!bytes) return { ok: false, code: "photo_type" }; // a HEIC we couldn't clean is never sent on
   return { ok: true, bytes, type };
 }

@@ -198,20 +198,51 @@ function sendEvent(st: State, e: string): void {
   }
 }
 
-/** Decode, downscale and re-encode as JPEG. Drops EXIF (location, device) and converts HEIC. */
+const isHeic = (f: File): boolean => /^image\/hei[cf]/i.test(f.type) || /\.hei[cf]$/i.test(f.name);
+
+/** Open a photo: the fast way first, then the way the page shows images (Safari reads iPhone HEIC there). */
+async function decode(file: File): Promise<{ src: CanvasImageSource; w: number; h: number; done: () => void }> {
+  try {
+    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
+    return { src: bmp, w: bmp.width, h: bmp.height, done: () => bmp.close() };
+  } catch {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.src = url;
+    try {
+      await img.decode();
+    } catch (e) {
+      URL.revokeObjectURL(url);
+      throw e;
+    }
+    return { src: img, w: img.naturalWidth, h: img.naturalHeight, done: () => URL.revokeObjectURL(url) };
+  }
+}
+
+/**
+ * Decode, downscale and re-encode as JPEG. Drops EXIF (location, device) and converts HEIC.
+ * A HEIC photo the browser can't open at all (Chrome on a Mac) is sent as it is: the server removes its
+ * location and device details before it goes anywhere (stripHeicMetadata).
+ */
 export async function prepare(file: File): Promise<Blob> {
   if (file.size > PHOTO.maxBytes * 3) throw new Error("too_large");
-  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-  const scale = Math.min(1, PHOTO.maxSidePx / Math.max(bitmap.width, bitmap.height));
-  const w = Math.round(bitmap.width * scale);
-  const hgt = Math.round(bitmap.height * scale);
+  let pic: Awaited<ReturnType<typeof decode>>;
+  try {
+    pic = await decode(file);
+  } catch (e) {
+    if (isHeic(file) && file.size <= PHOTO.maxBytes) return file;
+    throw e;
+  }
+  const scale = Math.min(1, PHOTO.maxSidePx / Math.max(pic.w, pic.h));
+  const w = Math.round(pic.w * scale);
+  const hgt = Math.round(pic.h * scale);
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = hgt;
   const c2d = canvas.getContext("2d");
   if (!c2d) throw new Error("canvas");
-  c2d.drawImage(bitmap, 0, 0, w, hgt);
-  bitmap.close();
+  c2d.drawImage(pic.src, 0, 0, w, hgt);
+  pic.done();
   const blob = await new Promise<Blob | null>((res) => canvas.toBlob(res, "image/jpeg", 0.9));
   canvas.width = 0;
   canvas.height = 0;
@@ -500,7 +531,7 @@ async function run(st: State, file: File): Promise<void> {
     form.set("ctx", st.ctx);
     form.set("product", st.productId);
     form.set("turnstile", await turnstileToken());
-    form.set("photo", photo, "photo.jpg");
+    form.set("photo", photo, photo === file ? file.name || "photo.heic" : "photo.jpg");
     const r = await fetch(`${cfg.api}/v1/tryon`, { method: "POST", body: form, credentials: "omit" });
     if (!r.ok) {
       const code = ((await r.json().catch(() => ({}))) as { error?: string }).error ?? "";

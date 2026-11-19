@@ -179,3 +179,14 @@ test("home décor brand: bio link lists pieces 'to see in your room', and a room
   await expect(page.locator("img.result")).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("AI preview").first()).toBeVisible();
 });
+
+test("an iPhone HEIC photo works even where the browser can't open HEIC (Chrome on a Mac)", async ({ page }) => {
+  // This Chromium, like Chrome on a Mac, can't decode HEIC: the page sends the file as it is and the
+  // server removes its location/device details before the AI sees it.
+  const HEIC = new URL("../fixtures/synthetic-room.heic", import.meta.url).pathname;
+  await page.goto(`${SHOP}/products/red-dress`);
+  await page.locator("garrab-try-on button").click();
+  const frame = page.frameLocator("garrab-try-on iframe");
+  await frame.locator("input#photo").setInputFiles({ name: "IMG_0035.HEIC", mimeType: "image/heic", buffer: (await import("node:fs")).readFileSync(HEIC) });
+  await expect(frame.locator("img.result")).toBeVisible({ timeout: 30_000 });
+});
