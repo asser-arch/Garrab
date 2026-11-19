@@ -195,8 +195,11 @@ export async function advance(env: Env, accountId: string, deps: AdvanceDeps = {
       }
 
       case "products_imported": {
-        const pending = await env.DB.prepare("SELECT id FROM products WHERE account_id = ? AND selected = 1 AND test_score IS NULL").bind(acc.id).all<{ id: string }>();
+        const pending = await env.DB.prepare("SELECT id FROM products WHERE account_id = ? AND selected = 1 AND test_score IS NULL AND (test_retry_at IS NULL OR test_retry_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))").bind(acc.id).all<{ id: string }>();
         if (pending.results.length === 0) {
+          // Products waiting to retry after a temporary AI error: not done yet (the retry job tests them).
+          const waiting = await env.DB.prepare("SELECT COUNT(*) AS n FROM products WHERE account_id = ? AND selected = 1 AND test_score IS NULL").bind(acc.id).first<{ n: number }>();
+          if ((waiting?.n ?? 0) > 0) return acc.onboarding_step;
           await moveStep(env, acc, "products_tested");
           break;
         }
@@ -259,7 +262,7 @@ export async function advance(env: Env, accountId: string, deps: AdvanceDeps = {
       case "pilot_live":
       case "converted": {
         // Live brands keep adding products: test new ones; the brand approves them in the portal.
-        const pending = await env.DB.prepare("SELECT id FROM products WHERE account_id = ? AND selected = 1 AND test_score IS NULL").bind(acc.id).all<{ id: string }>();
+        const pending = await env.DB.prepare("SELECT id FROM products WHERE account_id = ? AND selected = 1 AND test_score IS NULL AND (test_retry_at IS NULL OR test_retry_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))").bind(acc.id).all<{ id: string }>();
         for (const p of pending.results) {
           if (deps.runTestsInline) await deps.runTestsInline(acc.id, p.id);
           else await env.JOBS.send({ t: "test", a: acc.id, p: p.id });

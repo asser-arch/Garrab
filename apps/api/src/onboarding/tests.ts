@@ -12,7 +12,7 @@ import { log } from "../lib/log.js";
 import { recordUsage } from "../lib/metering.js";
 import { sniffImage } from "../lib/photo.js";
 import { scoringProvider, type ScoringProvider } from "../providers/scoring.js";
-import { tryOnProvider, type TryOnProvider } from "../providers/tryon.js";
+import { isTemporary, tryOnProvider, type TryOnProvider } from "../providers/tryon.js";
 
 export const FIXTURE_PREFIX = "fixtures/";
 
@@ -41,7 +41,11 @@ async function testSpendMicroUsd(env: Env, accountId: string): Promise<number> {
   return r?.s ?? 0;
 }
 
-export type TestOutcome = "enabled" | "needs_review" | "disabled" | "skipped_budget" | "no_fixtures" | "already_tested";
+export type TestOutcome = "enabled" | "needs_review" | "disabled" | "skipped_budget" | "no_fixtures" | "already_tested" | "busy";
+
+/** Temporary AI errors (overloaded, rate limited, timeout) retry after these waits; then a person checks. */
+export const BUSY_RETRY_SECONDS = [120, 300, 600, 900, 1800, 1800, 3600, 3600, 3600, 3600, 7200, 7200];
+
 
 export async function testProduct(
   env: Env,
@@ -61,6 +65,7 @@ export async function testProduct(
   const claim = await env.DB.prepare(
     `UPDATE products SET test_started_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
       WHERE id = ? AND account_id = ? AND test_score IS NULL
+        AND (test_retry_at IS NULL OR test_retry_at <= strftime('%Y-%m-%dT%H:%M:%fZ','now'))
         AND (test_started_at IS NULL OR test_started_at < strftime('%Y-%m-%dT%H:%M:%fZ','now','-15 minutes'))`,
   )
     .bind(productId, accountId)
@@ -83,8 +88,20 @@ export async function testProduct(
   const images = JSON.parse(product.images_json) as string[];
   const scores: number[] = [];
   let lastReason = "";
+  // Previews that already worked (an earlier attempt stopped by a temporary error) are kept: no repeat spend.
+  const done = new Map(
+    (await env.DB.prepare("SELECT fixture, score, reason FROM product_tests WHERE product_id = ? AND r2_key IS NOT NULL").bind(productId).all<{ fixture: string; score: number; reason: string | null }>()).results.map(
+      (t) => [t.fixture, t],
+    ),
+  );
 
   for (const fixture of fixtures) {
+    const prev = done.get(fixture);
+    if (prev) {
+      scores.push(prev.score);
+      lastReason = prev.reason ?? lastReason;
+      continue;
+    }
     if ((await testSpendMicroUsd(env, accountId)) >= CAPS.onboardingTestBudgetUsd * 1_000_000) {
       // test_score 0 = "not tested"; stops the product being queued again.
       await env.DB.prepare("UPDATE products SET needs_review = 1, test_score = 0, disabled_reason = ? WHERE id = ?")
@@ -114,14 +131,38 @@ export async function testProduct(
     await tryon.deleteUserData(oneTimeUserId);
     await recordUsage(env, accountId, "test", tryon.name, r.ok, r.ok ? r.costMicroUsd : 0, r.ok ? null : r.code);
     const testId = ulid();
+    if (!r.ok && isTemporary(r)) {
+      // The AI service is busy, not the product: try again later instead of failing the product.
+      const row = await env.DB.prepare("SELECT test_busy_count FROM products WHERE id = ?").bind(productId).first<{ test_busy_count: number }>();
+      const n = (row?.test_busy_count ?? 0) + 1;
+      const wait = BUSY_RETRY_SECONDS[n - 1];
+      if (wait === undefined) {
+        // Busy for many hours: hand it to a person (Retest in the admin) rather than retry forever.
+        await env.DB.prepare(
+          "UPDATE products SET test_score = 0, needs_review = 1, test_started_at = NULL, test_retry_at = NULL, test_busy_count = ?, disabled_reason = ? WHERE id = ?",
+        )
+          .bind(n, "The AI service was busy for hours; retest it from the admin.", productId)
+          .run();
+        log("product_test", { account: accountId, code: "busy_gave_up", count: n });
+        return "needs_review";
+      }
+      await env.DB.prepare("UPDATE products SET test_started_at = NULL, test_retry_at = ?, test_busy_count = ?, disabled_reason = ? WHERE id = ?")
+        .bind(new Date(Date.now() + (wait - 10) * 1000).toISOString(), n, "Google's AI is busy right now; we'll test this again in a few minutes.", productId)
+        .run();
+      if (!deps.tryon) await env.JOBS.send({ t: "test", a: accountId, p: productId }, { delaySeconds: wait });
+      log("product_test", { account: accountId, code: "busy", count: n });
+      return "busy";
+    }
     if (!r.ok) {
       scores.push(1);
+      // The brand sees a plain sentence; the technical detail stays on the test record (admin).
+      const detail = `The try-on failed for this product (${r.code}${r.detail ? `, ${r.detail}` : ""}).`;
       lastReason =
         r.code === "content_policy"
           ? "This product can't be shown in try-on (content rules)."
-          : `The try-on failed for this product (${r.code}${r.detail ? `, ${r.detail}` : ""}).`;
+          : "Our AI couldn't make a good preview of this product. Garrab support can take a look.";
       await env.DB.prepare("INSERT INTO product_tests (id, account_id, product_id, fixture, score, reason) VALUES (?, ?, ?, ?, 1, ?)")
-        .bind(testId, accountId, productId, fixture, lastReason)
+        .bind(testId, accountId, productId, fixture, detail)
         .run();
       continue;
     }
@@ -152,7 +193,7 @@ export async function testProduct(
 
   const final = Math.min(...scores);
   const outcome: TestOutcome = final >= 4 ? "enabled" : final === 3 ? "needs_review" : "disabled";
-  await env.DB.prepare("UPDATE products SET test_score = ?, enabled = ?, needs_review = ?, disabled_reason = ? WHERE id = ?")
+  await env.DB.prepare("UPDATE products SET test_score = ?, enabled = ?, needs_review = ?, disabled_reason = ?, test_retry_at = NULL, test_busy_count = 0 WHERE id = ?")
     .bind(final, outcome === "enabled" ? 1 : 0, outcome === "needs_review" ? 1 : 0, outcome === "disabled" ? lastReason : null, productId)
     .run();
   log("product_test", { account: accountId, code: outcome, count: final });

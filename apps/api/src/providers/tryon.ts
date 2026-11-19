@@ -217,6 +217,12 @@ export class MockTryOnProvider implements TryOnProvider {
  * Try the main provider; on a provider-side failure (busy, error, timeout) try the backup once.
  * A refusal (content rules) or an unusable photo is final: another model would only cost more.
  */
+/** A temporary error (the AI service is overloaded, rate limited or slow), not a problem with the product or photo. */
+export function isTemporary(r: { code: string; retryable: boolean; detail?: string | undefined }): boolean {
+  if (r.code === "content_policy" || r.code === "bad_photo" || r.code === "provider_credits") return false;
+  return r.retryable || r.code === "provider_busy" || r.code === "timeout" || /\b(429|500|502|503|504)\b|high demand|overloaded|unavailable/i.test(r.detail ?? "");
+}
+
 export class FallbackTryOnProvider implements TryOnProvider {
   readonly name: string;
   constructor(
@@ -229,12 +235,23 @@ export class FallbackTryOnProvider implements TryOnProvider {
   /** The provider that produced the last result (for usage records). */
   lastUsed: string = "";
 
+  /** Wait before the last attempt when both models are overloaded (0 in tests). */
+  retryWaitMs = 1500;
+
   async tryOn(req: TryOnRequest): Promise<TryOnResult> {
     const r = await this.primary.tryOn(req);
     this.lastUsed = this.primary.name;
     if (r.ok || r.code === "content_policy" || r.code === "bad_photo") return r;
     this.lastUsed = this.backup.name;
-    const b = await this.backup.tryOn(req);
+    let b = await this.backup.tryOn(req);
+    // Both overloaded (Google "high demand" spikes are usually seconds long): wait a moment, try once more.
+    if (!b.ok && isTemporary(r) && isTemporary(b)) {
+      await new Promise((res) => setTimeout(res, this.retryWaitMs));
+      const again = await this.primary.tryOn(req);
+      this.lastUsed = this.primary.name;
+      if (again.ok) return again;
+      b = again;
+    }
     return b.ok ? b : { ...b, detail: `${this.primary.name}: ${r.code}${r.detail ? ` ${r.detail}` : ""}; ${this.backup.name}: ${b.code}${b.detail ? ` ${b.detail}` : ""}` };
   }
 
