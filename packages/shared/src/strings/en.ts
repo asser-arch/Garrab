@@ -15,6 +15,7 @@ export const en = {
   disclaimer:
     "This is an AI preview to help you imagine the look. Colours, size and small details may differ slightly from the real product.",
   progress: "Creating your preview…",
+  progressHint: "This usually takes 15 to 30 seconds. Please keep this page open.",
   download: "Download preview",
   closed: "Your photo has been deleted.",
   error: "We couldn't create a preview from this photo. Try a clearer one.",
@@ -74,6 +75,7 @@ export const TRY_ON_KEYS = [
   "aiPreview",
   "disclaimer",
   "progress",
+  "progressHint",
   "download",
   "closed",
   "error",

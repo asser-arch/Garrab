@@ -134,3 +134,12 @@ footer.powered a:focus-visible { outline: 2px solid var(--teal); outline-offset:
 img.pimg { opacity: 0; }
 img.pimg.ready { opacity: 1; transition: opacity .2s; }
 @media (prefers-reduced-motion: reduce) { img.pimg.ready { transition: none; } }
+
+/* Full-height page: content centred while a preview is being made, footer at the bottom of the screen. */
+body { min-height: 100dvh; display: flex; flex-direction: column; }
+body > main { width: 100%; box-sizing: border-box; flex: 1 0 auto; }
+body > footer.powered { width: 100%; box-sizing: border-box; }
+main:has(> .progress) { justify-content: center; }
+.progress { padding: 24px 0; }
+.progress h1 { font-size: 26px; }
+.progress-hint { margin: 0; max-width: 30ch; font-size: 14px; }

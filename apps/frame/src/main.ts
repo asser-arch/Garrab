@@ -332,7 +332,15 @@ function startScreen(st: State, error?: string): void {
 }
 
 function progressScreen(st: State): void {
-  show(h("div", { class: "progress", "aria-busy": "true" }, h("div", { class: "spinner", "aria-hidden": "true" }), h("h1", { tabindex: "-1" }, st.t.progress)));
+  show(
+    h(
+      "div",
+      { class: "progress", "aria-busy": "true" },
+      h("div", { class: "spinner", "aria-hidden": "true" }),
+      h("h1", { tabindex: "-1" }, st.t.progress),
+      h("p", { class: "muted progress-hint" }, st.t.progressHint),
+    ),
+  );
   announce(st.t.progress);
 }
 

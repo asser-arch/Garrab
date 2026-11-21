@@ -54,82 +54,6 @@ export function Products({
           {msg}
         </p>
       )}
-      {list.length > 0 && (
-        <div className="card">
-          <div className="row" style={{ justifyContent: "space-between" }}>
-            <h2>
-              Chosen {chosen.size}
-              {max !== null ? ` of ${max}` : ""}
-            </h2>
-            <button
-              className="btn"
-              onClick={async () => {
-                await api("/products/select", { body: { ids: [...chosen] } });
-                setMsg(
-                  live
-                    ? "Saved. New products are being tested now; approve them under Approve in about a minute."
-                    : me.account.category === "home"
-                      ? "Saved. We'll test any new products in our test rooms now."
-                      : "Saved. We'll test any new products on our models now.",
-                );
-                await load();
-                await refresh();
-              }}
-            >
-              Save my choice
-            </button>
-          </div>
-          <p className="small muted">
-            We picked the products with the most photos first. Swap or add
-            products any time; new ones are tested, then you approve them.
-          </p>
-          <div className="grid">
-            {list.map((p) => (
-              <div key={p.id} className="card product-card" style={{ margin: 0 }}>
-                <label style={{ margin: 0, cursor: "pointer", fontWeight: 400, display: "block" }}>
-                  {p.image && (
-                    <img
-                      src={p.image}
-                      alt=""
-                      style={{ width: "100%", aspectRatio: "4/5", objectFit: "cover", borderRadius: 12 }}
-                      referrerPolicy="no-referrer"
-                    />
-                  )}
-                  <span className="row" style={{ marginTop: 8 }}>
-                    <input
-                      type="checkbox"
-                      style={{ width: 20, minHeight: 20 }}
-                      checked={chosen.has(p.id)}
-                      disabled={p.tested && p.selected}
-                      onChange={() => toggle(p.id)}
-                    />
-                    <span>{p.title}</span>
-                  </span>
-                </label>
-                <button
-                  type="button"
-                  className="linkish small"
-                  style={{ marginTop: 8 }}
-                  onClick={async () => {
-                    const ok = confirm(
-                      p.manual
-                        ? `Delete "${p.title}"? It's removed from Garrab, with its photo and test pictures. You can add it again later.`
-                        : `Remove "${p.title}" from Garrab? It stays on your website; it just won't have try-on.`,
-                    );
-                    if (!ok) return;
-                    await api(`/products/${p.id}/delete`, { body: {} });
-                    setMsg(p.manual ? `"${p.title}" was deleted.` : `"${p.title}" was removed from try-on.`);
-                    await load();
-                    await refresh();
-                  }}
-                >
-                  {p.manual ? "Delete product" : "Remove from try-on"}
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
       {!me.readonly && (
         <BulkAdd
           upload={(fd) => api("/products/upload", { form: fd })}
@@ -329,6 +253,82 @@ export function Products({
           }}
         />
       </div>
+      {list.length > 0 && (
+        <div className="card">
+          <div className="row" style={{ justifyContent: "space-between" }}>
+            <h2>
+              Chosen {chosen.size}
+              {max !== null ? ` of ${max}` : ""}
+            </h2>
+            <button
+              className="btn"
+              onClick={async () => {
+                await api("/products/select", { body: { ids: [...chosen] } });
+                setMsg(
+                  live
+                    ? "Saved. New products are being tested now; approve them under Approve in about a minute."
+                    : me.account.category === "home"
+                      ? "Saved. We'll test any new products in our test rooms now."
+                      : "Saved. We'll test any new products on our models now.",
+                );
+                await load();
+                await refresh();
+              }}
+            >
+              Save my choice
+            </button>
+          </div>
+          <p className="small muted">
+            We picked the products with the most photos first. Swap or add
+            products any time; new ones are tested, then you approve them.
+          </p>
+          <div className="grid product-grid">
+            {list.map((p) => (
+              <div key={p.id} className="card product-card" style={{ margin: 0 }}>
+                <label style={{ margin: 0, cursor: "pointer", fontWeight: 400, display: "block" }}>
+                  {p.image && (
+                    <img
+                      src={p.image}
+                      alt=""
+                      style={{ width: "100%", aspectRatio: "4/5", objectFit: "cover", borderRadius: 12 }}
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
+                  <span className="row" style={{ marginTop: 8 }}>
+                    <input
+                      type="checkbox"
+                      style={{ width: 20, minHeight: 20 }}
+                      checked={chosen.has(p.id)}
+                      disabled={p.tested && p.selected}
+                      onChange={() => toggle(p.id)}
+                    />
+                    <span>{p.title}</span>
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  className="linkish small"
+                  style={{ marginTop: 8 }}
+                  onClick={async () => {
+                    const ok = confirm(
+                      p.manual
+                        ? `Delete "${p.title}"? It's removed from Garrab, with its photo and test pictures. You can add it again later.`
+                        : `Remove "${p.title}" from Garrab? It stays on your website; it just won't have try-on.`,
+                    );
+                    if (!ok) return;
+                    await api(`/products/${p.id}/delete`, { body: {} });
+                    setMsg(p.manual ? `"${p.title}" was deleted.` : `"${p.title}" was removed from try-on.`);
+                    await load();
+                    await refresh();
+                  }}
+                >
+                  {p.manual ? "Delete product" : "Remove from try-on"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }
