@@ -9,12 +9,14 @@ import type { Env } from "../env.js";
 import { cairoDay } from "./time.js";
 
 export interface ReportTotals {
+  /** People who got a preview, each counted once a day (no ID: a date kept on their device). */
+  shoppers: number;
   views: number;
   started: number;
   previews: number;
   buys: number;
 }
-export interface ReportProduct extends ReportTotals {
+export interface ReportProduct extends Omit<ReportTotals, "shoppers"> {
   id: string;
   title: string;
   image: string | null;
@@ -26,14 +28,14 @@ export interface Report {
   days: number;
   totals: ReportTotals;
   /** Previews created per day (oldest first), for the chart. */
-  byDay: { day: string; previews: number; views: number }[];
+  byDay: { day: string; previews: number; views: number; shoppers: number }[];
   products: ReportProduct[];
   /** Percentages, rounded; null when there's nothing to divide by. */
   rates: { tryRate: number | null; buyRate: number | null };
   pilot: { startedAt: string | null; endsAt: string | null } | null;
 }
 
-const METRICS = ["button_view", "link_view", "try_on_started", "preview", "buy_click"] as const;
+const METRICS = ["button_view", "link_view", "try_on_started", "preview", "buy_click", "shopper"] as const;
 
 function addDays(day: string, n: number): string {
   return new Date(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
@@ -52,7 +54,7 @@ export async function buildReport(env: Env, accountId: string, from: string, to:
     .all<{ day: string; metric: string; count: number }>();
 
   const totals: Record<string, number> = {};
-  const perDay = new Map<string, { previews: number; views: number }>();
+  const perDay = new Map<string, { previews: number; views: number; shoppers: number }>();
   const perProduct = new Map<string, Record<string, number>>();
   for (const r of rows.results) {
     const [metric, pid] = r.metric.split("@") as [string, string | undefined];
@@ -64,8 +66,9 @@ export async function buildReport(env: Env, accountId: string, from: string, to:
       continue;
     }
     totals[metric] = (totals[metric] ?? 0) + r.count;
-    const d = perDay.get(r.day) ?? { previews: 0, views: 0 };
+    const d = perDay.get(r.day) ?? { previews: 0, views: 0, shoppers: 0 };
     if (metric === "preview") d.previews += r.count;
+    if (metric === "shopper") d.shoppers += r.count;
     if (metric === "button_view" || metric === "link_view") d.views += r.count;
     perDay.set(r.day, d);
   }
@@ -73,7 +76,7 @@ export async function buildReport(env: Env, accountId: string, from: string, to:
   const days = Math.max(1, Math.round((Date.parse(to) - Date.parse(from)) / 86_400_000) + 1);
   const byDay = Array.from({ length: days }, (_, i) => {
     const day = addDays(from, i);
-    return { day, ...(perDay.get(day) ?? { previews: 0, views: 0 }) };
+    return { day, ...(perDay.get(day) ?? { previews: 0, views: 0, shoppers: 0 }) };
   });
 
   const ids = [...perProduct.keys()];
@@ -101,6 +104,7 @@ export async function buildReport(env: Env, accountId: string, from: string, to:
     .sort((a, b) => b.previews - a.previews || b.buys - a.buys || b.views - a.views);
 
   const t: ReportTotals = {
+    shoppers: totals.shopper ?? 0,
     views: (totals.button_view ?? 0) + (totals.link_view ?? 0),
     started: totals.try_on_started ?? 0,
     previews: totals.preview ?? 0,
@@ -125,4 +129,18 @@ export async function defaultPeriod(env: Env, accountId: string, now = new Date(
   const to = cairoDay(now);
   if (a?.status === "pilot" && a.pilot_started_at) return { from: cairoDay(new Date(a.pilot_started_at)), to };
   return { from: addDays(to, -29), to };
+}
+
+/**
+ * A date range from a filter (?from=YYYY-MM-DD&to=YYYY-MM-DD, Cairo days, inclusive). null if either is
+ * missing or invalid. "to" is capped at today; at most 366 days.
+ */
+export function readPeriod(from: string | undefined, to: string | undefined, now = new Date()): { from: string; to: string } | null {
+  const ok = (d: string | undefined): d is string => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d) && !Number.isNaN(Date.parse(`${d}T00:00:00Z`));
+  if (!ok(from) || !ok(to)) return null;
+  const today = cairoDay(now);
+  const end = to > today ? today : to;
+  if (from > end) return null;
+  if (Date.parse(end) - Date.parse(from) > 365 * 86_400_000) return null;
+  return { from, to: end };
 }

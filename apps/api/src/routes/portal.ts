@@ -4,7 +4,7 @@
  */
 import { accountFresh, invalidateStatus } from "../lib/db.js";
 import { brandUnread, brandWrites, markBrandSeen, messages } from "../lib/support.js";
-import { buildReport, defaultPeriod } from "../lib/report.js";
+import { buildReport, defaultPeriod, readPeriod } from "../lib/report.js";
 import { EXTRA_PACK, PLANS, SUPPORT, productLimit, type PlanId } from "@garrab/shared/plans";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
@@ -237,7 +237,8 @@ portal.get("/products", async (c) => {
 
 /** Results: anonymous counts for the pilot so far (pilot brands) or the last 30 days. */
 portal.get("/results", async (c) => {
-  const { from, to } = await defaultPeriod(c.env, acct(c));
+  // Filter: ?from=&to= (Cairo days); otherwise the pilot so far, or the last 30 days.
+  const { from, to } = readPeriod(c.req.query("from"), c.req.query("to")) ?? (await defaultPeriod(c.env, acct(c)));
   const r = await buildReport(c.env, acct(c), from, to);
   return r ? c.json(r) : c.json({ error: "not_found" }, 404);
 });

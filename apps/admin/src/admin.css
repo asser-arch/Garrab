@@ -111,3 +111,14 @@ ul.steps { list-style: disc; }
   .search { width: 100%; }
 }
 footer.foot > a { margin-left: auto; }
+
+/* Usage tab */
+.usage-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.usage-filters select, .usage-filters input[type="search"] { width: auto; min-height: 40px; padding: 6px 14px; font-size: 14px; }
+.usage-filters input[type="search"] { min-width: 200px; }
+table.usage td, table.usage th { white-space: nowrap; }
+table.usage td:nth-child(n+3), table.usage th:nth-child(n+3) { text-align: right; font-variant-numeric: tabular-nums; }
+table.usage tr.total td { font-weight: 700; background: var(--cream); }
+button.sort { border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; white-space: nowrap; }
+button.sort:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; border-radius: 4px; }
+@media (max-width: 640px) { table.usage td, table.usage th { white-space: normal; } .usage-filters input[type="search"] { min-width: 0; width: 100%; } }

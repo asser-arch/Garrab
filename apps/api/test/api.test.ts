@@ -289,9 +289,9 @@ describe("/v1/hosted and /v1/events", () => {
     expect(m["buy_click@someoneElsesProduct1"]).toBeUndefined();
 
     const r = await buildReport(env, s.accountId, cairoDay(), cairoDay());
-    expect(r!.totals).toEqual({ views: 1, started: 0, previews: 1, buys: 2 });
+    expect(r!.totals).toEqual({ shoppers: 0, views: 1, started: 0, previews: 1, buys: 2 });
     expect(r!.products).toEqual([expect.objectContaining({ id: s.productId, title: "Red dress", views: 1, previews: 1, buys: 1 })]);
-    expect(r!.byDay).toEqual([{ day: cairoDay(), previews: 1, views: 1 }]);
+    expect(r!.byDay).toEqual([{ day: cairoDay(), previews: 1, views: 1, shoppers: 0 }]);
     expect(r!.rates).toEqual({ tryRate: 0, buyRate: 100 }); // capped: a report never shows over 100%
   });
 });

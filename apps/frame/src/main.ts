@@ -539,6 +539,16 @@ async function run(st: State, file: File): Promise<void> {
     form.set("ctx", st.ctx);
     form.set("product", st.productId);
     form.set("turnstile", await turnstileToken());
+    // Shoppers count: once a day per device. Only today's date is kept on the device; no ID is sent.
+    const seenKey = `garrab:shopper:${st.look?.slug ?? st.hosted?.slug ?? "brand"}`;
+    const today = new Date().toLocaleDateString("en-CA");
+    let counted = false;
+    try {
+      counted = localStorage.getItem(seenKey) === today;
+    } catch {
+      /* storage blocked: count this preview */
+    }
+    if (!counted) form.set("newShopper", "1");
     form.set("photo", photo, photo === file ? file.name || "photo.heic" : "photo.jpg");
     const r = await fetch(`${cfg.api}/v1/tryon`, { method: "POST", body: form, credentials: "omit" });
     if (!r.ok) {
@@ -548,6 +558,11 @@ async function run(st: State, file: File): Promise<void> {
       const photoProblem = code === "bad_photo" || code.startsWith("photo");
       startScreen(st, code === "unavailable" || code === "quota" || code === "session_expired" ? t.unavailable : photoProblem ? t.error : t.errorRetry);
       return;
+    }
+    try {
+      localStorage.setItem(seenKey, today);
+    } catch {
+      /* storage blocked */
     }
     const blob = await r.blob();
     st.resultUrl = URL.createObjectURL(blob);

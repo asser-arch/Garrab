@@ -80,6 +80,8 @@ export async function postTryOn(fields: {
   photo?: Uint8Array;
   origin?: string;
   ip?: string;
+  /** The page's "first preview on this device today" flag. */
+  newShopper?: boolean;
 }): Promise<Response> {
   const { exports } = await import("cloudflare:workers");
   const form = new FormData();
@@ -87,6 +89,7 @@ export async function postTryOn(fields: {
   form.set("product", fields.product);
   form.set("turnstile", "x");
   if (fields.photo) form.set("photo", new Blob([fields.photo], { type: "image/jpeg" }), "p.jpg");
+  if (fields.newShopper) form.set("newShopper", "1");
   return exports.default.fetch("https://api.test/v1/tryon", {
     method: "POST",
     body: form,

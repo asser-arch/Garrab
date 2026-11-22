@@ -18,6 +18,7 @@ import { getSetting, invalidateStatus, originHost, setSetting } from "../lib/db.
 import { alert, transitionStatus } from "../lib/ops.js";
 import { removeProduct, clearProductTests, deletePrefix } from "../lib/products.js";
 import { log } from "../lib/log.js";
+import { readPeriod } from "../lib/report.js";
 import { uploadProduct } from "./portal.js";
 import { adminWrites, messages as supportMessages, threads as supportThreads } from "../lib/support.js";
 import { cycleStartOf } from "../lib/metering.js";
@@ -728,4 +729,58 @@ admin.post("/accounts/:id/products/upload", async (c) => {
   const r = await uploadProduct(c.env, id, await c.req.formData().catch(() => null));
   if (r.status === 200) await audit(c.env, id, c.get("admin"), "add_product_photo", null);
   return c.json(r.body, r.status);
+});
+
+/**
+ * Usage per brand for a period (?from=&to=, Cairo days; default the last 30 days): shoppers, views,
+ * try-ons started, previews, Buy taps, and AI cost. Status and name filters are applied in the admin.
+ */
+admin.get("/usage", async (c) => {
+  const today = cairoDay();
+  const p = readPeriod(c.req.query("from"), c.req.query("to")) ?? {
+    from: new Date(Date.parse(`${today}T00:00:00Z`) - 29 * 86_400_000).toISOString().slice(0, 10),
+    to: today,
+  };
+  const accounts = await c.env.DB.prepare(
+    "SELECT id, name, status, plan_id, target_plan_id, category FROM accounts WHERE status != 'archived' ORDER BY name",
+  ).all<{ id: string; name: string; status: string; plan_id: string; target_plan_id: string | null; category: string }>();
+  const counts = await c.env.DB.prepare(
+    `SELECT account_id, metric, SUM(count) AS n FROM daily_counters
+      WHERE day >= ? AND day <= ? AND account_id != '*'
+        AND metric IN ('shopper','button_view','link_view','try_on_started','preview','buy_click')
+      GROUP BY account_id, metric`,
+  )
+    .bind(p.from, p.to)
+    .all<{ account_id: string; metric: string; n: number }>();
+  // AI cost by Cairo day (usage_events are stamped in UTC; Cairo is UTC+2).
+  const cost = await c.env.DB.prepare(
+    `SELECT account_id, SUM(cost_micro_usd) AS micro FROM usage_events
+      WHERE substr(datetime(created_at, '+2 hours'), 1, 10) BETWEEN ? AND ? GROUP BY account_id`,
+  )
+    .bind(p.from, p.to)
+    .all<{ account_id: string; micro: number }>();
+  const m = new Map<string, Record<string, number>>();
+  for (const r of counts.results) {
+    const x = m.get(r.account_id) ?? {};
+    x[r.metric] = r.n;
+    m.set(r.account_id, x);
+  }
+  const usd = new Map(cost.results.map((r) => [r.account_id, r.micro / 1_000_000]));
+  const rows = accounts.results.map((a) => {
+    const x = m.get(a.id) ?? {};
+    return {
+      id: a.id,
+      name: a.name,
+      status: a.status,
+      plan: PLANS[(a.plan_id === "pilot" ? (a.target_plan_id ?? "starter") : a.plan_id) as PlanId].name,
+      category: a.category,
+      shoppers: x.shopper ?? 0,
+      views: (x.button_view ?? 0) + (x.link_view ?? 0),
+      started: x.try_on_started ?? 0,
+      previews: x.preview ?? 0,
+      buys: x.buy_click ?? 0,
+      aiUsd: Math.round((usd.get(a.id) ?? 0) * 100) / 100,
+    };
+  });
+  return c.json({ from: p.from, to: p.to, rows });
 });

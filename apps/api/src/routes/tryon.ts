@@ -169,6 +169,8 @@ tryon.post("/tryon", async (c) => {
   // Counted on the server (the shopper's page can't fake it): total and per product, for the results report.
   await bumpCounter(c.env, account.id, "preview");
   await bumpCounter(c.env, account.id, `preview@${product.id}`);
+  // Shoppers: the page says "first preview on this device today" (a date kept on the device, no ID).
+  if (form.get("newShopper") === "1") await bumpCounter(c.env, account.id, "shopper");
   await afterResponse(c, usageWarnings(c.env, account, `${c.env.APP_ORIGIN}/portal/billing`));
   if (!product.provider_synced_at) {
     await c.env.DB.prepare("UPDATE products SET provider_synced_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?")

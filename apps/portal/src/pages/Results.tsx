@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 
 interface Totals {
+  shoppers?: number;
   views: number;
   started: number;
   previews: number;
@@ -13,7 +14,7 @@ interface Report {
   to: string;
   days: number;
   totals: Totals;
-  byDay: { day: string; previews: number; views: number }[];
+  byDay: { day: string; previews: number; views: number; shoppers: number }[];
   products: (Totals & { id: string; title: string; image: string | null })[];
   rates: { tryRate: number | null; buyRate: number | null };
   pilot: { startedAt: string | null; endsAt: string | null } | null;
@@ -22,6 +23,77 @@ interface Report {
 const n = (x: number): string => x.toLocaleString("en-US");
 const short = (d: string): string => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 const rate = (x: number | null): string => (x === null ? "–" : `${x}%`);
+
+// ---------------------------------------------------------------- period filter (Cairo days)
+
+export type Preset = "7d" | "30d" | "month" | "lastMonth" | "pilot" | "custom";
+const cairoToday = (): string => new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
+const plusDays = (d: string, n: number): string => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+/** The from/to (inclusive) of a preset; null = the server's default (pilot so far, or last 30 days). */
+export function presetRange(p: Preset, pilotStart: string | null): { from: string; to: string } | null {
+  const today = cairoToday();
+  if (p === "7d") return { from: plusDays(today, -6), to: today };
+  if (p === "30d") return { from: plusDays(today, -29), to: today };
+  if (p === "month") return { from: `${today.slice(0, 8)}01`, to: today };
+  if (p === "lastMonth") {
+    const firstThis = `${today.slice(0, 8)}01`;
+    const lastPrev = plusDays(firstThis, -1);
+    return { from: `${lastPrev.slice(0, 8)}01`, to: lastPrev };
+  }
+  if (p === "pilot" && pilotStart) return { from: new Date(pilotStart).toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" }), to: today };
+  return null;
+}
+
+export function PeriodFilter({
+  preset,
+  setPreset,
+  custom,
+  setCustom,
+  pilot,
+}: {
+  preset: Preset;
+  setPreset: (p: Preset) => void;
+  custom: { from: string; to: string };
+  setCustom: (c: { from: string; to: string }) => void;
+  pilot: boolean;
+}) {
+  const options: [Preset, string][] = [
+    ["7d", "Last 7 days"],
+    ["30d", "Last 30 days"],
+    ["month", "This month"],
+    ["lastMonth", "Last month"],
+    ...(pilot ? ([["pilot", "Whole pilot"]] as [Preset, string][]) : []),
+    ["custom", "Custom dates"],
+  ];
+  return (
+    <div className="period no-print">
+      <label htmlFor="period" className="sr-only">
+        Period
+      </label>
+      <select id="period" value={preset} onChange={(e) => setPreset(e.target.value as Preset)}>
+        {options.map(([v, l]) => (
+          <option key={v} value={v}>
+            {l}
+          </option>
+        ))}
+      </select>
+      {preset === "custom" && (
+        <span className="period-custom">
+          <label htmlFor="p-from" className="sr-only">
+            From
+          </label>
+          <input id="p-from" type="date" max={custom.to || cairoToday()} value={custom.from} onChange={(e) => setCustom({ ...custom, from: e.target.value })} />
+          <span aria-hidden="true">–</span>
+          <label htmlFor="p-to" className="sr-only">
+            To
+          </label>
+          <input id="p-to" type="date" min={custom.from} max={cairoToday()} value={custom.to} onChange={(e) => setCustom({ ...custom, to: e.target.value })} />
+        </span>
+      )}
+    </div>
+  );
+}
 
 /** Single-series daily bars (forest on paper). Hover/focus shows the exact value; a table carries the same data. */
 function DailyChart({ days }: { days: Report["byDay"] }) {
@@ -67,9 +139,21 @@ function DailyChart({ days }: { days: Report["byDay"] }) {
 export function Results() {
   const [r, setR] = useState<Report | null>(null);
   const [failed, setFailed] = useState(false);
+  const [preset, setPreset] = useState<Preset | null>(null); // null = the server's default
+  const [custom, setCustom] = useState({ from: plusDays(cairoToday(), -6), to: cairoToday() });
+  const [loading, setLoading] = useState(false);
   useEffect(() => {
-    api<Report>("/results").then(setR, () => setFailed(true));
-  }, []);
+    const range = preset === "custom" ? (custom.from && custom.to && custom.from <= custom.to ? custom : undefined) : preset ? presetRange(preset, r?.pilot?.startedAt ?? null) : null;
+    if (range === undefined) return; // custom dates not complete yet
+    setLoading(true);
+    api<Report>(range ? `/results?from=${range.from}&to=${range.to}` : "/results")
+      .then((x) => {
+        setR(x);
+        if (preset === null) setPreset(x.pilot ? "pilot" : "30d");
+      }, () => setFailed(true))
+      .finally(() => setLoading(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preset, custom.from, custom.to]);
 
   if (failed) return <p className="warn">We couldn't load your results. Please refresh the page.</p>;
   if (!r) return <p className="muted">Loading…</p>;
@@ -80,17 +164,19 @@ export function Results() {
     <div className="results">
       <div className="row results-head" style={{ justifyContent: "space-between", alignItems: "flex-end" }}>
         <div>
-          <h1>
-            Results <span className="soft">{r.pilot ? "of your pilot" : "for the last 30 days"}</span>
-          </h1>
+          <h1>Results</h1>
           <p className="muted" style={{ margin: 0 }}>
             {r.brand} · {short(r.from)} – {short(r.to)} {r.to.slice(0, 4)}
           </p>
         </div>
-        <button className="btn ghost small no-print" onClick={() => print()}>
-          Save as PDF
-        </button>
+        <div className="row no-print">
+          {preset && <PeriodFilter preset={preset} setPreset={setPreset} custom={custom} setCustom={setCustom} pilot={!!r.pilot} />}
+          <button className="btn ghost small" onClick={() => print()}>
+            Save as PDF
+          </button>
+        </div>
       </div>
+      {loading && <p className="small muted" role="status">Updating…</p>}
 
       {empty && (
         <p className="note">
@@ -99,6 +185,11 @@ export function Results() {
       )}
 
       <div className="kpis">
+        <div className="kpi forest">
+          <span className="kpi-label">Shoppers</span>
+          <span className="kpi-value">{n(t.shoppers ?? 0)}</span>
+          <span className="kpi-note">People who got a preview (each once a day)</span>
+        </div>
         <div className="kpi mist">
           <span className="kpi-label">Views</span>
           <span className="kpi-value">{n(t.views)}</span>
@@ -141,6 +232,7 @@ export function Results() {
             <thead>
               <tr>
                 <th scope="col">Day</th>
+                <th scope="col">Shoppers</th>
                 <th scope="col">Views</th>
                 <th scope="col">Previews</th>
               </tr>
@@ -149,6 +241,7 @@ export function Results() {
               {r.byDay.map((d) => (
                 <tr key={d.day}>
                   <td>{short(d.day)}</td>
+                  <td>{n(d.shoppers ?? 0)}</td>
                   <td>{n(d.views)}</td>
                   <td>{n(d.previews)}</td>
                 </tr>
@@ -197,7 +290,7 @@ export function Results() {
       </div>
 
       <p className="small muted">
-        Counts are anonymous: we never know who your shoppers are. "Views" counts shoppers who saw the Try it on button on your website or opened your try-on link.
+        Counts are anonymous: we never know who your shoppers are. "Shoppers" counts each person once a day, using only a date kept on their own phone or computer. "Views" counts shoppers who saw the Try it on button on your website or opened your try-on link.
       </p>
     </div>
   );
