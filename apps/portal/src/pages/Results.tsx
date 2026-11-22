@@ -152,7 +152,6 @@ export function Results() {
         if (preset === null) setPreset(x.pilot ? "pilot" : "30d");
       }, () => setFailed(true))
       .finally(() => setLoading(false));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [preset, custom.from, custom.to]);
 
   if (failed) return <p className="warn">We couldn't load your results. Please refresh the page.</p>;
