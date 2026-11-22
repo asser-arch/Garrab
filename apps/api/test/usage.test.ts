@@ -72,6 +72,32 @@ describe("period filters", () => {
     expect(r.rows.find((x) => x.id === b.accountId)).toMatchObject({ shoppers: 0, previews: 1 });
   });
 
+  it("admin usage separates real shoppers from Garrab's own approval tests (count and AI cost)", async () => {
+    const a = await seedAccount();
+    const ev = (kind: string, ok: number, micro: number) =>
+      env.DB.prepare("INSERT INTO usage_events (id, account_id, kind, provider, ok, cost_micro_usd) VALUES (?, ?, ?, 'x', ?, ?)").bind(
+        crypto.randomUUID(),
+        a.accountId,
+        kind,
+        ok,
+        micro,
+      );
+    await env.DB.batch([
+      ev("tryon", 1, 40_000), // a shopper's preview
+      ev("room", 1, 40_000), // a shopper's room preview
+      ev("test", 1, 70_000), // approval preview on a test model
+      ev("test", 1, 70_000),
+      ev("test", 0, 0), // a failed test attempt: not a preview
+      ev("score", 1, 1_000), // its quality check
+      ev("support", 1, 5_000), // a support chat reply
+    ]);
+    const today = cairoDay();
+    const r = (await (await exports.default.fetch(`https://api.test/admin-api/usage?from=${today}&to=${today}`, { headers: ADMIN })).json()) as {
+      rows: { id: string; testPreviews: number; shopperUsd: number; testUsd: number }[];
+    };
+    expect(r.rows.find((x) => x.id === a.accountId)).toMatchObject({ testPreviews: 2, shopperUsd: 0.08, testUsd: 0.15 });
+  });
+
   it("the brand's results follow the chosen dates (and only ever show its own numbers)", async () => {
     const s = await seedAccount();
     const r = await buildReport(env, s.accountId, "2026-11-01", "2026-11-07");

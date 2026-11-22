@@ -733,7 +733,8 @@ admin.post("/accounts/:id/products/upload", async (c) => {
 
 /**
  * Usage per brand for a period (?from=&to=, Cairo days; default the last 30 days): shoppers, views,
- * try-ons started, previews, Buy taps, and AI cost. Status and name filters are applied in the admin.
+ * try-ons started, previews, Buy taps; approval previews (Garrab's product tests); AI cost split between
+ * shoppers and Garrab's own tests. Status and name filters are applied in the admin.
  */
 admin.get("/usage", async (c) => {
   const today = cairoDay();
@@ -753,19 +754,26 @@ admin.get("/usage", async (c) => {
     .bind(p.from, p.to)
     .all<{ account_id: string; metric: string; n: number }>();
   // AI cost by Cairo day (usage_events are stamped in UTC; Cairo is UTC+2).
+  // Split: shopper previews (try-on, room, size finder) vs Garrab's own work for the brand (product tests
+  // for approval, their quality scores, support chat replies).
   const cost = await c.env.DB.prepare(
-    `SELECT account_id, SUM(cost_micro_usd) AS micro FROM usage_events
+    `SELECT account_id,
+            SUM(CASE WHEN kind IN ('tryon','room','size','fit_read') THEN cost_micro_usd ELSE 0 END) AS shopper_micro,
+            SUM(CASE WHEN kind IN ('tryon','room','size','fit_read') THEN 0 ELSE cost_micro_usd END) AS test_micro,
+            SUM(CASE WHEN kind = 'test' AND ok = 1 THEN 1 ELSE 0 END) AS test_previews
+       FROM usage_events
       WHERE substr(datetime(created_at, '+2 hours'), 1, 10) BETWEEN ? AND ? GROUP BY account_id`,
   )
     .bind(p.from, p.to)
-    .all<{ account_id: string; micro: number }>();
+    .all<{ account_id: string; shopper_micro: number; test_micro: number; test_previews: number }>();
   const m = new Map<string, Record<string, number>>();
   for (const r of counts.results) {
     const x = m.get(r.account_id) ?? {};
     x[r.metric] = r.n;
     m.set(r.account_id, x);
   }
-  const usd = new Map(cost.results.map((r) => [r.account_id, r.micro / 1_000_000]));
+  const ai = new Map(cost.results.map((r) => [r.account_id, r]));
+  const usd = (micro: number | undefined): number => Math.round((micro ?? 0) / 10_000) / 100;
   const rows = accounts.results.map((a) => {
     const x = m.get(a.id) ?? {};
     return {
@@ -779,7 +787,9 @@ admin.get("/usage", async (c) => {
       started: x.try_on_started ?? 0,
       previews: x.preview ?? 0,
       buys: x.buy_click ?? 0,
-      aiUsd: Math.round((usd.get(a.id) ?? 0) * 100) / 100,
+      testPreviews: ai.get(a.id)?.test_previews ?? 0,
+      shopperUsd: usd(ai.get(a.id)?.shopper_micro),
+      testUsd: usd(ai.get(a.id)?.test_micro),
     };
   });
   return c.json({ from: p.from, to: p.to, rows });

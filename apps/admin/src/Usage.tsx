@@ -16,9 +16,14 @@ interface Row {
   started: number;
   previews: number;
   buys: number;
-  aiUsd: number;
+  /** Garrab's own previews of the brand's products on test models/rooms, for the brand to approve. */
+  testPreviews: number;
+  /** AI cost of real shoppers' previews (and size finder). */
+  shopperUsd: number;
+  /** AI cost of Garrab's own work: approval tests, their quality checks, support chat replies. */
+  testUsd: number;
 }
-type Key = "name" | "shoppers" | "views" | "started" | "previews" | "buys" | "aiUsd";
+type Key = "name" | "shoppers" | "views" | "started" | "previews" | "buys" | "testPreviews" | "shopperUsd" | "testUsd";
 
 const STATUS: Record<string, string> = {
   all: "All brands",
@@ -71,8 +76,17 @@ export function Usage({ openBrand }: { openBrand: (id: string) => void }) {
     return list.sort((a, b) => (sort.key === "name" ? a.name.localeCompare(b.name) * dir : (a[sort.key] - b[sort.key]) * dir || a.name.localeCompare(b.name)));
   }, [data, status, q, sort]);
   const total = rows.reduce(
-    (t, r) => ({ shoppers: t.shoppers + r.shoppers, views: t.views + r.views, started: t.started + r.started, previews: t.previews + r.previews, buys: t.buys + r.buys, aiUsd: t.aiUsd + r.aiUsd }),
-    { shoppers: 0, views: 0, started: 0, previews: 0, buys: 0, aiUsd: 0 },
+    (t, r) => ({
+      shoppers: t.shoppers + r.shoppers,
+      views: t.views + r.views,
+      started: t.started + r.started,
+      previews: t.previews + r.previews,
+      buys: t.buys + r.buys,
+      testPreviews: t.testPreviews + r.testPreviews,
+      shopperUsd: t.shopperUsd + r.shopperUsd,
+      testUsd: t.testUsd + r.testUsd,
+    }),
+    { shoppers: 0, views: 0, started: 0, previews: 0, buys: 0, testPreviews: 0, shopperUsd: 0, testUsd: 0 },
   );
 
   const head = (key: Key, label: string) => (
@@ -86,8 +100,10 @@ export function Usage({ openBrand }: { openBrand: (id: string) => void }) {
 
   const csv = (): void => {
     const lines = [
-      ["Brand", "Status", "Plan", "Shoppers", "Views", "Try-ons started", "Previews", "Buy taps", "AI cost (USD)"].join(","),
-      ...rows.map((r) => [`"${r.name.replace(/"/g, '""')}"`, STATUS_NAME[r.status] ?? r.status, r.plan, r.shoppers, r.views, r.started, r.previews, r.buys, r.aiUsd.toFixed(2)].join(",")),
+      ["Brand", "Status", "Plan", "Shoppers", "Views", "Try-ons started", "Shopper previews", "Buy taps", "Approval previews", "AI cost shoppers (USD)", "AI cost tests (USD)"].join(","),
+      ...rows.map((r) =>
+        [`"${r.name.replace(/"/g, '""')}"`, STATUS_NAME[r.status] ?? r.status, r.plan, r.shoppers, r.views, r.started, r.previews, r.buys, r.testPreviews, r.shopperUsd.toFixed(2), r.testUsd.toFixed(2)].join(","),
+      ),
     ];
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
@@ -104,8 +120,9 @@ export function Usage({ openBrand }: { openBrand: (id: string) => void }) {
             Usage <span className="soft">per brand</span>
           </h1>
           <p className="small muted">
-            {data ? `${short(data.from)} – ${short(data.to)}. ` : ""}Shoppers counts each person who got a preview once a day (no personal data). Click a brand
-            for its details.
+            {data ? `${short(data.from)} – ${short(data.to)}. ` : ""}Shoppers, Views, Try-ons, Previews and Buy taps are real shoppers only (each shopper
+            counted once a day, no personal data). Approval previews are Garrab's own test pictures of each product for the brand to approve; "AI cost: tests"
+            is their cost (plus quality checks and support chat replies). Click a brand for its details.
           </p>
         </div>
       </div>
@@ -150,7 +167,9 @@ export function Usage({ openBrand }: { openBrand: (id: string) => void }) {
                   {head("started", "Try-ons")}
                   {head("previews", "Previews")}
                   {head("buys", "Buy taps")}
-                  {head("aiUsd", "AI cost")}
+                  {head("testPreviews", "Approval previews")}
+                  {head("shopperUsd", "AI cost: shoppers")}
+                  {head("testUsd", "AI cost: tests")}
                 </tr>
               </thead>
               <tbody>
@@ -164,7 +183,9 @@ export function Usage({ openBrand }: { openBrand: (id: string) => void }) {
                   <td>{n(total.started)}</td>
                   <td>{n(total.previews)}</td>
                   <td>{n(total.buys)}</td>
-                  <td>{total.aiUsd.toFixed(2)} USD</td>
+                  <td>{n(total.testPreviews)}</td>
+                  <td>{total.shopperUsd.toFixed(2)} USD</td>
+                  <td>{total.testUsd.toFixed(2)} USD</td>
                 </tr>
                 {rows.map((r) => (
                   <tr key={r.id}>
@@ -184,7 +205,9 @@ export function Usage({ openBrand }: { openBrand: (id: string) => void }) {
                     <td>{n(r.started)}</td>
                     <td>{n(r.previews)}</td>
                     <td>{n(r.buys)}</td>
-                    <td>{r.aiUsd.toFixed(2)} USD</td>
+                    <td>{n(r.testPreviews)}</td>
+                    <td>{r.shopperUsd.toFixed(2)} USD</td>
+                    <td>{r.testUsd.toFixed(2)} USD</td>
                   </tr>
                 ))}
               </tbody>
