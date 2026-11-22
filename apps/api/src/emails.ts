@@ -13,7 +13,7 @@ function layout(title: string, bodyHtml: string, cta?: { label: string; url: str
     : "";
   return `<!doctype html><html><body style="margin:0;background:#F4F2EB;font-family:Cairo,Arial,sans-serif;color:#0F1A13">
 <div style="max-width:520px;margin:0 auto;padding:24px">
-<p style="font-weight:700;font-size:18px;margin:0 0 16px"><span style="display:inline-block;background:#143822;color:#FCFBF8;border-radius:8px;width:28px;height:28px;text-align:center;line-height:28px">G</span> Garrab</p>
+<p style="margin:0 0 16px"><img src="${COMPANY.emailLogo}" width="93" height="36" alt="Garrab" style="display:block;border:0;outline:none;width:93px;height:36px"></p>
 <div style="background:#FCFBF8;border:1px solid #DDD6C9;border-radius:20px;padding:24px">
 <h1 style="font-size:22px;font-weight:400;margin:0 0 16px">${esc(title)}</h1>
 ${bodyHtml}${button}

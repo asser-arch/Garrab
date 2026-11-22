@@ -86,6 +86,9 @@ export const COMPANY = {
   poweredBy: "Powered by Infinisync by Arotech",
   name: "Infinisync by Arotech",
   url: "https://www.theinfinisync.com",
+  /** Garrab logo for emails (PNG: Gmail and Outlook don't show SVG). Light and dark-background versions. */
+  emailLogo: "https://app.garrabb.com/email-logo.png",
+  emailLogoDark: "https://app.garrabb.com/email-logo-dark.png",
   /** WhatsApp for "Talk to us" (international format, digits only). */
   whatsapp: "201009110001",
 } as const;

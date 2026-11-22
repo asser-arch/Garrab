@@ -1,7 +1,7 @@
 import { COMPANY } from "@garrab/shared/plans";
 /**
  * The branded results report email (pilot day 10 and day 14). Email-safe: tables and inline
- * styles only, no images required (brand tile is text), brand colours from tokens, no shadows
+ * styles only, one image (the Garrab logo, with alt text), brand colours from tokens, no shadows
  * or gradients (brand guideline). Numbers are anonymous counts.
  */
 import type { EmailMessage } from "./lib/email.js";
@@ -135,7 +135,7 @@ export function reportEmail(to: string, r: Report, o: ReportEmailOptions): Email
 <tr><td style="background:${C.forest};padding:20px 28px;font-family:${FONT}">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
     <td style="font-family:${FONT};font-size:18px;font-weight:700;color:${C.paper}">
-      <span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;border-radius:8px;background:${C.paper};color:${C.forest};margin-right:8px">G</span>Garrab
+      <img src="${COMPANY.emailLogoDark}" width="93" height="36" alt="Garrab" style="display:block;border:0;outline:none;width:93px;height:36px">
     </td>
     <td align="right" style="font-family:${FONT};font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:${C.peach};font-weight:700">${esc(o.kind === "final" ? "Pilot results" : `Pilot report · day ${o.dayNumber}`)}</td>
   </tr></table>
