@@ -349,7 +349,7 @@ function resultScreen(st: State, url: string): void {
   const img = h("img", { src: url, alt: t.aiPreview, class: "result" });
   const dl = h("a", { href: url, download: "preview.jpg", class: "btn primary", "data-autofocus": "" }, t.download);
   const buy =
-    st.mode === "hosted" && st.hosted?.buyUrl
+    st.mode === "hosted" && st.hosted?.buyUrl && /^https?:\/\//i.test(st.hosted.buyUrl) // only real web addresses become links
       ? h("a", { href: st.hosted.buyUrl, target: "_blank", rel: "noopener", class: "btn accent" }, t.buy)
       : null;
   buy?.addEventListener("click", () => sendEvent(st, "buy_click"));

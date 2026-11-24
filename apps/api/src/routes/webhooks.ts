@@ -33,8 +33,13 @@ async function done(env: Env, id: string, error: string | null = null): Promise<
   await env.DB.prepare("UPDATE webhook_events SET processed_at = strftime('%Y-%m-%dT%H:%M:%fZ','now'), error = ? WHERE id = ?").bind(error, id).run();
 }
 
+/** Alert on a bad signature, at most once an hour per source: probing can't flood Asser's Telegram. */
 async function signatureFailure(env: Env, provider: string): Promise<void> {
-  await alert(env, "webhook_signature", null, `Webhook signature failure from ${provider}. Someone may be probing the endpoint.`);
+  const message = `Webhook signature failure from ${provider}. Someone may be probing the endpoint.`;
+  const recent = await env.DB.prepare("SELECT 1 FROM alerts WHERE kind = 'webhook_signature' AND message = ? AND created_at > ? LIMIT 1")
+    .bind(message, new Date(Date.now() - 3_600_000).toISOString())
+    .first();
+  if (!recent) await alert(env, "webhook_signature", null, message);
 }
 
 /** Telegram: only the Confirm / Not received buttons, only from Asser's chat, only signed ones. */
@@ -81,7 +86,7 @@ webhooks.post("/kashier", async (c) => {
   const data = body.data ?? {};
   const ok = await verifyKashierSignature(data, c.req.header("x-kashier-signature"), c.env.KASHIER_PAYMENT_API_KEY ?? "");
   const key = typeof data.transactionId === "string" ? `${data.transactionId}:${data.status ?? ""}` : null;
-  const ev = await store(c.env, "kashier", key, ok, raw);
+  const ev = await store(c.env, "kashier", ok ? key : null, ok, ok ? raw : ""); // unsigned junk isn't kept
   if (!ok) {
     await signatureFailure(c.env, "kashier");
     return c.body(null, 401);

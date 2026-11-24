@@ -41,6 +41,23 @@ const egyptPhone = z
   .pipe(z.string().regex(/^(?:\+20|0020|0)?1[0125]\d{8}$/, "Enter an Egyptian mobile number, e.g. +201001234567"))
   .transform((s) => `+20${s.replace(/^(?:\+20|0020|0)/, "")}`);
 
+/** True only for a real web address (http/https). Rejects javascript:, data: and other schemes. */
+export function isHttpUrl(v: string): boolean {
+  try {
+    const u = new URL(v);
+    return (u.protocol === "https:" || u.protocol === "http:") && !!u.hostname;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A web address typed by a brand or a visitor. Only http/https: a "javascript:" address would run
+ * code when someone clicks the link it becomes (the Buy button, the admin's website link).
+ */
+export const httpUrl = (max = 1000) =>
+  z.string().trim().max(max).refine(isHttpUrl, { message: "Use a web address starting with https://" });
+
 /** Public /start lead form. */
 export const LeadForm = z
   .object({
@@ -48,7 +65,7 @@ export const LeadForm = z
     contactName: z.string().trim().min(2).max(80),
     email: z.string().trim().toLowerCase().email().max(254),
     whatsapp: egyptPhone,
-    website: z.string().trim().url().max(300).optional(),
+    website: httpUrl(300).optional(),
     instagram: z
       .string()
       .trim()

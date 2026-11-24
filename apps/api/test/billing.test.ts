@@ -243,7 +243,7 @@ describe("renewals, lateness and the kill switch", () => {
     await telegramPress(c.id, "a", { data: `pc:${c.id}:a:AAAAAAAAAAAA` });
     expect((await env.DB.prepare("SELECT status FROM payment_claims WHERE id = ?").bind(c.id).first<{ status: string }>())!.status).toBe("pending");
     const sig = await env.DB.prepare("SELECT COUNT(*) AS n FROM alerts WHERE kind = 'webhook_signature'").first<{ n: number }>();
-    expect(sig!.n).toBeGreaterThanOrEqual(3);
+    expect(sig!.n).toBeGreaterThanOrEqual(2); // one per kind of failure per hour (wrong secret; forged button), so probing can't flood Telegram
   });
 });
 

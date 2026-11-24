@@ -3,7 +3,7 @@
  * Phase 2 scope: invite a brand, funnel, onboarding list and detail, step overrides,
  * one-click reminders, review "needs review" products.
  */
-import { InviteBrand, OnboardingStep } from "@garrab/shared";
+import { InviteBrand, OnboardingStep, httpUrl } from "@garrab/shared";
 import { CAPS, PLANS, SETUP_FEE, SUPPORT, type PlanId } from "@garrab/shared/plans";
 import { Hono } from "hono";
 import { z } from "zod";
@@ -57,7 +57,7 @@ async function audit(env: Env, accountId: string | null, actor: string, action: 
 /** Invite a brand in 10 seconds: returns a sign-in link to hand over in person. */
 admin.post("/invite", async (c) => {
   const body = InviteBrand.extend({
-    website: z.string().trim().url().max(300).optional(),
+    website: httpUrl(300).optional(),
     whatsapp: z.string().trim().max(20).optional(),
     platform: z.enum(["shopify", "woocommerce", "other_website", "social_only"]).optional(),
     setupFee: z.boolean().optional(),

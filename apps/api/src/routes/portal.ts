@@ -8,6 +8,7 @@ import { buildReport, defaultPeriod, readPeriod } from "../lib/report.js";
 import { EXTRA_PACK, PLANS, SUPPORT, productLimit, type PlanId } from "@garrab/shared/plans";
 import { Hono, type Context } from "hono";
 import { z } from "zod";
+import { httpUrl } from "@garrab/shared";
 import { emails } from "../emails.js";
 import { cdnOrigin, type Env } from "../env.js";
 import { widgetKey } from "../lib/accounts.js";
@@ -47,13 +48,22 @@ portal.use("*", async (c, next) => {
 
 // ---------------------------------------------------------------- auth (no session needed)
 
+const SIGN_IN_EMAILS_PER_HOUR = 5;
+
 portal.post("/auth/request", async (c) => {
   const body = z.object({ email: z.string().trim().toLowerCase().email().max(254) }).safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json({ error: "invalid" }, 400);
   const ip = c.req.header("cf-connecting-ip") ?? "unknown";
   if (c.env.RL_CONFIG_IP && !(await c.env.RL_CONFIG_IP.limit({ key: `login:${ip}` })).success) return c.json({ error: "rate_limited" }, 429);
   const u = await c.env.DB.prepare("SELECT id, account_id FROM users WHERE email = ?").bind(body.data.email).first<{ id: string; account_id: string }>();
-  if (u) {
+  // At most SIGN_IN_EMAILS_PER_HOUR codes per address: no flooding a brand's inbox from many networks, and
+  // no collecting fresh codes to get more guesses. The answer stays the same either way (no account probing).
+  const recent = u
+    ? await c.env.DB.prepare("SELECT COUNT(*) AS n FROM magic_links WHERE email = ? AND created_at > ?")
+        .bind(body.data.email, new Date(Date.now() - 3_600_000).toISOString())
+        .first<{ n: number }>()
+    : null;
+  if (u && (recent?.n ?? 0) < SIGN_IN_EMAILS_PER_HOUR) {
     const { link, code } = await createSignIn(c.env, u.id, body.data.email);
     await sendOnce(c.env, { accountId: u.account_id, template: "login", dedupeKey: `login:${ulid()}`, msg: emails.login(body.data.email, link, code) });
   }
@@ -271,8 +281,8 @@ portal.post("/products/select", async (c) => {
 
 const ManualProduct = z.object({
   title: z.string().trim().min(2).max(200),
-  imageUrl: z.string().trim().url().startsWith("https://").max(1000),
-  productUrl: z.string().trim().url().max(1000).optional(),
+  imageUrl: httpUrl(1000).refine((v) => v.startsWith("https://"), { message: "Use an https:// photo address" }),
+  productUrl: httpUrl(1000).optional(),
   description: z.string().trim().max(2000).optional(),
   /** Sizes the brand sells, e.g. "S, M, L, XL" (turns on the size finder on Growth). */
   sizes: z.string().trim().max(120).optional(),
@@ -341,7 +351,7 @@ export async function uploadProduct(env: Env, id: string, form: FormData | null)
   const sizes = String(form?.get("sizes") ?? "").trim().slice(0, 120) || undefined;
   if (!form || !(file instanceof File) || title.length < 2 || title.length > 200) return { status: 400, body: { error: "invalid" } };
   if (file.size > PRODUCT_PHOTO_MAX_BYTES) return { status: 413, body: { error: "too_large" } };
-  if (productUrl && !z.string().url().max(1000).safeParse(productUrl).success) return { status: 400, body: { error: "invalid", fields: ["productUrl"] } };
+  if (productUrl && !httpUrl(1000).safeParse(productUrl).success) return { status: 400, body: { error: "invalid", fields: ["productUrl"] } };
   let bytes: Uint8Array = new Uint8Array(await file.arrayBuffer());
   const type = sniffImage(bytes);
   if (!type || type === "image/heic") return { status: 415, body: { error: "not_an_image" } };
