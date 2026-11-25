@@ -191,7 +191,7 @@ ${section(
 </td></tr>
 
 </table>
-<p style="font-family:${FONT};font-size:12px;color:#8A8B84;margin:16px 0 0;max-width:600px">Garrab · AI try-on for Egyptian brands. Counts are anonymous: we never know who your shoppers are. Previews are AI images, a guide rather than a promise.<br><a href="${COMPANY.url}" style="color:#8A8B84">${COMPANY.poweredBy}</a></p>
+<p style="font-family:${FONT};font-size:12px;color:#8A8B84;margin:16px 0 0;max-width:600px">Garrab · AI try-on for online brands. Counts are anonymous: we never know who your shoppers are. Previews are AI images, a guide rather than a promise.<br><a href="${COMPANY.url}" style="color:#8A8B84">${COMPANY.poweredBy}</a></p>
 </td></tr></table>
 </body></html>`;
 

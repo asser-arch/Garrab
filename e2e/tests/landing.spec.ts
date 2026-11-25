@@ -5,7 +5,7 @@ const APP = "http://localhost:8788";
 /** The landing page: readable by search engines and AI assistants, in English and Arabic. */
 test("landing page: content, structured data and languages", async ({ page }) => {
   await page.goto(`${APP}/`);
-  await expect(page).toHaveTitle(/Garrab: AI virtual try-on for Egyptian online brands/);
+  await expect(page).toHaveTitle(/Garrab: AI virtual try-on for online brands/);
   await expect(page.getByRole("heading", { level: 1 })).toContainText("try it on");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://garrabb.com/");
   await expect(page.locator('link[hreflang="ar"]')).toHaveAttribute("href", "https://garrabb.com/ar");

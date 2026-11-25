@@ -76,7 +76,7 @@ export async function invoicePdf(
     text("How to pay", 48, y, 10, bold, GREY);
     text(`InstaPay to ${/^\+?[0-9 ]{10,15}$/.test(seller.instapay) ? "mobile number " : ""}${seller.instapay}. Write ${inv.number} in the note.`, 48, y - 16);
   }
-  text("Garrab: AI try-on for Egyptian brands. Payment is due before each month starts.", 48, 60, 9, regular, GREY);
+  text("Garrab: AI try-on for online brands. Payment is due before each month starts.", 48, 60, 9, regular, GREY);
   text(`${COMPANY.poweredBy} · theinfinisync.com`, 48, 46, 9, regular, GREY);
   return doc.save();
 }

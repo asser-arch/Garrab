@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Garrab: AI virtual try-on for Egyptian online brands</title>
-<meta name="description" content="Garrab lets your shoppers see your clothes on themselves, or your home décor in their own room, before they buy. AI virtual try-on for Egyptian brands on Shopify, WooCommerce, any website or Instagram. Free 14-day pilot.">
+<title>Garrab: AI virtual try-on for online brands</title>
+<meta name="description" content="Garrab lets your shoppers see your clothes on themselves, or your home décor in their own room, before they buy. AI virtual try-on for online brands on Shopify, WooCommerce, any website or Instagram. Free 14-day pilot.">
 <link rel="canonical" href="https://garrabb.com/">
 <link rel="alternate" hreflang="en" href="https://garrabb.com/">
 <link rel="alternate" hreflang="ar" href="https://garrabb.com/ar">
@@ -16,14 +16,14 @@
 <meta property="og:locale" content="en_US">
 <meta property="og:locale:alternate" content="ar_EG">
 <meta property="og:url" content="https://garrabb.com/">
-<meta property="og:title" content="Garrab: AI virtual try-on for Egyptian online brands">
+<meta property="og:title" content="Garrab: AI virtual try-on for online brands">
 <meta property="og:description" content="Shoppers see your piece on themselves, or in their own room, before they buy. Free 14-day pilot, set up for you.">
 <meta property="og:image" content="https://garrabb.com/og-en.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:image:alt" content="Garrab: try it on before you buy">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Garrab: AI virtual try-on for Egyptian online brands">
+<meta name="twitter:title" content="Garrab: AI virtual try-on for online brands">
 <meta name="twitter:description" content="Shoppers see your piece on themselves, or in their own room, before they buy. Free 14-day pilot.">
 <meta name="twitter:image" content="https://garrabb.com/og-en.png">
 <link rel="icon" href="/favicon.ico" sizes="any">
@@ -43,10 +43,10 @@
       "alternateName": "جرّاب",
       "url": "https://garrabb.com/",
       "logo": "https://garrabb.com/email-logo.png",
-      "description": "AI virtual try-on for Egyptian online fashion and home décor brands.",
-      "areaServed": { "@type": "Country", "name": "Egypt" },
+      "description": "AI virtual try-on for online fashion and home décor brands.",
+      "areaServed": "Worldwide",
       "parentOrganization": { "@type": "Organization", "name": "Infinisync by Arotech", "url": "https://www.theinfinisync.com" },
-      "contactPoint": { "@type": "ContactPoint", "contactType": "sales", "telephone": "+201009110001", "availableLanguage": ["English", "Arabic"], "areaServed": "EG" }
+      "contactPoint": { "@type": "ContactPoint", "contactType": "sales", "telephone": "+201009110001", "availableLanguage": ["English", "Arabic"], "areaServed": "Worldwide" }
     },
     {
       "@type": "WebSite",
@@ -85,7 +85,7 @@
     {
       "@type": "FAQPage",
       "mainEntity": [
-        { "@type": "Question", "name": "What is Garrab?", "acceptedAnswer": { "@type": "Answer", "text": "Garrab is AI virtual try-on for Egyptian online brands. Your shoppers upload a photo and see your clothing on themselves, or your home décor piece in their own room, before they buy." } },
+        { "@type": "Question", "name": "What is Garrab?", "acceptedAnswer": { "@type": "Answer", "text": "Garrab is AI virtual try-on for online brands. Your shoppers upload a photo and see your clothing on themselves, or your home décor piece in their own room, before they buy." } },
         { "@type": "Question", "name": "Does Garrab work with Shopify, WooCommerce or Instagram?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. On Shopify, WooCommerce or any website, a Try it on button appears under Add to cart on your approved products (one line of code, which we install for you). Brands without a website use a Garrab try-on link in their Instagram bio, stories and WhatsApp." } },
         { "@type": "Question", "name": "How much does Garrab cost?", "acceptedAnswer": { "@type": "Answer", "text": "The first 14 days are free: 300 previews, all your products, no card. Then Starter is 5,000 EGP a month with 250 previews, and Growth is 8,500 EGP a month with 600 previews and the size finder. Extra previews are 800 EGP per 100." } },
         { "@type": "Question", "name": "Does Garrab work for home décor?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. For home décor brands, shoppers upload a photo of their room and see your lamp, rug, cushion, art or mirror placed in it." } },
@@ -98,8 +98,13 @@
   ]
 }
 </script>
+<script>(function(d){d.classList.add("js");if(matchMedia("(prefers-reduced-motion: reduce)").matches)d.classList.add("reduced");else{d.classList.add("loading");setTimeout(function(){d.classList.remove("loading")},3000)}})(document.documentElement)</script>
+<script src="/landing.js" defer></script>
 </head>
 <body>
+<div class="loader" aria-hidden="true"><div class="loader-tile"><span>G</span><i></i></div><p class="loader-word">Garrab</p></div>
+<div class="cursor" aria-hidden="true"><span class="cursor-label"></span></div>
+<div class="scroll-line" aria-hidden="true"></div>
 <a class="skip" href="#main">Skip to content</a>
 <header class="top">
   <div class="wrap top-in">
@@ -115,19 +120,20 @@
 </header>
 
 <main id="main">
-  <section class="hero">
+  <section class="hero" data-bg="forest">
+  <svg class="blobs" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><path class="blob b1" d=""/><path class="blob b2" d=""/><path class="blob b3" d=""/></svg>
     <div class="wrap hero-in">
       <div class="hero-text">
-        <p class="eyebrow">AI virtual try-on for Egyptian brands</p>
-        <h1>Let shoppers try it on <span>before they buy.</span></h1>
-        <p class="lede">Garrab lets your shoppers see your clothes on themselves, or your home décor in their own room, from one photo. On your website or straight from your Instagram bio.</p>
-        <div class="cta-row">
+        <p class="eyebrow">AI virtual try-on for online brands</p>
+        <h1 data-split>Let shoppers try it on <span>before they buy.</span></h1>
+        <p class="lede" data-reveal>Garrab lets your shoppers see your clothes on themselves, or your home décor in their own room, from one photo. On your website or straight from your Instagram bio.</p>
+        <div class="cta-row" data-reveal>
           <a class="btn" href="https://app.garrabb.com/start">Start your free 14-day pilot</a>
           <a class="btn ghost" href="https://wa.me/201009110001?text=Hi%20Garrab%2C%20I%27d%20like%20to%20know%20more">Talk to us on WhatsApp</a>
         </div>
         <p class="small muted">No card. No setup fee. We set everything up for you.</p>
       </div>
-      <div class="hero-visual" aria-hidden="true">
+      <div class="hero-visual" aria-hidden="true" data-parallax>
         <div class="phone">
           <div class="screen">
             <span class="chip">AI preview</span>
@@ -154,31 +160,29 @@
   </section>
 
   <section class="strip" aria-label="Where Garrab works">
-    <div class="wrap strip-in">
-      <span>Shopify</span><span>WooCommerce</span><span>Any website</span><span>Instagram &amp; WhatsApp</span><span>Arabic &amp; English</span>
-    </div>
+    <div class="marquee"><div class="marquee-track"><div class="marquee-group"><span>Shopify</span><span>WooCommerce</span><span>Any website</span><span>Instagram &amp; WhatsApp</span><span>Arabic &amp; English</span></div><div class="marquee-group" aria-hidden="true"><span>Shopify</span><span>WooCommerce</span><span>Any website</span><span>Instagram &amp; WhatsApp</span><span>Arabic &amp; English</span></div><div class="marquee-group" aria-hidden="true"><span>Shopify</span><span>WooCommerce</span><span>Any website</span><span>Instagram &amp; WhatsApp</span><span>Arabic &amp; English</span></div></div></div>
   </section>
 
-  <section id="how" class="section">
+  <section id="how" class="section" data-bg="cream" data-pin>
     <div class="wrap">
-      <h2>How it works</h2>
-      <ol class="steps">
-        <li><span class="num">1</span><h3>We set it up</h3><p>Garrab reads your products from your website, or you add photos in minutes. We test each one on our models or in our rooms.</p></li>
-        <li><span class="num">2</span><h3>You approve</h3><p>You see every test preview and choose which products go live. Nothing reaches shoppers without your OK.</p></li>
-        <li><span class="num">3</span><h3>Shoppers try it on</h3><p>A Try it on button appears under Add to cart, or shoppers open your link from Instagram. One photo, a preview in about 20 seconds.</p></li>
+      <h2 data-split>How it works</h2>
+      <ol class="steps" data-track>
+        <li data-reveal><span class="num">1</span><h3>We set it up</h3><p>Garrab reads your products from your website, or you add photos in minutes. We test each one on our models or in our rooms.</p></li>
+        <li data-reveal><span class="num">2</span><h3>You approve</h3><p>You see every test preview and choose which products go live. Nothing reaches shoppers without your OK.</p></li>
+        <li data-reveal><span class="num">3</span><h3>Shoppers try it on</h3><p>A Try it on button appears under Add to cart, or shoppers open your link from Instagram. One photo, a preview in about 20 seconds.</p></li>
       </ol>
     </div>
   </section>
 
-  <section class="section alt">
+  <section class="section alt" data-bg="mint">
     <div class="wrap two">
-      <article class="card">
+      <article class="card" data-reveal data-tilt>
         <p class="eyebrow">Fashion brands</p>
         <h2>Your piece, on them</h2>
         <p>Abayas, dresses, modest wear, jackets, accessories. Shoppers see the colour, the cut and the length on their own body before ordering, so they buy with more confidence.</p>
         <ul class="ticks"><li>Their own photo, their own shape</li><li>Size finder in Arabic and English (Growth)</li><li>A Buy button straight after the preview</li></ul>
       </article>
-      <article class="card">
+      <article class="card" data-reveal data-tilt>
         <p class="eyebrow">Home décor brands</p>
         <h2>Your piece, in their room</h2>
         <p>Lamps, rugs, cushions, art and mirrors. Shoppers photograph their own room and see your piece placed where it would naturally go.</p>
@@ -187,63 +191,64 @@
     </div>
   </section>
 
-  <section class="section">
+  <section class="section" data-bg="peach">
     <div class="wrap">
-      <h2>Built for how Egyptian brands sell</h2>
+      <h2 data-split>Built for how online brands sell</h2>
       <div class="grid">
-        <div class="feat"><h3>Website or Instagram</h3><p>A button on Shopify, WooCommerce or any site, or a link for your bio, stories and WhatsApp.</p></div>
-        <div class="feat"><h3>Your brand, not ours</h3><p>Your logo and colours on every try-on page. The button matches your Add to cart.</p></div>
-        <div class="feat"><h3>You stay in control</h3><p>Approve or hide any product, any time. Nothing reaches shoppers without your OK.</p></div>
-        <div class="feat"><h3>Arabic first</h3><p>Every shopper page works in Arabic, right to left, and in English.</p></div>
-        <div class="feat"><h3>See what it does</h3><p>Shoppers, try-ons, previews and Buy taps, per product, any period.</p></div>
-        <div class="feat"><h3>Private by design</h3><p>Shopper photos are used only to make the preview and are not stored by Garrab.</p></div>
+        <div class="feat" data-reveal data-tilt><h3>Website or Instagram</h3><p>A button on Shopify, WooCommerce or any site, or a link for your bio, stories and WhatsApp.</p></div>
+        <div class="feat" data-reveal data-tilt><h3>Your brand, not ours</h3><p>Your logo and colours on every try-on page. The button matches your Add to cart.</p></div>
+        <div class="feat" data-reveal data-tilt><h3>You stay in control</h3><p>Approve or hide any product, any time. Nothing reaches shoppers without your OK.</p></div>
+        <div class="feat" data-reveal data-tilt><h3>Arabic first</h3><p>Every shopper page works in Arabic, right to left, and in English.</p></div>
+        <div class="feat" data-reveal data-tilt><h3>See what it does</h3><p>Shoppers, try-ons, previews and Buy taps, per product, any period.</p></div>
+        <div class="feat" data-reveal data-tilt><h3>Private by design</h3><p>Shopper photos are used only to make the preview and are not stored by Garrab.</p></div>
       </div>
     </div>
   </section>
 
-  <section id="pricing" class="section alt">
+  <section id="pricing" class="section alt" data-bg="lavender">
     <div class="wrap">
-      <h2>Simple pricing in EGP</h2>
+      <h2 data-split>Simple pricing</h2>
       <p class="lede">Start free. Pay only if it works for you.</p>
       <div class="plans">
-        <div class="plan featured">
+        <div class="plan featured" data-reveal data-tilt>
           <h3>Free pilot</h3>
-          <p class="price">0 <span>EGP</span></p>
+          <p class="price"><span class="count" data-count="0">0</span> <span>EGP</span></p>
           <ul class="ticks"><li>14 days</li><li>300 previews</li><li>All your products</li><li>No card, no setup fee</li></ul>
           <a class="btn" href="https://app.garrabb.com/start">Start free pilot</a>
         </div>
-        <div class="plan">
+        <div class="plan" data-reveal data-tilt>
           <h3>Starter</h3>
-          <p class="price">5,000 <span>EGP / month</span></p>
+          <p class="price"><span class="count" data-count="5000">5,000</span> <span>EGP / month</span></p>
           <ul class="ticks"><li>250 previews a month</li><li>Website button and try-on link</li><li>Your logo and colours</li><li>Results dashboard</li></ul>
         </div>
-        <div class="plan">
+        <div class="plan" data-reveal data-tilt>
           <h3>Growth</h3>
-          <p class="price">8,500 <span>EGP / month</span></p>
+          <p class="price"><span class="count" data-count="8500">8,500</span> <span>EGP / month</span></p>
           <ul class="ticks"><li>600 previews a month</li><li>Everything in Starter</li><li>AI size finder (Arabic and English)</li></ul>
         </div>
       </div>
-      <p class="small muted center">Extra previews: 800 EGP per 100. A one-off 1,500 EGP setup fee applies only if you continue on a paid plan, and it's waived for founding brands. Pay by InstaPay or bank transfer.</p>
+      <p class="small muted center">Extra previews: 800 EGP per 100. A one-off 1,500 EGP setup fee applies only if you continue on a paid plan, and it's waived for founding brands. Pay by InstaPay or bank transfer. Outside Egypt? <a href="https://wa.me/201009110001">Talk to us</a> for pricing in your currency.</p>
     </div>
   </section>
 
-  <section id="faq" class="section">
+  <section id="faq" class="section" data-bg="cream">
     <div class="wrap narrow">
-      <h2>Questions brands ask</h2>
-      <details><summary>What is Garrab?</summary><p>Garrab is AI virtual try-on for Egyptian online brands. Your shoppers upload a photo and see your clothing on themselves, or your home décor piece in their own room, before they buy.</p></details>
-      <details><summary>Does it work with Shopify, WooCommerce or Instagram?</summary><p>Yes. On Shopify, WooCommerce or any website, a Try it on button appears under Add to cart on your approved products: one line of code, which we install for you. Brands without a website use a Garrab try-on link in their Instagram bio, stories and WhatsApp.</p></details>
-      <details><summary>How much does it cost?</summary><p>The first 14 days are free: 300 previews, all your products, no card. Then Starter is 5,000 EGP a month with 250 previews, and Growth is 8,500 EGP a month with 600 previews and the size finder. Extra previews are 800 EGP per 100.</p></details>
-      <details><summary>Does it work for home décor?</summary><p>Yes. Shoppers upload a photo of their room and see your lamp, rug, cushion, art or mirror placed in it.</p></details>
-      <details><summary>Is it in Arabic?</summary><p>Yes. The try-on pages work in Arabic, right to left, and in English, and the size finder answers in both.</p></details>
-      <details><summary>What happens to the shopper's photo?</summary><p>It's used only to create that shopper's preview. Garrab doesn't store it, and hidden details such as location are removed before it leaves the phone.</p></details>
-      <details><summary>How accurate are the previews?</summary><p>Previews are AI images: a close guide to how a piece looks, not an exact photo. Every product is tested first, and you approve each one before shoppers can try it.</p></details>
-      <details><summary>How long does setup take?</summary><p>Usually the same day. We read your products and test them, and you approve the ones you like. Your try-on link works as soon as one product is approved.</p></details>
+      <h2 data-split>Questions brands ask</h2>
+      <details data-reveal><summary>What is Garrab?</summary><p>Garrab is AI virtual try-on for online brands. Your shoppers upload a photo and see your clothing on themselves, or your home décor piece in their own room, before they buy.</p></details>
+      <details data-reveal><summary>Does it work with Shopify, WooCommerce or Instagram?</summary><p>Yes. On Shopify, WooCommerce or any website, a Try it on button appears under Add to cart on your approved products: one line of code, which we install for you. Brands without a website use a Garrab try-on link in their Instagram bio, stories and WhatsApp.</p></details>
+      <details data-reveal><summary>How much does it cost?</summary><p>The first 14 days are free: 300 previews, all your products, no card. Then Starter is 5,000 EGP a month with 250 previews, and Growth is 8,500 EGP a month with 600 previews and the size finder. Extra previews are 800 EGP per 100.</p></details>
+      <details data-reveal><summary>Does it work for home décor?</summary><p>Yes. Shoppers upload a photo of their room and see your lamp, rug, cushion, art or mirror placed in it.</p></details>
+      <details data-reveal><summary>Is it in Arabic?</summary><p>Yes. The try-on pages work in Arabic, right to left, and in English, and the size finder answers in both.</p></details>
+      <details data-reveal><summary>What happens to the shopper's photo?</summary><p>It's used only to create that shopper's preview. Garrab doesn't store it, and hidden details such as location are removed before it leaves the phone.</p></details>
+      <details data-reveal><summary>How accurate are the previews?</summary><p>Previews are AI images: a close guide to how a piece looks, not an exact photo. Every product is tested first, and you approve each one before shoppers can try it.</p></details>
+      <details data-reveal><summary>How long does setup take?</summary><p>Usually the same day. We read your products and test them, and you approve the ones you like. Your try-on link works as soon as one product is approved.</p></details>
     </div>
   </section>
 
-  <section class="final">
+  <section class="final" data-bg="forest">
+  <svg class="blobs" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><path class="blob b1" d=""/><path class="blob b2" d=""/><path class="blob b3" d=""/></svg>
     <div class="wrap final-in">
-      <h2>Give your shoppers a fitting room, open all day.</h2>
+      <h2 data-split>Give your shoppers a fitting room, open all day.</h2>
       <p>Try Garrab free for 14 days. We'll set it up with you.</p>
       <div class="cta-row center">
         <a class="btn light" href="https://app.garrabb.com/start">Start your free pilot</a>
@@ -255,7 +260,7 @@
 
 <footer class="foot">
   <div class="wrap foot-in">
-    <p><strong>Garrab</strong> · AI virtual try-on for Egyptian brands · <a href="https://app.garrabb.com/privacy">Privacy</a> · <a href="https://app.garrabb.com/terms">Terms</a> · <a href="https://app.garrabb.com/portal">Brand sign-in</a></p>
+    <p><strong>Garrab</strong> · AI virtual try-on for online brands · <a href="https://app.garrabb.com/privacy">Privacy</a> · <a href="https://app.garrabb.com/terms">Terms</a> · <a href="https://app.garrabb.com/portal">Brand sign-in</a></p>
     <p><a href="https://www.theinfinisync.com" target="_blank" rel="noopener">Powered by Infinisync by Arotech</a></p>
   </div>
 </footer>

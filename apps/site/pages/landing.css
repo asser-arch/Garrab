@@ -58,7 +58,7 @@ html[lang="ar"] .eyebrow { letter-spacing: 0; text-transform: none; font-size: 1
 .hero .eyebrow { color: var(--peach); }
 .hero h1 { font-size: clamp(38px, 5.6vw, 64px); font-weight: 300; line-height: 1.05; letter-spacing: -.02em; }
 html[lang="ar"] .hero h1 { letter-spacing: 0; line-height: 1.25; font-weight: 400; }
-.hero h1 span { color: var(--sage); }
+.hero h1 > span:not(.w) { color: var(--sage); }
 .lede { font-size: 19px; color: var(--muted); max-width: 60ch; margin: 18px 0 0; }
 .hero .lede { color: #d9e3dc; }
 .hero .small.muted { color: var(--sage); margin: 0; }
@@ -130,8 +130,8 @@ html[lang="ar"] .section h2, html[lang="ar"] .final h2 { letter-spacing: 0; font
 .plan.featured .ticks li::before { border-color: var(--peach); }
 .plan.featured .btn { margin-top: auto; background: var(--peach); color: var(--forest); border-color: var(--peach); }
 .price { font-size: 40px; font-weight: 600; margin: 4px 0 4px; font-variant-numeric: tabular-nums; }
-.price span { font-size: 15px; font-weight: 400; color: var(--muted); }
-.plan.featured .price span { color: var(--sage); }
+.price > span:not(.count) { font-size: 15px; font-weight: 400; color: var(--muted); }
+.plan.featured .price > span:not(.count) { color: var(--sage); }
 .plan .ticks { margin-bottom: 20px; }
 
 details { background: var(--paper); border: 1px solid var(--sand); border-radius: var(--r-item); padding: 0 22px; margin-top: 12px; }
@@ -155,3 +155,117 @@ details p { margin: 0 0 20px; color: var(--muted); }
   .hero { padding: 36px 0 48px; }
 }
 @media (min-width: 901px) and (max-width: 1100px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+
+/* ======================================================================================
+   Motion layer (Hello Monday–style). html.motion is added by landing.js itself, so if the script
+   never runs (blocked, failed, "reduce motion") the page stays the plain, fully visible version.
+   Brand: flat colour fields, no shadows/gradients; micro-interactions 150–250 ms,
+   scene motion longer (landing page only).
+   ====================================================================================== */
+
+/* Colour fields: sections let the page colour show through; the page colour follows the scroll. */
+body { transition: background-color .7s cubic-bezier(.2, .7, .2, 1); }
+html.motion .section, html.motion .section.alt { background: transparent; border-color: transparent; }
+html.motion .strip { background: var(--paper); }
+body[data-field="cream"] { background: var(--cream); }
+body[data-field="mint"] { background: var(--mint); }
+body[data-field="peach"] { background: var(--peach); }
+body[data-field="lavender"] { background: var(--lavender); }
+body[data-field="forest"] { background: var(--forest); }
+body[data-field="mint"] .card, body[data-field="peach"] .feat, body[data-field="lavender"] .plan:not(.featured) { background: var(--paper); }
+
+/* Loader: the G tile pops, the word rises, then the curtain lifts. */
+.loader { display: none; }
+html.js.loading .loader, html.js .loader.leaving { display: grid; position: fixed; inset: 0; z-index: 50; background: var(--forest); place-content: center; justify-items: center; gap: 14px;
+  transition: clip-path .9s cubic-bezier(.77, 0, .18, 1); clip-path: inset(0 0 0 0); }
+html.js .loader.leaving { clip-path: inset(0 0 100% 0); }
+.loader-tile { position: relative; width: 84px; height: 84px; border-radius: 22px; background: var(--paper); display: grid; place-items: center; animation: pop .7s cubic-bezier(.3, 1.6, .5, 1) both; }
+.loader-tile span { font: 700 46px/1 var(--font); color: var(--forest); }
+.loader-tile i { position: absolute; top: 12px; inset-inline-end: 12px; width: 13px; height: 13px; border-radius: 50%; background: #c9791a; animation: pop .5s .35s cubic-bezier(.3, 1.8, .5, 1) both; }
+.loader-word { margin: 0; color: var(--paper); font-size: 28px; font-weight: 600; animation: rise .6s .25s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+@keyframes rise { from { transform: translateY(30px); opacity: 0; } to { transform: none; opacity: 1; } }
+
+/* Scroll progress line. */
+.scroll-line { position: fixed; top: 0; inset-inline-start: 0; height: 3px; width: 100%; background: var(--peach); transform-origin: 0 50%; transform: scaleX(0); z-index: 40; }
+html[dir="rtl"] .scroll-line { transform-origin: 100% 50%; }
+html:not(.motion) .scroll-line { display: none; }
+
+/* Custom cursor (fine pointers only): a ring that trails and grows with a label over buttons. */
+.cursor { display: none; }
+@media (hover: hover) and (pointer: fine) {
+  html.motion .cursor { display: grid; place-items: center; position: fixed; top: 0; left: 0; z-index: 60; pointer-events: none;
+    width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: var(--peach); mix-blend-mode: normal;
+    transition: width .25s cubic-bezier(.2, .7, .2, 1), height .25s cubic-bezier(.2, .7, .2, 1), margin .25s cubic-bezier(.2, .7, .2, 1), background-color .2s; }
+  html.motion .cursor.big { width: 84px; height: 84px; margin: -42px 0 0 -42px; background: var(--peach); }
+  html.motion .cursor.hide { width: 0; height: 0; margin: 0; }
+  .cursor-label { font: 700 12px/1 var(--font); color: var(--forest); letter-spacing: .06em; text-transform: uppercase; opacity: 0; transition: opacity .2s; white-space: nowrap; }
+  html[lang="ar"] .cursor-label { letter-spacing: 0; text-transform: none; font-size: 13px; }
+  .cursor.big .cursor-label { opacity: 1; }
+}
+
+/* Split headlines: each word rises out of a mask, one after another. */
+.w { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .08em; margin-bottom: -.08em; }
+.wi { display: inline-block; }
+html.motion [data-split] .wi { transform: translateY(110%) rotate(4deg); transition: transform .9s cubic-bezier(.2, .8, .2, 1); transition-delay: calc(var(--i, 0) * 55ms); }
+html.motion [data-split].in .wi { transform: none; }
+
+/* Reveals: slide up and fade; cards tilt toward the pointer. */
+html.motion [data-reveal] { opacity: 0; transform: translateY(40px); transition: opacity .8s cubic-bezier(.2, .7, .2, 1), transform .8s cubic-bezier(.2, .7, .2, 1); transition-delay: calc(var(--i, 0) * 80ms); }
+html.motion [data-reveal].in { opacity: 1; transform: none; }
+html.motion [data-tilt].in { transition: transform .25s ease-out, opacity .8s; will-change: transform; }
+
+/* Hero: drifting, morphing shapes behind the text. */
+.hero, .final { position: relative; isolation: isolate; }
+.blobs { position: absolute; inset: 0; width: 100%; height: 100%; z-index: -1; pointer-events: none; }
+html:not(.motion) .blobs { display: none; }
+.blob { transition: opacity .6s; }
+.b1 { fill: #1c4a2e; }
+.b2 { fill: #24563a; }
+.b3 { fill: var(--peach); opacity: .9; }
+.final .b3 { fill: var(--mint); opacity: .25; }
+.final .b1, .final .b2 { fill: #1a432b; }
+
+/* Hero phones: the dress is "drawn" onto the person by a scan line; the lamp drops into the room. Loops. */
+html.motion .phone:not(.back) .dress { transform-origin: 50% 0; animation: dress 6s cubic-bezier(.6, 0, .2, 1) infinite; }
+html.motion .phone:not(.back) .figure::after { content: ""; position: absolute; left: 0; right: 0; height: 3px; background: var(--peach); top: 0; animation: scan 6s cubic-bezier(.6, 0, .2, 1) infinite; }
+html.motion .phone:not(.back) .chip { animation: chip 6s ease infinite; }
+html.motion .lamp { animation: lamp 6s cubic-bezier(.3, 1.4, .5, 1) infinite 1.2s; }
+@keyframes dress { 0%, 12% { transform: scaleY(0); } 52%, 92% { transform: scaleY(1); } 100% { transform: scaleY(0); } }
+@keyframes scan { 0%, 12% { top: 30%; opacity: 0; } 14% { opacity: 1; } 52% { top: 96%; opacity: 1; } 56%, 100% { opacity: 0; top: 96%; } }
+@keyframes chip { 0%, 52% { transform: scale(0); } 60%, 92% { transform: scale(1); } 100% { transform: scale(0); } }
+@keyframes lamp { 0%, 8% { transform: translateY(-160px); opacity: 0; } 22%, 86% { transform: none; opacity: 1; } 100% { transform: translateY(-160px); opacity: 0; } }
+html.motion .hero-visual { transition: transform .4s ease-out; }
+
+/* Marquee: endless, speeds up with scrolling and turns around with the scroll direction. */
+.marquee { overflow: hidden; padding: 18px 0; }
+.marquee-track { display: flex; width: max-content; will-change: transform; }
+.marquee-group { display: flex; gap: 0; }
+.marquee-group span { font-size: clamp(22px, 3vw, 36px); font-weight: 300; color: var(--forest); padding-inline: 26px; white-space: nowrap; display: inline-flex; align-items: center; gap: 52px; }
+.marquee-group span::after { content: ""; width: 12px; height: 12px; border-radius: 50%; background: var(--peach); margin-inline-start: 26px; display: inline-block; }
+html:not(.motion) .marquee-group[aria-hidden] { display: none; }
+html:not(.motion) .marquee-track { width: auto; justify-content: center; flex-wrap: wrap; }
+html:not(.motion) .marquee-group { flex-wrap: wrap; justify-content: center; }
+html:not(.motion) .marquee-group span { font-size: 15px; font-weight: 600; color: var(--muted); padding: 4px 14px; }
+html:not(.motion) .marquee-group span::after { display: none; }
+
+/* How it works: on wide screens the three steps scroll sideways while the section stays put. */
+@media (min-width: 901px) {
+  html.motion [data-pin].pinned { padding: 0; }
+  html.motion [data-pin].pinned > .wrap { position: sticky; top: 68px; height: calc(100vh - 68px); display: flex; flex-direction: column; justify-content: center; overflow: hidden; max-width: none; padding-inline: max(20px, calc(50vw - 540px)); }
+  html.motion [data-pin].pinned .steps { display: flex; gap: 28px; width: max-content; will-change: transform; }
+  html.motion [data-pin].pinned .steps li { width: min(560px, 70vw); min-height: 320px; padding: 40px; font-size: 19px; }
+  html.motion [data-pin].pinned .steps li h3 { font-size: 30px; font-weight: 300; margin: 8px 0 12px; }
+  html.motion [data-pin].pinned .num { width: 64px; height: 64px; font-size: 26px; }
+}
+
+/* Magnetic buttons. */
+html.motion .btn { transition: background-color .15s, color .15s, border-color .15s, transform .25s cubic-bezier(.2, .7, .2, 1); }
+
+/* FAQ: answers slide open. */
+html.motion details p { animation: rise .35s cubic-bezier(.2, .7, .2, 1); }
+
+/* Final call to action: big type. */
+.final h2 { font-size: clamp(36px, 6vw, 80px); }
+
+html.loading .cursor { opacity: 0; }

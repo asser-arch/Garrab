@@ -1,6 +1,6 @@
 # Garrab (جرّاب)
 
-> Garrab is an AI virtual try-on service for Egyptian online brands. A shopper uploads one photo and sees the brand's clothing on themselves, or a home décor piece (lamp, rug, cushion, art, mirror) placed in their own room, before they buy. It works on Shopify, WooCommerce and any website, or as a link in an Instagram bio, stories and WhatsApp. Arabic and English. Free 14-day pilot.
+> Garrab is an AI virtual try-on service for online brands anywhere. A shopper uploads one photo and sees the brand's clothing on themselves, or a home décor piece (lamp, rug, cushion, art, mirror) placed in their own room, before they buy. It works on Shopify, WooCommerce and any website, or as a link in an Instagram bio, stories and WhatsApp. Arabic and English. Free 14-day pilot.
 
 Website: https://garrabb.com/ (Arabic: https://garrabb.com/ar)
 Start a free pilot: https://app.garrabb.com/start
@@ -8,8 +8,8 @@ Contact: WhatsApp +20 100 911 0001
 Company: Garrab is powered by Infinisync by Arotech (https://www.theinfinisync.com)
 
 ## Who it's for
-- Egyptian fashion brands selling online: abayas, dresses, modest wear, jackets, accessories.
-- Egyptian home décor brands: lamps, rugs, cushions, wall art, mirrors, furniture.
+- Fashion brands selling online: abayas, dresses, modest wear, jackets, accessories.
+- Home décor brands: lamps, rugs, cushions, wall art, mirrors, furniture.
 - Brands with a website (Shopify, WooCommerce, other) and brands that sell only on Instagram or WhatsApp.
 
 ## How it works
@@ -29,7 +29,7 @@ Company: Garrab is powered by Infinisync by Arotech (https://www.theinfinisync.c
 - Privacy: the shopper's photo is used only to create the preview, is not stored by Garrab, and location data is removed before upload.
 - Previews are AI images: a close guide, not an exact photo.
 
-## Pricing (Egyptian pounds)
+## Pricing (in Egyptian pounds for brands in Egypt; brands elsewhere: contact us for pricing in their currency)
 - Free pilot: 14 days, 300 previews, all products, no card, no setup fee.
 - Starter: 5,000 EGP per month, 250 previews.
 - Growth: 8,500 EGP per month, 600 previews and the size finder.

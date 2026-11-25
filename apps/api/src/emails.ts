@@ -18,7 +18,7 @@ function layout(title: string, bodyHtml: string, cta?: { label: string; url: str
 <h1 style="font-size:22px;font-weight:400;margin:0 0 16px">${esc(title)}</h1>
 ${bodyHtml}${button}
 </div>
-<p style="color:#8A8B84;font-size:12px">Garrab · AI try-on for Egyptian brands. A preview, not a promise.<br><a href="${COMPANY.url}" style="color:#8A8B84">${COMPANY.poweredBy}</a></p>
+<p style="color:#8A8B84;font-size:12px">Garrab · AI try-on for online brands. A preview, not a promise.<br><a href="${COMPANY.url}" style="color:#8A8B84">${COMPANY.poweredBy}</a></p>
 </div></body></html>`;
 }
 

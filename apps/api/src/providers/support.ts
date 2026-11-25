@@ -42,7 +42,7 @@ export function garrabFacts(): string {
   const s = PLANS.starter;
   const g = PLANS.growth;
   return [
-    "Garrab is an AI try-on service for Egyptian brands. Shoppers upload a photo and see a preview of the product on themselves (fashion brands) or in their own room (home décor brands). Previews are AI images: a guide, not an exact photo.",
+    "Garrab is an AI try-on service for online brands (based in Egypt; prices in EGP). Shoppers upload a photo and see a preview of the product on themselves (fashion brands) or in their own room (home décor brands). Previews are AI images: a guide, not an exact photo.",
     `Free pilot: ${PILOT.days} days, ${PILOT.previews} previews, as many products as the brand wants, no card, no setup fee. Garrab sets everything up.`,
     `Plans after the pilot: ${s.name} ${egp(s.monthlyPrice)} per month with ${s.includedPreviews} previews; ${g.name} ${egp(g.monthlyPrice)} per month with ${g.includedPreviews} previews and the size finder (English and Arabic). Extra previews: ${EXTRA_PACK.previews} for ${egp(EXTRA_PACK.price)}. A one-off setup fee of ${egp(SETUP_FEE)} may apply to the first paid invoice (waived for founding brands). Prices in EGP.`,
     `Payment: InstaPay or bank transfer from the Billing page in the portal. Invoices are made ${BILLING.invoiceLeadDays} days before the due date. If unpaid, try-on keeps working for ${BILLING.graceDays} days after the due date, then pauses until payment. When previews run out, try-on pauses until the next month or an extra pack is bought; never charged on credit.`,

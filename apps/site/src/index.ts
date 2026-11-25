@@ -86,7 +86,7 @@ async function template(req: Request, env: Env, path: string, csp: string, injec
 
 const LANDING_PAGES: Record<string, string> = { "/": "/landing.html", "/ar": "/landing-ar.html", "/ar/": "/landing-ar.html" };
 const LANDING_FILES = new Set([
-  "/landing.css", "/robots.txt", "/sitemap.xml", "/llms.txt", "/og-en.png", "/og-ar.png",
+  "/landing.css", "/landing.js", "/robots.txt", "/sitemap.xml", "/llms.txt", "/og-en.png", "/og-ar.png",
   "/favicon.ico", "/favicon.svg", "/favicon-32.png", "/apple-touch-icon.png", "/email-logo.png", "/email-logo-dark.png",
 ]);
 
@@ -109,7 +109,9 @@ async function landingFile(req: Request, env: Env): Promise<Response> {
   const out = new Response(res.body, res);
   for (const [k, v] of Object.entries(BASE_HEADERS)) out.headers.set(k, v);
   out.headers.set("cache-control", "public, max-age=3600");
-  if (new URL(req.url).pathname.endsWith(".txt")) out.headers.set("content-type", "text/plain; charset=utf-8");
+  const path = new URL(req.url).pathname;
+  if (path.endsWith(".txt")) out.headers.set("content-type", "text/plain; charset=utf-8");
+  if (path.endsWith(".js") || path.endsWith(".css")) out.headers.set("cache-control", "public, max-age=300"); // design changes reach visitors within minutes
   return out;
 }
 
