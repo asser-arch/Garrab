@@ -19,10 +19,14 @@ interface Item {
 const MAX_SIDE = 1600;
 const MAX_FILES = 100;
 
-/** "olive-linen_dress 02.JPG" → "Olive linen dress 02"; camera names ("IMG_2041") → "". */
+/** "olive-linen_dress 02.JPG" → "Olive linen dress 02"; camera and app names ("IMG_2041", "ChatGPT Image Nov 25…") → "". */
 export function nameFromFile(name: string): string {
   const base = name.replace(/\.[a-z0-9]+$/i, "").replace(/[_\-.]+/g, " ").replace(/\s+/g, " ").trim();
-  if (/^(img|dsc|dscn|pxl|photo|image|whatsapp image|screenshot)\b/i.test(base) || /^[\d\s]+$/.test(base)) return "";
+  if (
+    /^(img|dsc|dscn|pxl|photo|image|whatsapp image|screenshot|chatgpt image|gemini generated image|generated image|dall e|untitled|snapchat|telegram|instagram|download|pexels|unsplash)\b/i.test(base) ||
+    /^[\d\s]+$/.test(base)
+  )
+    return "";
   return base.charAt(0).toUpperCase() + base.slice(1);
 }
 

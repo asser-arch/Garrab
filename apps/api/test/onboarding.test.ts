@@ -162,7 +162,7 @@ describe("onboarding: invite → pilot_live with no admin action", () => {
     const low = sel.results.find((p) => p.title === "Abaya [low]")!;
     const review = sel.results.find((p) => p.title === "Kaftan [review]")!;
     expect(low).toMatchObject({ test_score: 2, enabled: 0 });
-    expect(low.disabled_reason).toMatch(/don't match/);
+    expect(low.disabled_reason).toBe("Our AI couldn't make a good preview from this photo."); // plain words for the brand
     expect(review).toMatchObject({ test_score: 3, enabled: 0, needs_review: 1 });
     expect(sel.results.filter((p) => p.enabled === 1)).toHaveLength(8);
     // 2 stock models × 10 products, results stored in R2 under tests/
@@ -557,6 +557,24 @@ describe("magic links and sessions", () => {
     expect((await send(fd)).status).toBe(200);
     const me = (await (await portalGet("/me", cookie)).json()) as { look: { color: string; logo: string } };
     expect(me.look.color).toBe("#a0522d");
+    // A real-size logo (1.5 MB) is accepted; over 2 MB is refused.
+    const big = (n: number) => {
+      const b = new Uint8Array(n);
+      b.set(fakeJpeg("BIG"));
+      return b;
+    };
+    const ok = new FormData();
+    ok.set("logo", new Blob([big(1_500_000)], { type: "image/jpeg" }), "big.jpg");
+    expect((await send(ok)).status).toBe(200);
+    const tooBig = new FormData();
+    tooBig.set("logo", new Blob([big(2_200_000)], { type: "image/jpeg" }), "huge.jpg");
+    expect((await send(tooBig)).status).toBe(413);
+    const again = new FormData();
+    again.set("color", "#A0522D");
+    again.set("logo", new Blob([fakeJpeg("LOGO")], { type: "image/jpeg" }), "logo.jpg");
+    expect((await send(again)).status).toBe(200);
+    const me2 = (await (await portalGet("/me", cookie)).json()) as { look: { color: string; logo: string } };
+    me.look.logo = me2.look.logo;
     expect(me.look.logo).toMatch(new RegExp(`^${APP}/bl/${accountId}/[a-z0-9]{26}\\.jpg$`));
     const file = me.look.logo.split("/").pop()!;
     const img = await exports.default.fetch(`https://api.test/v1/brand-logo/${accountId}/${file}`);

@@ -287,6 +287,65 @@ describe("brand deletes its own products", () => {
   });
 });
 
+describe("brand renames, re-tests and decides its own products", () => {
+  it("rename any time; 'Test again' twice for failed products; approve one our check wasn't sure about", async () => {
+    const { sha256Hex, ulid } = await import("../src/lib/crypto.js");
+    const b = await liveBrand();
+    const other = await liveBrand();
+    const u = (await env.DB.prepare("SELECT id FROM users WHERE account_id = ?").bind(b.id).first<{ id: string }>())!;
+    const token = "R".repeat(20) + uniq().padEnd(20, "N").slice(0, 20);
+    await env.DB.prepare("INSERT INTO sessions (id, user_id, token_hash, expires_at) VALUES (?, ?, ?, '2099-01-01T00:00:00Z')").bind(ulid(), u.id, await sha256Hex(token)).run();
+    const cookie = `__Host-garrab_s=${token}`;
+    const call = (path: string, body: unknown) =>
+      exports.default.fetch(`https://api.test/portal-api${path}`, { method: "POST", headers: { cookie, origin: APP, "content-type": "application/json" }, body: JSON.stringify(body) });
+    const add = async (title: string, cols: string) => {
+      const id = `pr${uniq()}`;
+      await env.DB.prepare(`INSERT INTO products (id, account_id, external_ref, title, images_json, selected, source, ${cols.split("=")[0]}) VALUES (?, ?, ?, ?, '["https://cdn.example/x.jpg"]', 1, 'manual', ?)`)
+        .bind(id, b.id, `manual:${id}`, title, cols.split("=")[1])
+        .run();
+      return id;
+    };
+
+    // Rename
+    const junk = await add("ChatGPT Image Nov 25, 2026, 12 33 09 PM 2", "test_score=5");
+    expect((await call(`/products/${junk}/rename`, { title: "  Beige fringed suit " })).status).toBe(200);
+    expect(await env.DB.prepare("SELECT title FROM products WHERE id = ?").bind(junk).first()).toEqual({ title: "Beige fringed suit" });
+    expect((await call(`/products/${junk}/rename`, { title: "x" })).status).toBe(400);
+    const theirs = (await env.DB.prepare("SELECT id FROM products WHERE account_id = ? LIMIT 1").bind(other.id).first<{ id: string }>())!.id;
+    expect((await call(`/products/${theirs}/rename`, { title: "Mine now" })).status).toBe(404);
+
+    // Test again: failed product, twice, then the limit
+    const failed = await add("Kaftan set", "test_score=2");
+    await env.DB.prepare("UPDATE products SET disabled_reason = 'Our AI couldn''t make a good preview from this photo.' WHERE id = ?").bind(failed).run();
+    const list = async () =>
+      ((await (await exports.default.fetch("https://api.test/portal-api/products", { headers: { cookie } })).json()) as { products: { id: string; result: string; retestsLeft: number; reason: string | null }[] }).products;
+    expect((await list()).find((p) => p.id === failed)).toMatchObject({ result: "failed", retestsLeft: 2, reason: "Our AI couldn't make a good preview from this photo." });
+    expect((await call(`/products/${failed}/retest`, {})).status).toBe(200);
+    expect((await list()).find((p) => p.id === failed)).toMatchObject({ result: "pending", retestsLeft: 1 });
+    await env.DB.prepare("UPDATE products SET test_score = 2 WHERE id = ?").bind(failed).run();
+    expect((await call(`/products/${failed}/retest`, {})).status).toBe(200);
+    await env.DB.prepare("UPDATE products SET test_score = 2 WHERE id = ?").bind(failed).run();
+    expect((await call(`/products/${failed}/retest`, {})).status).toBe(429);
+    // A live product can't be re-tested by the brand.
+    await env.DB.prepare("UPDATE products SET enabled = 1 WHERE id = ?").bind(junk).run();
+    expect((await call(`/products/${junk}/retest`, {})).status).toBe(400);
+
+    // Checker's raw words never reach the brand.
+    const raw = await add("Hoodie", "test_score=1");
+    await env.DB.prepare("UPDATE products SET disabled_reason = 'The entire outfit has been completely changed' WHERE id = ?").bind(raw).run();
+    expect((await list()).find((p) => p.id === raw)!.reason).toBe("Our AI couldn't make a good preview from this photo.");
+
+    // "Needs review" with previews: the brand approves it and it goes live; a failed one can't be approved.
+    const unsure = await add("Beaded kaftan", "test_score=3");
+    await env.DB.prepare("UPDATE products SET needs_review = 1, enabled = 0 WHERE id = ?").bind(unsure).run();
+    await env.DB.prepare("INSERT INTO product_tests (id, account_id, product_id, fixture, r2_key, score) VALUES (?, ?, ?, 'fixtures/model-a.jpg', 'tests/x.jpg', 3)").bind(`t${uniq()}`, b.id, unsure).run();
+    expect((await call(`/products/${unsure}/decision`, { decision: "approved" })).status).toBe(200);
+    expect(await env.DB.prepare("SELECT enabled, approved, needs_review FROM products WHERE id = ?").bind(unsure).first()).toEqual({ enabled: 1, approved: 1, needs_review: 0 });
+    expect((await call(`/products/${raw}/decision`, { decision: "approved" })).status).toBe(404);
+    expect(await env.DB.prepare("SELECT approved FROM products WHERE id = ?").bind(raw).first()).toEqual({ approved: 0 });
+  });
+});
+
 describe("product re-test", () => {
   it("clears the old result and sends the product back to testing", async () => {
     const b = await liveBrand();

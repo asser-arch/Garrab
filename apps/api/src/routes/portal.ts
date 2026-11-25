@@ -26,10 +26,10 @@ import {
 } from "../lib/auth.js";
 import { ulid } from "../lib/crypto.js";
 import { sniffImage, stripJpegMetadata } from "../lib/photo.js";
-import { productPhotoUrl, removeProduct } from "../lib/products.js";
+import { clearProductTests, productPhotoUrl, removeProduct } from "../lib/products.js";
 import { sendOnce } from "../lib/email.js";
 import { saveProducts, guessKind } from "../onboarding/import.js";
-import { retryBusyProducts } from "../onboarding/tests.js";
+import { CONTENT_RULES_REASON, FAILED_REASON, retryBusyProducts } from "../onboarding/tests.js";
 import { accountFacts, billingPlan, createInvoice, ensurePlanInvoice, payUrl, pdfUrl } from "../billing/ledger.js";
 import { cycleStartOf } from "../lib/metering.js";
 import { cairoDay } from "../lib/time.js";
@@ -200,7 +200,7 @@ portal.get("/me", async (c) => {
 portal.get("/products", async (c) => {
   const id = acct(c);
   const rows = await c.env.DB.prepare(
-    `SELECT id, title, images_json, kind, selected, test_score, enabled, needs_review, disabled_reason, brand_decision, product_url, source
+    `SELECT id, title, images_json, kind, selected, test_score, enabled, needs_review, disabled_reason, brand_decision, product_url, source, brand_retests
        FROM products WHERE account_id = ? ORDER BY selected DESC, title LIMIT 500`,
   )
     .bind(id)
@@ -217,6 +217,7 @@ portal.get("/products", async (c) => {
       brand_decision: string | null;
       product_url: string | null;
       source: string;
+      brand_retests: number;
     }>();
   const tests = await c.env.DB.prepare("SELECT id, product_id, fixture FROM product_tests WHERE account_id = ? AND r2_key IS NOT NULL ORDER BY created_at")
     .bind(id)
@@ -238,8 +239,10 @@ portal.get("/products", async (c) => {
       selected: p.selected === 1,
       tested: p.test_score !== null,
       result: p.test_score === null ? "pending" : p.enabled ? "passed" : p.needs_review ? "review" : "failed",
-      reason: p.disabled_reason,
+      // Plain words only: the AI checker's own notes stay in the admin.
+      reason: p.disabled_reason === CONTENT_RULES_REASON ? CONTENT_RULES_REASON : p.disabled_reason ? FAILED_REASON : null,
       decision: p.brand_decision,
+      retestsLeft: Math.max(0, BRAND_RETESTS - p.brand_retests),
       tests: shown.filter((t) => t.product_id === p.id).map((t) => `/portal-api/test-image/${t.id}`),
     })),
   });
@@ -437,6 +440,40 @@ portal.post("/products/csv", async (c) => {
   const added = await addManual(c.env, acct(c), items);
   await c.env.JOBS.send({ t: "advance", a: acct(c) });
   return c.json({ ok: true, added, skipped: rows.length - added });
+});
+
+/** The brand renames a product (e.g. photos uploaded with camera or app file names). */
+portal.post("/products/:id/rename", async (c) => {
+  const body = z.object({ title: z.string().trim().min(2).max(200) }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  const r = await c.env.DB.prepare("UPDATE products SET title = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ? AND account_id = ?")
+    .bind(body.data.title, c.req.param("id"), acct(c))
+    .run();
+  if (r.meta.changes !== 1) return c.json({ error: "not_found" }, 404);
+  invalidateStatus(acct(c));
+  return c.json({ ok: true });
+});
+
+/** The brand asks for new test previews of a product that failed or that our check wasn't sure about. */
+const BRAND_RETESTS = 2;
+portal.post("/products/:id/retest", async (c) => {
+  const id = acct(c);
+  const pid = c.req.param("id");
+  const p = await c.env.DB.prepare("SELECT enabled, test_score, brand_retests, disabled_reason FROM products WHERE id = ? AND account_id = ? AND selected = 1")
+    .bind(pid, id)
+    .first<{ enabled: number; test_score: number | null; brand_retests: number; disabled_reason: string | null }>();
+  if (!p) return c.json({ error: "not_found" }, 404);
+  if (p.enabled === 1 || p.test_score === null || p.disabled_reason === CONTENT_RULES_REASON) return c.json({ error: "not_allowed" }, 400);
+  if (p.brand_retests >= BRAND_RETESTS) return c.json({ error: "limit_reached" }, 429);
+  await clearProductTests(c.env, id, pid);
+  await c.env.DB.prepare(
+    `UPDATE products SET test_score = NULL, test_started_at = NULL, test_retry_at = NULL, test_busy_count = 0, enabled = 0, needs_review = 0,
+            disabled_reason = NULL, brand_decision = NULL, approved = 0, brand_retests = brand_retests + 1 WHERE id = ?`,
+  )
+    .bind(pid)
+    .run();
+  await c.env.JOBS.send({ t: "test", a: id, p: pid });
+  return c.json({ ok: true });
 });
 
 portal.post("/products/:id/decision", async (c) => {

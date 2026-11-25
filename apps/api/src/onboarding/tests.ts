@@ -41,6 +41,11 @@ async function testSpendMicroUsd(env: Env, accountId: string): Promise<number> {
   return r?.s ?? 0;
 }
 
+/** What the brand reads when a product can't be offered (the AI checker's own words stay on the test record for the admin). */
+export const FAILED_REASON = "Our AI couldn't make a good preview from this photo.";
+export const CONTENT_RULES_REASON = "This product can't be shown in try-on (content rules).";
+export const brandReason = (r: string): string => (r === CONTENT_RULES_REASON ? r : FAILED_REASON);
+
 export type TestOutcome = "enabled" | "needs_review" | "disabled" | "skipped_budget" | "no_fixtures" | "already_tested" | "busy";
 
 /** Temporary AI errors (overloaded, rate limited, timeout) retry after these waits; then a person checks. */
@@ -114,79 +119,91 @@ export async function testProduct(
     const photo = new Uint8Array(await obj.arrayBuffer());
     const photoType = sniffImage(photo);
     if (!photoType) continue;
-    const oneTimeUserId = crypto.randomUUID();
-    const r = await tryon.tryOn({
-      product: {
-        externalId: `${accountId}_${productId}`,
-        title: product.title,
-        description: product.description ?? "",
-        imageUrls: images,
-        includesHeadwear: product.includes_headwear === 1,
-        synced: false,
-      },
-      photo,
-      photoType,
-      oneTimeUserId,
-    });
-    await tryon.deleteUserData(oneTimeUserId);
-    await recordUsage(env, accountId, "test", tryon.name, r.ok, r.ok ? r.costMicroUsd : 0, r.ok ? null : r.code);
-    const testId = ulid();
-    if (!r.ok && isTemporary(r)) {
-      // The AI service is busy, not the product: try again later instead of failing the product.
-      const row = await env.DB.prepare("SELECT test_busy_count FROM products WHERE id = ?").bind(productId).first<{ test_busy_count: number }>();
-      const n = (row?.test_busy_count ?? 0) + 1;
-      const wait = BUSY_RETRY_SECONDS[n - 1];
-      if (wait === undefined) {
-        // Busy for many hours: hand it to a person (Retest in the admin) rather than retry forever.
-        await env.DB.prepare(
-          "UPDATE products SET test_score = 0, needs_review = 1, test_started_at = NULL, test_retry_at = NULL, test_busy_count = ?, disabled_reason = ? WHERE id = ?",
-        )
-          .bind(n, "The AI service was busy for hours; retest it from the admin.", productId)
+    // AI previews vary from one try to the next: when the check scores a preview low (e.g. the outfit came
+    // out wrong), make one more and keep the better of the two. The brand never sees the weaker one.
+    let best: { key: string; score: number; rubric: string | null; reason: string; cost: number } | null = null;
+    let spent = 0;
+    let failed = false;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0 && (await testSpendMicroUsd(env, accountId)) >= CAPS.onboardingTestBudgetUsd * 1_000_000) break;
+      const oneTimeUserId = crypto.randomUUID();
+      const r = await tryon.tryOn({
+        product: {
+          externalId: `${accountId}_${productId}`,
+          title: product.title,
+          description: product.description ?? "",
+          imageUrls: images,
+          includesHeadwear: product.includes_headwear === 1,
+          synced: false,
+        },
+        photo,
+        photoType,
+        oneTimeUserId,
+      });
+      await tryon.deleteUserData(oneTimeUserId);
+      await recordUsage(env, accountId, "test", tryon.name, r.ok, r.ok ? r.costMicroUsd : 0, r.ok ? null : r.code);
+      if (!r.ok && isTemporary(r)) {
+        if (best) break; // keep the preview we already have
+        // The AI service is busy, not the product: try again later instead of failing the product.
+        const row = await env.DB.prepare("SELECT test_busy_count FROM products WHERE id = ?").bind(productId).first<{ test_busy_count: number }>();
+        const n = (row?.test_busy_count ?? 0) + 1;
+        const wait = BUSY_RETRY_SECONDS[n - 1];
+        if (wait === undefined) {
+          // Busy for many hours: hand it to a person (Retest in the admin) rather than retry forever.
+          await env.DB.prepare(
+            "UPDATE products SET test_score = 0, needs_review = 1, test_started_at = NULL, test_retry_at = NULL, test_busy_count = ?, disabled_reason = ? WHERE id = ?",
+          )
+            .bind(n, "The AI service was busy for hours; retest it from the admin.", productId)
+            .run();
+          log("product_test", { account: accountId, code: "busy_gave_up", count: n });
+          return "needs_review";
+        }
+        await env.DB.prepare("UPDATE products SET test_started_at = NULL, test_retry_at = ?, test_busy_count = ?, disabled_reason = ? WHERE id = ?")
+          .bind(new Date(Date.now() + (wait - 10) * 1000).toISOString(), n, "Google's AI is busy right now; we'll test this again in a few minutes.", productId)
           .run();
-        log("product_test", { account: accountId, code: "busy_gave_up", count: n });
-        return "needs_review";
+        if (!deps.tryon) await env.JOBS.send({ t: "test", a: accountId, p: productId }, { delaySeconds: wait });
+        log("product_test", { account: accountId, code: "busy", count: n });
+        return "busy";
       }
-      await env.DB.prepare("UPDATE products SET test_started_at = NULL, test_retry_at = ?, test_busy_count = ?, disabled_reason = ? WHERE id = ?")
-        .bind(new Date(Date.now() + (wait - 10) * 1000).toISOString(), n, "Google's AI is busy right now; we'll test this again in a few minutes.", productId)
-        .run();
-      if (!deps.tryon) await env.JOBS.send({ t: "test", a: accountId, p: productId }, { delaySeconds: wait });
-      log("product_test", { account: accountId, code: "busy", count: n });
-      return "busy";
+      if (!r.ok) {
+        if (best) break;
+        scores.push(1);
+        // The brand sees a plain sentence; the technical detail stays on the test record (admin).
+        const detail = `The try-on failed for this product (${r.code}${r.detail ? `, ${r.detail}` : ""}).`;
+        lastReason = r.code === "content_policy" ? CONTENT_RULES_REASON : FAILED_REASON;
+        await env.DB.prepare("INSERT INTO product_tests (id, account_id, product_id, fixture, score, reason) VALUES (?, ?, ?, ?, 1, ?)")
+          .bind(ulid(), accountId, productId, fixture, detail)
+          .run();
+        failed = true;
+        break;
+      }
+      const testId = ulid();
+      const key = `tests/${accountId}/${productId}/${testId}.${r.contentType.includes("png") ? "png" : "jpg"}`;
+      await env.FILES.put(key, r.image, { httpMetadata: { contentType: r.contentType } });
+      if (env.GENLOOK_API_KEY && env.GENLOOK_MOCK === "true" && !deps.tryon) {
+        // Genlook's free test mode returns the model photo without the product, so a real score
+        // would always reject it. Send it to a person instead of rejecting it.
+        best = { key, score: 3, rubric: null, reason: "Test mode: the try-on is simulated, so check this product by hand.", cost: 0 };
+        break;
+      }
+      const sc = await scorer.score({ title: product.title, productImageUrl: images[0] ?? "", result: r.image, resultType: r.contentType, room: mode === "room" });
+      await recordUsage(env, accountId, "score", scorer.name, sc.score !== null, sc.costMicroUsd);
+      spent += r.costMicroUsd + sc.costMicroUsd;
+      const overall = sc.score?.overall ?? 3; // scorer down → human review, never auto-enable
+      const cand = { key, score: overall, rubric: sc.score ? JSON.stringify(sc.score) : null, reason: sc.score?.reason ?? "Automatic check unavailable; needs a manual look.", cost: 0 };
+      if (!best || cand.score > best.score) {
+        if (best) await env.FILES.delete(best.key);
+        best = cand;
+      } else await env.FILES.delete(key);
+      if (best.score >= 4 || sc.score === null) break;
     }
-    if (!r.ok) {
-      scores.push(1);
-      // The brand sees a plain sentence; the technical detail stays on the test record (admin).
-      const detail = `The try-on failed for this product (${r.code}${r.detail ? `, ${r.detail}` : ""}).`;
-      lastReason =
-        r.code === "content_policy"
-          ? "This product can't be shown in try-on (content rules)."
-          : "Our AI couldn't make a good preview of this product. Garrab support can take a look.";
-      await env.DB.prepare("INSERT INTO product_tests (id, account_id, product_id, fixture, score, reason) VALUES (?, ?, ?, ?, 1, ?)")
-        .bind(testId, accountId, productId, fixture, detail)
-        .run();
-      continue;
-    }
-    const key = `tests/${accountId}/${productId}/${testId}.${r.contentType.includes("png") ? "png" : "jpg"}`;
-    await env.FILES.put(key, r.image, { httpMetadata: { contentType: r.contentType } });
-    if (env.GENLOOK_API_KEY && env.GENLOOK_MOCK === "true" && !deps.tryon) {
-      // Genlook's free test mode returns the model photo without the product, so a real score
-      // would always reject it. Send it to a person instead of rejecting it.
-      lastReason = "Test mode: the try-on is simulated, so check this product by hand.";
-      scores.push(3);
-      await env.DB.prepare("INSERT INTO product_tests (id, account_id, product_id, fixture, r2_key, score, reason, cost_micro_usd) VALUES (?, ?, ?, ?, ?, 3, ?, 0)")
-        .bind(testId, accountId, productId, fixture, key, lastReason)
-        .run();
-      continue;
-    }
-    const s = await scorer.score({ title: product.title, productImageUrl: images[0] ?? "", result: r.image, resultType: r.contentType, room: mode === "room" });
-    await recordUsage(env, accountId, "score", scorer.name, s.score !== null, s.costMicroUsd);
-    const overall = s.score?.overall ?? 3; // scorer down → human review, never auto-enable
-    lastReason = s.score?.reason ?? "Automatic check unavailable; needs a manual look.";
-    scores.push(overall);
+    if (failed || !best) continue;
+    scores.push(best.score);
+    lastReason = best.reason;
     await env.DB.prepare(
       "INSERT INTO product_tests (id, account_id, product_id, fixture, r2_key, score, rubric_json, reason, cost_micro_usd) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
-      .bind(testId, accountId, productId, fixture, key, overall, s.score ? JSON.stringify(s.score) : null, lastReason, r.costMicroUsd + s.costMicroUsd)
+      .bind(ulid(), accountId, productId, fixture, best.key, best.score, best.rubric, best.reason, spent)
       .run();
   }
   if (scores.length === 0) return "no_fixtures";
@@ -194,7 +211,7 @@ export async function testProduct(
   const final = Math.min(...scores);
   const outcome: TestOutcome = final >= 4 ? "enabled" : final === 3 ? "needs_review" : "disabled";
   await env.DB.prepare("UPDATE products SET test_score = ?, enabled = ?, needs_review = ?, disabled_reason = ?, test_retry_at = NULL, test_busy_count = 0 WHERE id = ?")
-    .bind(final, outcome === "enabled" ? 1 : 0, outcome === "needs_review" ? 1 : 0, outcome === "disabled" ? lastReason : null, productId)
+    .bind(final, outcome === "enabled" ? 1 : 0, outcome === "needs_review" ? 1 : 0, outcome === "disabled" ? brandReason(lastReason) : null, productId)
     .run();
   log("product_test", { account: accountId, code: outcome, count: final });
   return outcome;

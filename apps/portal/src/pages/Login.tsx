@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { AuthArt } from "../AuthArt.js";
 
 type State = "email" | "sending" | "code" | "checking" | "link" | "bad_link";
 
@@ -72,6 +73,7 @@ export function Login({ onSignedIn }: { onSignedIn: () => void }) {
         <p className="statement">
           Your shop&rsquo;s fitting room, <span>open all day.</span>
         </p>
+        <AuthArt />
         <ul className="facts">
           <li>Shoppers see your pieces on themselves before they buy.</li>
           <li>You approve every product before anything goes live.</li>

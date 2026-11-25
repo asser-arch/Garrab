@@ -66,11 +66,14 @@ export function tryOnPrompt(req: TryOnRequest): string {
     ? "The product includes its headwear; show it as in the product photos."
     : "Keep the person's own head covering or hair exactly as in image 1. Take nothing worn on the head from the product photos.";
   return [
-    "Image 1 is a photo of a real person. The following images are product photos of one item:",
-    `"${p.title}". ${p.description}`.slice(0, 900),
-    "Create one photorealistic image of the SAME person from image 1 wearing this item.",
+    "Image 1 is a photo of a real person. The following images are product photos of one product from a clothing shop:",
+    `Shop's name for it: "${p.title}". ${p.description}`.slice(0, 900),
+    "The shop's name may be a file name or not describe the product: trust the product photos, not the name.",
+    "The product may be one garment or a complete outfit or set (for example a top with matching trousers or a skirt, a suit, a kaftan set). The product photos may show it worn by a different person: copy only the clothing, never that person's face, body, hair or pose.",
+    "Create one photorealistic image of the SAME person from image 1 wearing this product.",
+    "Replace every piece of the person's own clothing that the product covers. If the product is a full outfit or set, the person wears ALL of its pieces and none of their own clothes stay visible in those areas (for example no jeans under a skirt or trousers from the set).",
     "Keep their face, skin tone, body shape, pose, background and lighting unchanged.",
-    "Reproduce the item faithfully: colour, pattern, fabric, cut and length as in the product photos.",
+    "Reproduce the product faithfully: every piece, colour, pattern, fabric, embellishment (fringe, beads, embroidery), cut and length as in the product photos.",
     head,
     "The product photos may have a shop logo or watermark printed on them: ignore it, it is not part of the item.",
     "Do not add text, logos or watermarks. Do not change anything else. Always answer with the edited image, never with text only.",

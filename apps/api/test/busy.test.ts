@@ -99,7 +99,7 @@ describe("Google overloaded during product tests", () => {
     const broken: TryOnResult = { ok: false, code: "provider_error", costMicroUsd: 0, retryable: false, detail: "product photos could not be fetched" };
     expect(await testProduct(env, accountId, pid, { tryon: scripted([broken]), scorer })).toBe("disabled");
     const r = await row(pid);
-    expect(r!.disabled_reason).toBe("Our AI couldn't make a good preview of this product. Garrab support can take a look.");
+    expect(r!.disabled_reason).toBe("Our AI couldn't make a good preview from this photo.");
     const t = await env.DB.prepare("SELECT reason FROM product_tests WHERE product_id = ? LIMIT 1").bind(pid).first<{ reason: string }>();
     expect(t!.reason).toContain("product photos could not be fetched"); // the detail stays for the admin
   });
@@ -177,5 +177,34 @@ describe("shopper try-on when Google is overloaded", () => {
     expect(talk).toMatchObject({ ok: false, code: "provider_error", retryable: true });
     const blocked = await new GeminiTryOnProvider("k", "gemini-nano-banana-2.1", answer({ status: "IMAGE_SAFETY", steps: [] }), "room").tryOn(req);
     expect(blocked).toMatchObject({ ok: false, code: "content_policy" });
+  });
+
+  it("a preview the check scores low is made once more, and the better one is kept", async () => {
+    const { accountId, pid } = await product();
+    const tryon = scripted([OK]);
+    // Per stock model: first preview scored 2 (wrong outfit), the second 5.
+    const marks = [2, 5, 2, 5];
+    let k = 0;
+    const picky: ScoringProvider = {
+      name: "score",
+      score: async () => ({ score: { overall: marks[k++]!, reason: k % 2 ? "The outfit was changed." : "Looks right." } as never, costMicroUsd: 0 }),
+    };
+    expect(await testProduct(env, accountId, pid, { tryon, scorer: picky })).toBe("enabled");
+    expect(tryon.calls).toBe(4);
+    const tests = await env.DB.prepare("SELECT score, r2_key FROM product_tests WHERE product_id = ?").bind(pid).all<{ score: number; r2_key: string }>();
+    expect(tests.results.map((t) => t.score)).toEqual([5, 5]);
+    const stored = await env.FILES.list({ prefix: `tests/${accountId}/${pid}/` });
+    expect(stored.objects).toHaveLength(2); // the weaker previews are deleted
+  });
+
+  it("still low after the second try: disabled with a plain sentence, the checker's words kept for the admin", async () => {
+    const { accountId, pid } = await product();
+    const tryon = scripted([OK]);
+    const low: ScoringProvider = { name: "score", score: async () => ({ score: { overall: 2, reason: "Jeans instead of the skirt set." } as never, costMicroUsd: 0 }) };
+    expect(await testProduct(env, accountId, pid, { tryon, scorer: low })).toBe("disabled");
+    expect(tryon.calls).toBe(4);
+    expect((await row(pid))!.disabled_reason).toBe("Our AI couldn't make a good preview from this photo.");
+    const t = await env.DB.prepare("SELECT reason FROM product_tests WHERE product_id = ? LIMIT 1").bind(pid).first<{ reason: string }>();
+    expect(t!.reason).toBe("Jeans instead of the skirt set.");
   });
 });

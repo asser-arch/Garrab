@@ -26,7 +26,11 @@ app.use("*", async (c, next) => {
 const tooLarge = { onError: (c: import("hono").Context) => c.json({ error: "too_large" }, 413) };
 const uploadLimit = bodyLimit({ maxSize: PRODUCT_PHOTO_MAX_BYTES + 64 * 1024, ...tooLarge });
 const portalLimit = bodyLimit({ maxSize: 256 * 1024, ...tooLarge });
-app.use("/portal-api/*", (c, next) => (c.req.path === "/portal-api/products/upload" ? uploadLimit(c, next) : portalLimit(c, next)));
+// Photo uploads (products, the brand logo) get the large limit; everything else stays small.
+const logoLimit = bodyLimit({ maxSize: 2 * 1024 * 1024 + 64 * 1024, ...tooLarge });
+app.use("/portal-api/*", (c, next) =>
+  c.req.path === "/portal-api/products/upload" ? uploadLimit(c, next) : c.req.path === "/portal-api/brand" ? logoLimit(c, next) : portalLimit(c, next),
+);
 const smallLimit = bodyLimit({ maxSize: 64 * 1024, ...tooLarge });
 // Admin: small bodies, except adding product photos for a brand.
 app.use("/admin-api/*", (c, next) => (/^\/admin-api\/accounts\/[^/]+\/products\/upload$/.test(c.req.path) ? uploadLimit(c, next) : smallLimit(c, next)));

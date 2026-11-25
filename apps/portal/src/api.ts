@@ -53,6 +53,8 @@ export interface Product {
   result: "pending" | "passed" | "review" | "failed";
   reason: string | null;
   decision: "approved" | "hidden" | null;
+  /** How many more times the brand can ask for new test previews of this product. */
+  retestsLeft: number;
   tests: string[];
 }
 

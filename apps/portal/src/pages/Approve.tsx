@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { go } from "../main.js";
 import { api, atOrAfter, type Me, type Product } from "../api.js";
+import { ProductName } from "../Rename.js";
 
 interface Shot {
   src: string;
@@ -108,6 +109,14 @@ export function Approve({
       ),
     );
   useEffect(() => void load(), []);
+  // While any product is being (re)tested, check back every 10 seconds so its previews appear on their own.
+  const testing = list?.some((p) => p.result === "pending") ?? false;
+  useEffect(() => {
+    if (!testing) return;
+    const t = setInterval(() => void load(), 10_000);
+    return () => clearInterval(t);
+  }, [testing]);
+  const [note, setNote] = useState<Record<string, string>>({});
 
   if (!list) return <p className="muted">Loading…</p>;
   if (!atOrAfter(me.step, "products_tested"))
@@ -139,6 +148,16 @@ export function Approve({
       </>
     );
 
+  const retest = async (id: string) => {
+    try {
+      await api(`/products/${id}/retest`, { body: {} });
+      setNote((n) => ({ ...n, [id]: "" }));
+      await load();
+    } catch {
+      setNote((n) => ({ ...n, [id]: "Couldn't start a new test. Message us in Support and we'll take a look." }));
+    }
+  };
+
   const decide = async (id: string, decision: "approved" | "hidden") => {
     await api(`/products/${id}/decision`, { body: { decision } });
     await load();
@@ -165,7 +184,7 @@ export function Approve({
             style={{ margin: 0 }}
             aria-label={p.title}
           >
-            <h2>{p.title}</h2>
+            <ProductName id={p.id} title={p.title} onSaved={load} />
             <div className="thumbs">
               {(() => {
                 const shots: Shot[] = [
@@ -196,7 +215,12 @@ export function Approve({
                 ));
               })()}
             </div>
-            {p.result === "passed" && (
+            {p.result === "review" && (
+              <p className="small muted" style={{ margin: "10px 0 0" }}>
+                Our automatic check wasn't sure about this one. Look closely at the previews: approve it if you're happy, or test it again.
+              </p>
+            )}
+            {(p.result === "passed" || (p.result === "review" && p.tests.length > 0)) && (
               <div className="row" style={{ marginTop: 12 }}>
                 <button
                   className={`btn small ${p.decision === "approved" ? "chosen" : ""}`}
@@ -212,18 +236,35 @@ export function Approve({
                 >
                   {p.decision === "hidden" ? "Hidden" : "Hide"}
                 </button>
+                {p.result === "review" && p.retestsLeft > 0 && (
+                  <button type="button" className="btn small ghost" onClick={() => void retest(p.id)}>
+                    Test again
+                  </button>
+                )}
               </div>
             )}
-            {p.result === "review" && (
-              <p className="small muted">
-                We're checking this one by hand and will let you know.
+            {p.result === "failed" && (
+              <p className="small warn">
+                {p.reason ?? "Our AI couldn't make a good preview from this photo."}
+                {p.retestsLeft > 0 && p.reason !== "This product can't be shown in try-on (content rules)."
+                  ? " AI previews vary, so a new test often works. A clear photo of just the product helps too."
+                  : " Message us in Support and we'll take a look."}
               </p>
             )}
-            {p.result === "failed" && (
-              <p className="small warn">Not available for try-on: {p.reason}</p>
+            {p.result === "failed" && p.retestsLeft > 0 && p.reason !== "This product can't be shown in try-on (content rules)." && (
+              <p style={{ margin: "10px 0 0" }}>
+                <button type="button" className="btn small ghost" onClick={() => void retest(p.id)}>
+                  Test again
+                </button>
+              </p>
+            )}
+            {note[p.id] && (
+              <p className="small warn" role="alert">
+                {note[p.id]}
+              </p>
             )}
             {p.result === "pending" && (
-              <p className="small muted">Still testing…</p>
+              <p className="small muted" role="status">Making new previews… this takes about a minute.</p>
             )}
           </article>
         ))}

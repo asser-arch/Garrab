@@ -412,3 +412,32 @@ details.setup > summary h2 { margin: 0; }
 details.setup[open] > summary { margin-bottom: 12px; }
 .empty-card { text-align: center; padding: 40px 28px; }
 .empty-card p { max-width: 46ch; margin: 8px auto 20px; }
+
+/* Product name with an inline Rename (portal Approve and Products). */
+.name-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.name-row .name { margin: 0; overflow-wrap: anywhere; }
+.name-row .linkish { flex: none; }
+.rename { display: grid; gap: 8px; margin-bottom: 8px; }
+.rename input { width: 100%; }
+.pick-row { flex-wrap: nowrap; align-items: flex-start; }
+.pick-row .name-row { flex: 1; min-width: 0; font-size: 14px; line-height: 1.35; }
+
+/* Sign-in illustration (portal): paper lines on the forest panel; wide screens only. */
+.auth-art { display: none; width: 100%; max-width: 420px; height: auto; margin: 0 auto; }
+.auth-art .ink { fill: none; stroke: var(--paper); stroke-width: 3.2; stroke-linecap: round; stroke-linejoin: round; }
+.auth-art .solid { fill: var(--paper); }
+.auth-art .skin { fill: var(--forest); }
+.auth-art .phone { fill: var(--paper); }
+.auth-art .dress { fill: var(--peach); stroke: none; }
+.auth-art .shirt { fill: var(--lavender); stroke: none; }
+.auth-art .shade { fill: var(--peach); stroke: none; }
+.auth-art .rug { fill: rgba(191, 232, 224, .25); stroke: none; }
+@media (min-width: 900px) { .auth-art { display: block; flex: 1; min-height: 0; max-height: 46vh; } }
+@media (prefers-reduced-motion: no-preference) {
+  .auth-art .dress { animation: authDress 9s steps(1) infinite; }
+  .auth-art .wave { transform-box: view-box; transform-origin: 438px 182px; animation: authWave 1.8s ease-in-out infinite; }
+  .auth-art .selfie { transform-box: view-box; transform-origin: 210px 150px; animation: authSelfie 3.4s ease-in-out infinite; }
+}
+@keyframes authDress { 0% { fill: var(--peach); } 33% { fill: var(--mint); } 66% { fill: var(--lavender); } }
+@keyframes authWave { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(14deg); } }
+@keyframes authSelfie { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-5deg); } }

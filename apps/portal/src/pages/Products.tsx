@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { BulkAdd, prepareProductPhoto } from "../BulkAdd.js";
 import { api, atOrAfter, type Me, type Product } from "../api.js";
+import { ProductName } from "../Rename.js";
 
 export function Products({
   me,
@@ -285,7 +286,7 @@ export function Products({
           <div className="grid product-grid">
             {list.map((p) => (
               <div key={p.id} className="card product-card" style={{ margin: 0 }}>
-                <label style={{ margin: 0, cursor: "pointer", fontWeight: 400, display: "block" }}>
+                <label htmlFor={`pick-${p.id}`} style={{ margin: 0, cursor: "pointer", display: "block" }}>
                   {p.image && (
                     <img
                       src={p.image}
@@ -294,17 +295,19 @@ export function Products({
                       referrerPolicy="no-referrer"
                     />
                   )}
-                  <span className="row" style={{ marginTop: 8 }}>
-                    <input
-                      type="checkbox"
-                      style={{ width: 20, minHeight: 20 }}
-                      checked={chosen.has(p.id)}
-                      disabled={p.tested && p.selected}
-                      onChange={() => toggle(p.id)}
-                    />
-                    <span>{p.title}</span>
-                  </span>
                 </label>
+                <div className="row pick-row" style={{ marginTop: 8 }}>
+                  <input
+                    id={`pick-${p.id}`}
+                    type="checkbox"
+                    aria-label={`Choose ${p.title}`}
+                    style={{ width: 20, minHeight: 20 }}
+                    checked={chosen.has(p.id)}
+                    disabled={p.tested && p.selected}
+                    onChange={() => toggle(p.id)}
+                  />
+                  <ProductName id={p.id} title={p.title} as="span" onSaved={load} />
+                </div>
                 <button
                   type="button"
                   className="linkish small"

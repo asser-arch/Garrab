@@ -335,8 +335,15 @@ export async function overrideStep(env: Env, accountId: string, to: Step, reason
 
 /** Brand approval in the portal: approve or hide one product. */
 export async function decideProduct(env: Env, accountId: string, productId: string, decision: "approved" | "hidden"): Promise<boolean> {
+  // A product our automatic check wasn't sure about ("needs review", it has previews) is the brand's call too:
+  // approving it switches it on. Products that failed or are still testing can't be approved.
   const r = await env.DB.prepare(
-    "UPDATE products SET brand_decision = ?, approved = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ? AND account_id = ? AND selected = 1",
+    `UPDATE products SET brand_decision = ?1, approved = ?2,
+            enabled = CASE WHEN ?2 = 1 AND needs_review = 1 THEN 1 ELSE enabled END,
+            needs_review = CASE WHEN ?2 = 1 AND needs_review = 1 THEN 0 ELSE needs_review END,
+            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+      WHERE id = ?3 AND account_id = ?4 AND selected = 1
+        AND (?2 = 0 OR enabled = 1 OR (needs_review = 1 AND EXISTS (SELECT 1 FROM product_tests t WHERE t.product_id = products.id AND t.r2_key IS NOT NULL)))`,
   )
     .bind(decision, decision === "approved" ? 1 : 0, productId, accountId)
     .run();

@@ -50,7 +50,8 @@ test("invite → import → tests → approve → install → pilot live, with n
   await expect(viewer.getByText(/On model B/)).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(viewer).toHaveCount(0);
-  await expect(page.getByRole("article", { name: "Cotton shirt [low]" }).getByText(/Not available for try-on/)).toBeVisible();
+  await expect(page.getByRole("article", { name: "Cotton shirt [low]" }).getByText(/couldn't make a good preview/)).toBeVisible();
+  await expect(page.getByRole("article", { name: "Cotton shirt [low]" }).getByRole("button", { name: "Test again" })).toBeVisible();
   await expect(page.getByRole("article", { name: "Olive linen dress" }).locator(".chip").first()).toHaveText("AI preview");
 
   // 4. The brand approves one product and hides another.
