@@ -6,7 +6,10 @@ const APP = "http://localhost:8788";
 test("landing page: content, structured data and languages", async ({ page }) => {
   await page.goto(`${APP}/`);
   await expect(page).toHaveTitle(/Garrab: AI virtual try-on for online brands/);
-  await expect(page.getByRole("heading", { level: 1 })).toContainText("try it on");
+  await expect(page.getByRole("heading", { level: 1 })).toContainText("try on your dresses");
+  // Hero motion: the big word changes and the drawing follows it.
+  await expect(page.locator(".hero .word")).not.toHaveText("Dresses", { timeout: 8000 });
+  await expect(page.locator(".hero-art")).not.toHaveAttribute("data-item", "dress");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://garrabb.com/");
   await expect(page.locator('link[hreflang="ar"]')).toHaveAttribute("href", "https://garrabb.com/ar");
   const types = await page.evaluate(() =>

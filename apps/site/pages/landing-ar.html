@@ -85,13 +85,10 @@
   ]
 }
 </script>
-<script>(function(d){d.classList.add("js");if(matchMedia("(prefers-reduced-motion: reduce)").matches)d.classList.add("reduced");else{d.classList.add("loading");setTimeout(function(){d.classList.remove("loading")},3000)}})(document.documentElement)</script>
+<script>document.documentElement.classList.add("js")</script>
 <script src="/landing.js" defer></script>
 </head>
 <body>
-<div class="loader" aria-hidden="true"><div class="loader-tile"><span>G</span><i></i></div><p class="loader-word">جرّاب</p></div>
-<div class="cursor" aria-hidden="true"><span class="cursor-label"></span></div>
-<div class="scroll-line" aria-hidden="true"></div>
 <a class="skip" href="#main">تخطَّ إلى المحتوى</a>
 <header class="top">
   <div class="wrap top-in">
@@ -107,103 +104,127 @@
 </header>
 
 <main id="main">
-  <section class="hero" data-bg="forest">
-  <svg class="blobs" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><path class="blob b1" d=""/><path class="blob b2" d=""/><path class="blob b3" d=""/></svg>
+  <section class="hero">
+    <svg class="edge" viewBox="0 0 400 800" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d=""/></svg>
     <div class="wrap hero-in">
-      <div class="hero-text">
-        <p class="eyebrow">تجربة افتراضية بالذكاء الاصطناعي للبراندات أونلاين</p>
-        <h1 data-split>خلّي زباينك يجرّبوا <span>قبل ما يشتروا.</span></h1>
-        <p class="lede" data-reveal>جرّاب يخلّي زبونك يشوف هدومك عليه، أو قطعة الديكور في أوضته، من صورة واحدة. على موقعك أو من بايو إنستجرام على طول.</p>
-        <div class="cta-row" data-reveal>
+      <svg class="hero-art" viewBox="0 0 600 440" aria-hidden="true" focusable="false">
+          <defs><filter id="boil" x="-5%" y="-5%" width="110%" height="110%"><feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="1" seed="1"/><feDisplacementMap in="SourceGraphic" scale="2.4" xChannelSelector="R" yChannelSelector="G"/></filter></defs>
+          <g class="ink" filter="url(#boil)">
+            <path class="ground" d="M24 410 C160 406 440 414 576 409"/>
+            <g class="rug"><ellipse class="fill f-rug" cx="300" cy="414" rx="200" ry="15"/><ellipse cx="300" cy="414" rx="200" ry="15"/><path d="M118 414 h-14 M482 414 h14"/></g>
+            <g class="mirror"><ellipse class="fill f-mirror" cx="66" cy="282" rx="34" ry="92"/><ellipse cx="66" cy="282" rx="34" ry="92"/><path class="shine" d="M52 236 C48 252 48 268 50 282 M60 214 l-3 10"/><path d="M42 360 L30 409 M90 360 L102 409"/></g>
+            <g class="her">
+              <path class="fill f-dress" d="M170 142 C180 149 200 149 210 142 L216 172 C228 240 240 320 248 382 C210 392 170 392 132 382 C140 320 152 240 164 172 Z"/>
+              <path class="fill f-abaya" d="M170 142 C180 149 200 149 210 142 L216 172 C228 240 240 320 248 382 C210 392 170 392 132 382 C140 320 152 240 164 172 Z"/>
+              <path d="M170 142 C180 149 200 149 210 142 L216 172 C228 240 240 320 248 382 C210 392 170 392 132 382 C140 320 152 240 164 172 Z"/>
+              <path d="M166 172 C176 178 204 178 216 172 M150 290 C176 296 210 296 236 290"/>
+              <path d="M176 388 L174 406 L160 408 M204 388 L206 406 L220 408"/>
+              <path d="M166 150 C150 180 144 220 150 262"/>
+              <circle class="solid" cx="191" cy="60" r="12"/>
+              <ellipse class="skin" cx="190" cy="100" rx="24" ry="28"/>
+              <path class="solid" d="M166 100 C164 70 216 68 214 98 C204 84 180 84 166 100 Z"/>
+              <g class="eyes"><circle class="solid" cx="182" cy="104" r="2.2"/><circle class="solid" cx="198" cy="104" r="2.2"/></g>
+              <path d="M184 115 C188 118 193 118 196 115 M190 128 L190 141"/>
+              <g class="selfie"><path d="M210 150 C232 168 244 178 246 150 L248 128"/><rect class="phone-ink" x="236" y="92" width="24" height="40" rx="5"/><path class="flash" d="M270 96 l10 -6 M272 110 h12 M270 124 l10 6"/></g>
+            </g>
+            <g class="him">
+              <path class="solid" d="M364 250 L436 250 L432 404 L410 404 L400 296 L390 404 L368 404 Z"/>
+              <path d="M368 404 L350 408 M432 404 L450 408"/>
+              <path class="fill f-shirt" d="M366 142 C382 134 418 134 434 142 L442 182 L432 186 L436 252 L364 252 L368 186 L358 182 Z"/>
+              <path d="M366 142 C382 134 418 134 434 142 L442 182 L432 186 L436 252 L364 252 L368 186 L358 182 Z"/>
+              <path d="M388 138 L400 156 L412 138 M400 156 L400 246"/>
+              <path d="M360 184 C352 210 350 236 354 262"/>
+              <g class="wave"><path d="M438 182 C452 166 462 150 464 128"/><path class="skin" d="M456 128 C450 112 456 100 464 104 C468 92 478 96 476 108 C482 108 482 122 472 128 Z"/></g>
+              <ellipse class="skin" cx="400" cy="98" rx="25" ry="29"/>
+              <path class="solid" d="M375 96 C370 62 430 62 425 94 C418 82 404 86 398 78 C392 88 384 88 375 96 Z"/>
+              <g class="eyes"><circle class="solid" cx="391" cy="102" r="2.2"/><circle class="solid" cx="409" cy="102" r="2.2"/></g>
+              <path d="M392 114 C397 118 403 118 408 114 M400 127 L400 137"/>
+            </g>
+            <g class="lamp">
+              <path class="rays" d="M508 182 l-12 22 M520 186 v24 M532 182 l12 22"/>
+              <path class="fill f-lamp" d="M496 172 L544 172 L534 128 L506 128 Z"/>
+              <path d="M496 172 L544 172 L534 128 L506 128 Z M520 172 L520 404"/>
+              <ellipse cx="520" cy="406" rx="22" ry="5"/>
+            </g>
+          </g>
+        </svg>
+      <p class="eyebrow">تجربة افتراضية بالذكاء الاصطناعي للبراندات أونلاين</p>
+      <h1 class="hero-title"><span class="sr-only">خلّي زباينك يجرّبوا الفساتين والعبايات والقمصان والأباجورات والسجاجيد والمرايات قبل ما يشتروا.</span><span class="kicker" aria-hidden="true">خلّي زباينك يجرّبوا…</span><span class="word" aria-hidden="true" data-words="الفساتين|العبايات|القمصان|الأباجورات|السجاجيد|المرايات" data-items="dress|abaya|shirt|lamp|rug|mirror">الفساتين</span></h1>
+      <p class="lede">جرّاب يخلّي زبونك يشوف هدومك عليه، أو قطعة الديكور في أوضته، من صورة واحدة. على موقعك أو من بايو إنستجرام على طول.</p>
+      <div class="cta-row">
           <a class="btn" href="https://app.garrabb.com/start">ابدأ تجربة مجانية ١٤ يوم</a>
           <a class="btn ghost" href="https://wa.me/201009110001?text=%D8%A3%D9%87%D9%84%D9%8B%D8%A7%20%D8%AC%D8%B1%D9%91%D8%A7%D8%A8%D8%8C%20%D8%B9%D8%A7%D9%8A%D8%B2%20%D8%A3%D8%B9%D8%B1%D9%81%20%D8%A3%D9%83%D8%AA%D8%B1">كلّمنا على واتساب</a>
         </div>
-        <p class="small muted">من غير كارت. من غير رسوم إعداد. إحنا نجهّزلك كل حاجة.</p>
-      </div>
-      <div class="hero-visual" aria-hidden="true" data-parallax>
-        <div class="phone">
-          <div class="screen">
-            <span class="chip">معاينة بالذكاء الاصطناعي</span>
-            <div class="figure"><div class="head"></div><div class="dress"></div></div>
-            <div class="bar"></div>
-            <div class="phone-btn">جرّبه عليك</div>
-          </div>
-        </div>
-        <div class="phone back">
-          <div class="screen">
-            <div class="room"><div class="wall-art"></div><div class="lamp"><div class="shade"></div><div class="stem"></div></div><div class="table"></div></div>
-            <div class="phone-btn">في أوضتك</div>
-          </div>
-        </div>
-      </div>
+      <p class="small muted">من غير كارت. من غير رسوم إعداد. إحنا نجهّزلك كل حاجة.</p>
+      <a class="scroll-dot" href="#how" aria-label="انزل لطريقة الشغل"><span></span></a>
     </div>
   </section>
 
   <section class="strip" aria-label="جرّاب بيشتغل فين">
-    <div class="marquee"><div class="marquee-track"><div class="marquee-group"><span>شوبيفاي</span><span>ووكومرس</span><span>أي موقع</span><span>إنستجرام وواتساب</span><span>عربي وإنجليزي</span></div><div class="marquee-group" aria-hidden="true"><span>شوبيفاي</span><span>ووكومرس</span><span>أي موقع</span><span>إنستجرام وواتساب</span><span>عربي وإنجليزي</span></div><div class="marquee-group" aria-hidden="true"><span>شوبيفاي</span><span>ووكومرس</span><span>أي موقع</span><span>إنستجرام وواتساب</span><span>عربي وإنجليزي</span></div></div></div>
+    <div class="wrap strip-in"><span>شوبيفاي</span><span>ووكومرس</span><span>أي موقع</span><span>إنستجرام وواتساب</span><span>عربي وإنجليزي</span></div>
   </section>
 
-  <section id="how" class="section" data-bg="cream" data-pin>
+  <section id="how" class="section">
     <div class="wrap">
-      <h2 data-split>إزاي بيشتغل</h2>
-      <ol class="steps" data-track>
-        <li data-reveal><span class="num">١</span><h3>إحنا نجهّزه</h3><p>جرّاب بيقرا منتجاتك من موقعك، أو بتضيف صورها في دقايق. وبنجرّب كل منتج على موديلاتنا أو في أوضنا.</p></li>
-        <li data-reveal><span class="num">٢</span><h3>إنت توافق</h3><p>بتشوف كل معاينة تجريبية وتختار المنتجات اللي تنزل. ولا حاجة بتوصل للزبون من غير موافقتك.</p></li>
-        <li data-reveal><span class="num">٣</span><h3>الزبون يجرّب</h3><p>زرار «جرّبه عليك» بيظهر تحت زرار السلة، أو الزبون يفتح لينكك من إنستجرام. صورة واحدة، والمعاينة في حوالي ٢٠ ثانية.</p></li>
+      <h2>إزاي بيشتغل</h2>
+      <ol class="steps">
+        <li><span class="num">١</span><h3>إحنا نجهّزه</h3><p>جرّاب بيقرا منتجاتك من موقعك، أو بتضيف صورها في دقايق. وبنجرّب كل منتج على موديلاتنا أو في أوضنا.</p></li>
+        <li><span class="num">٢</span><h3>إنت توافق</h3><p>بتشوف كل معاينة تجريبية وتختار المنتجات اللي تنزل. ولا حاجة بتوصل للزبون من غير موافقتك.</p></li>
+        <li><span class="num">٣</span><h3>الزبون يجرّب</h3><p>زرار «جرّبه عليك» بيظهر تحت زرار السلة، أو الزبون يفتح لينكك من إنستجرام. صورة واحدة، والمعاينة في حوالي ٢٠ ثانية.</p></li>
       </ol>
     </div>
   </section>
 
-  <section class="section alt" data-bg="mint">
+  <section class="section alt">
     <div class="wrap two">
-      <article class="card" data-reveal data-tilt>
+      <article class="card">
         <p class="eyebrow">براندات الأزياء</p>
-        <h2 data-split>القطعة عليه هو</h2>
+        <h2>القطعة عليه هو</h2>
         <p>عبايات وفساتين وملابس محتشمة وجواكت وإكسسوارات. الزبون يشوف اللون والقصّة والطول على جسمه قبل ما يطلب، فيشتري وهو مطمّن أكتر.</p>
         <ul class="ticks"><li>صورته هو، وشكله هو</li><li>مساعد مقاسات بالعربي والإنجليزي (باقة Growth)</li><li>زرار شراء على طول بعد المعاينة</li></ul>
       </article>
-      <article class="card" data-reveal data-tilt>
+      <article class="card">
         <p class="eyebrow">براندات الديكور</p>
-        <h2 data-split>القطعة في أوضته هو</h2>
+        <h2>القطعة في أوضته هو</h2>
         <p>أباجورات وسجاد وخداديات ولوحات ومرايات. الزبون يصوّر أوضته ويشوف القطعة متحطّة في مكانها الطبيعي.</p>
         <ul class="ticks"><li>أوضته الحقيقية وإضاءتها</li><li>مقاس ومكان قريبين من الحقيقة</li><li>مفاجآت أقل من نوع «شكلها كان مختلف في البيت»</li></ul>
       </article>
     </div>
   </section>
 
-  <section class="section" data-bg="peach">
+  <section class="section">
     <div class="wrap">
-      <h2 data-split>معمول على طريقة بيع البراندات أونلاين</h2>
+      <h2>معمول على طريقة بيع البراندات أونلاين</h2>
       <div class="grid">
-        <div class="feat" data-reveal data-tilt><h3>موقع أو إنستجرام</h3><p>زرار على شوبيفاي أو ووكومرس أو أي موقع، أو لينك للبايو والستوري والواتساب.</p></div>
-        <div class="feat" data-reveal data-tilt><h3>براندك إنت</h3><p>اللوجو والألوان بتوعك على كل صفحة تجربة، والزرار شبه زرار السلة عندك.</p></div>
-        <div class="feat" data-reveal data-tilt><h3>التحكّم في إيدك</h3><p>توافق على أي منتج أو تخفيه في أي وقت. ولا حاجة بتوصل للزبون من غير موافقتك.</p></div>
-        <div class="feat" data-reveal data-tilt><h3>العربي الأول</h3><p>كل صفحات الزبون شغّالة بالعربي من اليمين للشمال، وبالإنجليزي كمان.</p></div>
-        <div class="feat" data-reveal data-tilt><h3>شوف النتيجة</h3><p>عدد الزباين والتجارب والمعاينات وضغطات الشراء، لكل منتج ولأي فترة.</p></div>
-        <div class="feat" data-reveal data-tilt><h3>الخصوصية من الأساس</h3><p>صورة الزبون بتُستخدم بس للمعاينة، وجرّاب ما بيحتفظش بيها.</p></div>
+        <div class="feat"><h3>موقع أو إنستجرام</h3><p>زرار على شوبيفاي أو ووكومرس أو أي موقع، أو لينك للبايو والستوري والواتساب.</p></div>
+        <div class="feat"><h3>براندك إنت</h3><p>اللوجو والألوان بتوعك على كل صفحة تجربة، والزرار شبه زرار السلة عندك.</p></div>
+        <div class="feat"><h3>التحكّم في إيدك</h3><p>توافق على أي منتج أو تخفيه في أي وقت. ولا حاجة بتوصل للزبون من غير موافقتك.</p></div>
+        <div class="feat"><h3>العربي الأول</h3><p>كل صفحات الزبون شغّالة بالعربي من اليمين للشمال، وبالإنجليزي كمان.</p></div>
+        <div class="feat"><h3>شوف النتيجة</h3><p>عدد الزباين والتجارب والمعاينات وضغطات الشراء، لكل منتج ولأي فترة.</p></div>
+        <div class="feat"><h3>الخصوصية من الأساس</h3><p>صورة الزبون بتُستخدم بس للمعاينة، وجرّاب ما بيحتفظش بيها.</p></div>
       </div>
     </div>
   </section>
 
-  <section id="pricing" class="section alt" data-bg="lavender">
+  <section id="pricing" class="section alt">
     <div class="wrap">
-      <h2 data-split>أسعار بسيطة</h2>
+      <h2>أسعار بسيطة</h2>
       <p class="lede">ابدأ مجانًا، وادفع بس لو نفعك.</p>
       <div class="plans">
-        <div class="plan featured" data-reveal data-tilt>
+        <div class="plan featured">
           <h3>تجربة مجانية</h3>
-          <p class="price"><span class="count" data-count="0">٠</span> <span>جنيه</span></p>
+          <p class="price">٠ <span>جنيه</span></p>
           <ul class="ticks"><li>١٤ يوم</li><li>٣٠٠ معاينة</li><li>كل منتجاتك</li><li>من غير كارت ولا رسوم إعداد</li></ul>
           <a class="btn" href="https://app.garrabb.com/start">ابدأ التجربة المجانية</a>
         </div>
-        <div class="plan" data-reveal data-tilt>
+        <div class="plan">
           <h3>Starter</h3>
-          <p class="price"><span class="count" data-count="5000">٥٬٠٠٠</span> <span>جنيه / شهر</span></p>
+          <p class="price">٥٬٠٠٠ <span>جنيه / شهر</span></p>
           <ul class="ticks"><li>٢٥٠ معاينة في الشهر</li><li>زرار الموقع ولينك التجربة</li><li>اللوجو والألوان بتوعك</li><li>لوحة النتائج</li></ul>
         </div>
-        <div class="plan" data-reveal data-tilt>
+        <div class="plan">
           <h3>Growth</h3>
-          <p class="price"><span class="count" data-count="8500">٨٬٥٠٠</span> <span>جنيه / شهر</span></p>
+          <p class="price">٨٬٥٠٠ <span>جنيه / شهر</span></p>
           <ul class="ticks"><li>٦٠٠ معاينة في الشهر</li><li>كل مميزات Starter</li><li>مساعد المقاسات بالذكاء الاصطناعي (عربي وإنجليزي)</li></ul>
         </div>
       </div>
@@ -211,24 +232,23 @@
     </div>
   </section>
 
-  <section id="faq" class="section" data-bg="cream">
+  <section id="faq" class="section">
     <div class="wrap narrow">
-      <h2 data-split>أسئلة البراندات</h2>
-      <details data-reveal><summary>يعني إيه جرّاب؟</summary><p>جرّاب تجربة افتراضية بالذكاء الاصطناعي للبراندات أونلاين. زبونك يرفع صورته ويشوف هدومك عليه، أو قطعة الديكور في أوضته، قبل ما يشتري.</p></details>
-      <details data-reveal><summary>بيشتغل مع شوبيفاي ووكومرس وإنستجرام؟</summary><p>أيوه. على شوبيفاي أو ووكومرس أو أي موقع بيظهر زرار «جرّبه عليك» تحت زرار السلة في المنتجات اللي وافقت عليها، بسطر كود واحد وإحنا اللي بنركّبه. ولو مالكش موقع، بتحط لينك جرّاب في بايو إنستجرام والستوري والواتساب.</p></details>
-      <details data-reveal><summary>بكام؟</summary><p>أول ١٤ يوم مجانًا: ٣٠٠ معاينة لكل منتجاتك ومن غير كارت. بعدها Starter بـ٥٬٠٠٠ جنيه في الشهر وفيها ٢٥٠ معاينة، وGrowth بـ٨٬٥٠٠ جنيه في الشهر وفيها ٦٠٠ معاينة ومساعد المقاسات. المعاينات الإضافية ٨٠٠ جنيه لكل ١٠٠.</p></details>
-      <details data-reveal><summary>ينفع للديكور؟</summary><p>أيوه. الزبون يصوّر أوضته ويشوف الأباجورة أو السجادة أو الخدادية أو اللوحة أو المراية متحطّة فيها.</p></details>
-      <details data-reveal><summary>بالعربي؟</summary><p>أيوه. صفحات التجربة شغّالة بالعربي من اليمين للشمال وبالإنجليزي، ومساعد المقاسات بيرد بالاتنين.</p></details>
-      <details data-reveal><summary>إيه اللي بيحصل لصورة الزبون؟</summary><p>الصورة بتُستخدم بس عشان نعمل معاينة الزبون ده. جرّاب ما بيحتفظش بيها، والبيانات المخفية زي الموقع بتتشال قبل ما الصورة تخرج من الموبايل.</p></details>
-      <details data-reveal><summary>المعاينة دقيقة قد إيه؟</summary><p>المعاينات صور بالذكاء الاصطناعي: دليل قريب لشكل القطعة، مش صورة مطابقة. وبنجرّب كل منتج الأول، وإنت بتوافق على كل واحد قبل ما الزبون يجرّبه.</p></details>
-      <details data-reveal><summary>التجهيز بياخد قد إيه؟</summary><p>غالبًا في نفس اليوم. بنقرا منتجاتك ونجرّبها، وإنت توافق على اللي يعجبك. لينك التجربة بيشتغل أول ما توافق على منتج واحد.</p></details>
+      <h2>أسئلة البراندات</h2>
+      <details><summary>يعني إيه جرّاب؟</summary><p>جرّاب تجربة افتراضية بالذكاء الاصطناعي للبراندات أونلاين. زبونك يرفع صورته ويشوف هدومك عليه، أو قطعة الديكور في أوضته، قبل ما يشتري.</p></details>
+      <details><summary>بيشتغل مع شوبيفاي ووكومرس وإنستجرام؟</summary><p>أيوه. على شوبيفاي أو ووكومرس أو أي موقع بيظهر زرار «جرّبه عليك» تحت زرار السلة في المنتجات اللي وافقت عليها، بسطر كود واحد وإحنا اللي بنركّبه. ولو مالكش موقع، بتحط لينك جرّاب في بايو إنستجرام والستوري والواتساب.</p></details>
+      <details><summary>بكام؟</summary><p>أول ١٤ يوم مجانًا: ٣٠٠ معاينة لكل منتجاتك ومن غير كارت. بعدها Starter بـ٥٬٠٠٠ جنيه في الشهر وفيها ٢٥٠ معاينة، وGrowth بـ٨٬٥٠٠ جنيه في الشهر وفيها ٦٠٠ معاينة ومساعد المقاسات. المعاينات الإضافية ٨٠٠ جنيه لكل ١٠٠.</p></details>
+      <details><summary>ينفع للديكور؟</summary><p>أيوه. الزبون يصوّر أوضته ويشوف الأباجورة أو السجادة أو الخدادية أو اللوحة أو المراية متحطّة فيها.</p></details>
+      <details><summary>بالعربي؟</summary><p>أيوه. صفحات التجربة شغّالة بالعربي من اليمين للشمال وبالإنجليزي، ومساعد المقاسات بيرد بالاتنين.</p></details>
+      <details><summary>إيه اللي بيحصل لصورة الزبون؟</summary><p>الصورة بتُستخدم بس عشان نعمل معاينة الزبون ده. جرّاب ما بيحتفظش بيها، والبيانات المخفية زي الموقع بتتشال قبل ما الصورة تخرج من الموبايل.</p></details>
+      <details><summary>المعاينة دقيقة قد إيه؟</summary><p>المعاينات صور بالذكاء الاصطناعي: دليل قريب لشكل القطعة، مش صورة مطابقة. وبنجرّب كل منتج الأول، وإنت بتوافق على كل واحد قبل ما الزبون يجرّبه.</p></details>
+      <details><summary>التجهيز بياخد قد إيه؟</summary><p>غالبًا في نفس اليوم. بنقرا منتجاتك ونجرّبها، وإنت توافق على اللي يعجبك. لينك التجربة بيشتغل أول ما توافق على منتج واحد.</p></details>
     </div>
   </section>
 
-  <section class="final" data-bg="forest">
-  <svg class="blobs" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><path class="blob b1" d=""/><path class="blob b2" d=""/><path class="blob b3" d=""/></svg>
+  <section class="final">
     <div class="wrap final-in">
-      <h2 data-split>غرفة قياس لزباينك، مفتوحة طول اليوم.</h2>
+      <h2>غرفة قياس لزباينك، مفتوحة طول اليوم.</h2>
       <p>جرّب جرّاب مجانًا ١٤ يوم، وإحنا نجهّزه معاك.</p>
       <div class="cta-row center">
         <a class="btn light" href="https://app.garrabb.com/start">ابدأ التجربة المجانية</a>
