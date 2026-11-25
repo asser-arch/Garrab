@@ -23,7 +23,7 @@ import { uploadProduct } from "./portal.js";
 import { adminWrites, messages as supportMessages, threads as supportThreads } from "../lib/support.js";
 import { cycleStartOf } from "../lib/metering.js";
 import { addDays } from "../billing/dates.js";
-import { accountFacts, applyPayment, createInvoice, ensurePlanInvoice, openPlanInvoice, payUrl, pdfUrl, reconcileAccount } from "../billing/ledger.js";
+import { accountFacts, applyPayment, createInvoice, monthlyPrice, ensurePlanInvoice, openPlanInvoice, payUrl, pdfUrl, reconcileAccount } from "../billing/ledger.js";
 import { decideClaim } from "../billing/instapay.js";
 import { runJobNow } from "../jobs.js";
 import { buildDigest } from "../ops/digest.js";
@@ -262,8 +262,8 @@ admin.get("/dashboard", async (c) => {
   const [counts, accounts, revenue, cost, alertsOpen, claims, due, crons, globalKill] = await Promise.all([
     env.DB.prepare("SELECT status, COUNT(*) AS n FROM accounts GROUP BY status").all<{ status: string; n: number }>(),
     env.DB.prepare(
-      "SELECT id, name, status, plan_id, target_plan_id, paid_through, cycle_start, manual_hold FROM accounts WHERE status IN ('pilot','active','past_due','suspended') ORDER BY name",
-    ).all<{ id: string; name: string; status: string; plan_id: PlanId; target_plan_id: PlanId | null; paid_through: string | null; cycle_start: string | null; manual_hold: number }>(),
+      "SELECT id, name, status, plan_id, target_plan_id, paid_through, cycle_start, manual_hold, monthly_price FROM accounts WHERE status IN ('pilot','active','past_due','suspended') ORDER BY name",
+    ).all<{ id: string; name: string; status: string; plan_id: PlanId; target_plan_id: PlanId | null; paid_through: string | null; cycle_start: string | null; manual_hold: number; monthly_price: number | null }>(),
     env.DB.prepare("SELECT account_id, SUM(amount) AS s FROM payments WHERE created_at >= ? GROUP BY account_id").bind(since30).all<{ account_id: string; s: number }>(),
     env.DB.prepare("SELECT account_id, SUM(cost_micro_usd) AS s FROM usage_events WHERE created_at >= ? GROUP BY account_id").bind(since30).all<{ account_id: string; s: number }>(),
     env.DB.prepare("SELECT id, kind, account_id, message, created_at FROM alerts WHERE resolved_at IS NULL ORDER BY created_at DESC LIMIT 30").all(),
@@ -280,7 +280,8 @@ admin.get("/dashboard", async (c) => {
   const rows = [];
   let mrr = 0;
   for (const a of accounts.results) {
-    if (a.status === "active" || a.status === "past_due") mrr += PLANS[a.plan_id].monthlyPrice;
+    // MRR is the money brands actually pay each month: their own price (early bird, deals) or the list price.
+    if (a.status === "active" || a.status === "past_due") mrr += monthlyPrice(a, a.plan_id);
     const usage = await env.DB.prepare("SELECT used, included, extra FROM cycle_usage WHERE account_id = ? AND cycle_start = ?")
       .bind(a.id, cycleStartOf(a))
       .first<{ used: number; included: number; extra: number }>();
@@ -290,7 +291,7 @@ admin.get("/dashboard", async (c) => {
       id: a.id,
       name: a.name,
       status: a.status,
-      plan: PLANS[a.plan_id].name,
+      plan: a.monthly_price !== null ? `${PLANS[a.plan_id].name} (${(a.monthly_price / 100).toLocaleString("en-US")} EGP/mo)` : PLANS[a.plan_id].name,
       paidThrough: a.paid_through,
       manualHold: a.manual_hold === 1,
       previews: usage ? `${usage.used} / ${usage.included + usage.extra}` : `0 / ${PLANS[a.plan_id].includedPreviews}`,
@@ -479,6 +480,8 @@ admin.post("/accounts/:id/record", async (c) => {
       reference: z.string().trim().max(80).optional(),
       note: z.string().trim().max(300).optional(),
       key: z.string().min(8).max(64),
+      /** Save this invoice's monthly amount as the brand's own price, for renewals and MRR. */
+      keepPrice: z.boolean().default(false),
     })
     .safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json({ error: "invalid" }, 400);
@@ -494,6 +497,11 @@ admin.post("/accounts/:id/record", async (c) => {
     { label: `${PLANS[d.plan].name} plan, ${d.months === 1 ? "one month" : `${d.months} months`}`, amount: total - setup },
     ...(setup ? [{ label: "One-off setup", amount: setup }] : []),
   ];
+  if (d.keepPrice) {
+    const perMonth = Math.round((total - setup) / d.months);
+    await c.env.DB.prepare("UPDATE accounts SET monthly_price = ? WHERE id = ?").bind(perMonth === PLANS[d.plan].monthlyPrice ? null : perMonth, a.id).run();
+    await audit(c.env, a.id, c.get("admin"), "price", `${perMonth / 100} EGP a month`);
+  }
   // Only one plan invoice is open at a time: the new one replaces any other.
   await c.env.DB.prepare("UPDATE invoices SET status = 'void' WHERE account_id = ? AND kind = 'plan' AND status = 'open'").bind(a.id).run();
   const due = a.status === "pilot" && a.pilot_ends_at && !d.paid ? cairoDay(new Date(a.pilot_ends_at)) : today;
@@ -515,6 +523,17 @@ admin.post("/accounts/:id/record", async (c) => {
   }
   const fresh = (await c.env.DB.prepare("SELECT number, status, period_start, period_end, pay_token FROM invoices WHERE id = ?").bind(inv.id).first<{ number: string; status: string; period_start: string | null; period_end: string | null; pay_token: string }>())!;
   return c.json({ ok: true, number: fresh.number, status: fresh.status, periodStart: fresh.period_start, periodEnd: fresh.period_end, payUrl: payUrl(c.env, fresh.pay_token) });
+});
+
+/** The brand's own monthly price (EGP), e.g. early bird; null = back to the list price. Renewals and MRR use it. */
+admin.post("/accounts/:id/price", async (c) => {
+  const body = z.object({ priceEgp: z.number().min(0).max(1_000_000).nullable() }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  const v = body.data.priceEgp === null ? null : Math.round(body.data.priceEgp * 100);
+  const r = await c.env.DB.prepare("UPDATE accounts SET monthly_price = ? WHERE id = ?").bind(v, c.req.param("id")).run();
+  if (r.meta.changes !== 1) return c.json({ error: "not_found" }, 404);
+  await audit(c.env, c.req.param("id"), c.get("admin"), "price", v === null ? "list price" : `${v / 100} EGP a month`);
+  return c.json({ ok: true });
 });
 
 admin.post("/accounts/:id/notes", async (c) => {

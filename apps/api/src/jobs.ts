@@ -4,7 +4,7 @@
  * Every job is idempotent. Each run is recorded in cron_runs (shown in the admin status line).
  */
 import { PILOT, PLANS, TIMINGS } from "@garrab/shared/plans";
-import { accountFacts, billingRun, ensurePlanInvoice, payUrl, prepaidInvoice, reconcileAccount } from "./billing/ledger.js";
+import { accountFacts, billingRun, ensurePlanInvoice, monthlyPrice, payUrl, prepaidInvoice, reconcileAccount } from "./billing/ledger.js";
 import { pingPendingClaims } from "./billing/instapay.js";
 import { emails } from "./emails.js";
 import type { Env } from "./env.js";
@@ -90,7 +90,7 @@ export const pilotClock: JobFn = async (env, now) => {
         });
     }
     if (day >= PILOT.emailDays.endingSoon && !prepaid)
-      await sendOnce(env, { accountId: a.id, template: "pilot_day_12", dedupeKey: `pilot_day_12:${a.id}`, msg: emails.pilotDay12(user.email, plan, payLink) });
+      await sendOnce(env, { accountId: a.id, template: "pilot_day_12", dedupeKey: `pilot_day_12:${a.id}`, msg: emails.pilotDay12(user.email, plan, payLink, monthlyPrice(facts ?? {}, plan)) });
     // Day 14: the final results, same branded report, with the pay link.
     if (day >= PILOT.emailDays.results) {
       const r = await buildReport(env, a.id, cairoDay(new Date(a.pilot_started_at)), cairoDay(now));
@@ -106,7 +106,7 @@ export const pilotClock: JobFn = async (env, now) => {
             endsOn: null,
             planLine: prepaid
               ? `You've already paid: your ${PLANS[prepaid.plan_id ?? plan].name} plan starts on ${prepaid.period_start} and runs until ${prepaid.period_end}. Thank you!`
-              : `To keep try-on running, the ${PLANS[plan].name} plan is ${(PLANS[plan].monthlyPrice / 100).toLocaleString("en-US")} EGP a month, paid before each month. No minimum term.`,
+              : `To keep try-on running, the ${PLANS[plan].name} plan is ${(monthlyPrice(facts ?? {}, plan) / 100).toLocaleString("en-US")} EGP a month, paid before each month. No minimum term.`,
           }),
         });
     }

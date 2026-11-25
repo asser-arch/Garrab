@@ -490,3 +490,33 @@ describe("admin: billing by hand (invoice or payment)", () => {
     expect(await env.DB.prepare("SELECT period_start FROM invoices WHERE id = ?").bind(inv.id).first()).toEqual({ period_start: cairoDay() });
   });
 });
+
+describe("admin: a brand's own monthly price (early bird)", () => {
+  it("counts in MRR at the real price, renews at it, and can go back to the list price", async () => {
+    const b = await liveBrand();
+    await env.DB.prepare("UPDATE accounts SET paid_through = ? WHERE id = ?").bind(cairoDay(), b.id).run();
+    const mrrOf = async () => {
+      const d = (await (await exports.default.fetch("https://api.test/admin-api/dashboard", { headers: ADMIN })).json()) as { mrr: number; clients: { id: string; plan: string }[] };
+      return { mrr: d.mrr, plan: d.clients.find((x) => x.id === b.id)!.plan };
+    };
+    const before = await mrrOf();
+    expect(before.plan).toBe("Starter");
+    expect((await post(`/accounts/${b.id}/price`, { priceEgp: 2000 })).status).toBe(200);
+    const after = await mrrOf();
+    expect(after.mrr).toBe(before.mrr - 500_000 + 200_000);
+    expect(after.plan).toBe("Starter (2,000 EGP/mo)");
+    // The renewal invoice is at the brand's price.
+    const inv = await ensurePlanInvoice(env, (await accountFacts(env, b.id))!, new Date());
+    expect(inv.total).toBe(200_000);
+    // Back to the list price.
+    await post(`/accounts/${b.id}/price`, { priceEgp: null });
+    expect((await accountFacts(env, b.id))!.monthly_price).toBeNull();
+  });
+
+  it("recording a payment at a custom price can keep that price for renewals", async () => {
+    const b = await liveBrand();
+    const r = await post(`/accounts/${b.id}/record`, { plan: "starter", months: 2, amountEgp: 4000, setupFee: false, paid: true, keepPrice: true, method: "instapay", key: `k-${uniq()}` });
+    expect(r.status).toBe(200);
+    expect((await accountFacts(env, b.id))!.monthly_price).toBe(200_000);
+  });
+});

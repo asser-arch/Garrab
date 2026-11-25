@@ -59,12 +59,14 @@ interface AccFacts {
   setup_fee_due: number;
   onboarding_step: string;
   cycle_start: string | null;
+  /** The brand's own monthly price (piastres), e.g. early bird; null = list price. */
+  monthly_price: number | null;
 }
 
 export async function accountFacts(env: Env, id: string): Promise<AccFacts | null> {
   return env.DB.prepare(
     `SELECT id, name, status, plan_id, target_plan_id, paid_through, pilot_started_at, pilot_ends_at, cancel_at_period_end,
-            manual_hold, setup_fee_due, onboarding_step, cycle_start FROM accounts WHERE id = ?`,
+            manual_hold, setup_fee_due, onboarding_step, cycle_start, monthly_price FROM accounts WHERE id = ?`,
   )
     .bind(id)
     .first<AccFacts>();
@@ -72,6 +74,11 @@ export async function accountFacts(env: Env, id: string): Promise<AccFacts | nul
 
 async function ownerEmail(env: Env, accountId: string): Promise<string | null> {
   return (await env.DB.prepare("SELECT email FROM users WHERE account_id = ? ORDER BY created_at LIMIT 1").bind(accountId).first<{ email: string }>())?.email ?? null;
+}
+
+/** What the brand pays a month: its own price if Garrab set one (early bird, a deal), else the plan's list price. */
+export function monthlyPrice(a: { monthly_price?: number | null }, plan: PlanId): number {
+  return a.monthly_price ?? PLANS[plan].monthlyPrice;
 }
 
 /** The plan a renewal is billed at: the target plan for pilots, otherwise the current paid plan. */
@@ -106,7 +113,7 @@ export async function createInvoice(
     lines.push(...opts.lines);
   } else if (opts.kind === "plan") {
     const period = opts.periodStart ? periodFrom(opts.periodStart) : null;
-    lines.push({ label: `${PLANS[plan].name} plan, one month${period ? ` (${period.start} to ${period.end})` : ""}`, amount: PLANS[plan].monthlyPrice });
+    lines.push({ label: `${PLANS[plan].name} plan, one month${period ? ` (${period.start} to ${period.end})` : ""}`, amount: monthlyPrice(a, plan) });
     // One-off setup fee on the first paid invoice of a non-founding brand (founding pilots pay none).
     if (a.setup_fee_due && !a.paid_through) lines.push({ label: "One-off setup", amount: SETUP_FEE });
   } else {

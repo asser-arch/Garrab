@@ -30,7 +30,7 @@ import { clearProductTests, productPhotoUrl, removeProduct } from "../lib/produc
 import { sendOnce } from "../lib/email.js";
 import { saveProducts, guessKind } from "../onboarding/import.js";
 import { CONTENT_RULES_REASON, FAILED_REASON, retryBusyProducts } from "../onboarding/tests.js";
-import { accountFacts, billingPlan, createInvoice, ensurePlanInvoice, payUrl, pdfUrl } from "../billing/ledger.js";
+import { accountFacts, billingPlan, createInvoice, ensurePlanInvoice, monthlyPrice, payUrl, pdfUrl } from "../billing/ledger.js";
 import { cycleStartOf } from "../lib/metering.js";
 import { cairoDay } from "../lib/time.js";
 import { STEPS, STEP_LABEL, advance, checkInstall, confirmApproval, decideProduct, type Step } from "../onboarding/machine.js";
@@ -525,7 +525,7 @@ portal.get("/billing", async (c) => {
   const usage = await c.env.DB.prepare("SELECT used, included, extra FROM cycle_usage WHERE account_id = ? AND cycle_start = ?").bind(id, cycle).first<{ used: number; included: number; extra: number }>();
   return c.json({
     status: a.status,
-    plan: { name: plan.name, price: plan.monthlyPrice, previews: plan.includedPreviews },
+    plan: { name: plan.name, price: monthlyPrice(a, billingPlan(a)), previews: plan.includedPreviews },
     paidThrough: a.paid_through,
     pilotEndsAt: a.pilot_ends_at,
     cancelAtPeriodEnd: a.cancel_at_period_end === 1,

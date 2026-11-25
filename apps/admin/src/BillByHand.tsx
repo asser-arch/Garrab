@@ -7,7 +7,7 @@ import { PLANS, SETUP_FEE } from "@garrab/shared/plans";
 import { useState } from "react";
 
 type Plan = "starter" | "growth";
-const priceEgp = (plan: Plan, months: number, setup: boolean): number => (PLANS[plan].monthlyPrice * months + (setup ? SETUP_FEE : 0)) / 100;
+const priceEgp = (plan: Plan, months: number, setup: boolean, own: number | null = null): number => ((own ?? PLANS[plan].monthlyPrice) * months + (setup ? SETUP_FEE : 0)) / 100;
 const day = (iso: string): string =>
   new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Cairo" });
 
@@ -17,6 +17,7 @@ export function BillByHand({
   pilotEndsAt,
   targetPlan,
   setupFeeDue,
+  ownPrice,
   send,
 }: {
   id: string;
@@ -24,23 +25,26 @@ export function BillByHand({
   pilotEndsAt: string | null;
   targetPlan: Plan;
   setupFeeDue: boolean;
+  /** The brand's own monthly price in piastres (early bird), or null for the list price. */
+  ownPrice: number | null;
   send: (path: string, body: unknown, done: string) => Promise<void>;
 }) {
   const [paid, setPaid] = useState(true);
   const [plan, setPlan] = useState<Plan>(targetPlan);
   const [months, setMonths] = useState(1);
   const [setup, setSetup] = useState(setupFeeDue);
-  const [amount, setAmount] = useState(String(priceEgp(targetPlan, 1, setupFeeDue)));
+  const [amount, setAmount] = useState(String(priceEgp(targetPlan, 1, setupFeeDue, ownPrice)));
   const [touched, setTouched] = useState(false);
   const [start, setStart] = useState<"now" | "after_pilot" | "">("");
   const [method, setMethod] = useState("instapay");
   const [reference, setReference] = useState("");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+  const [keepPrice, setKeepPrice] = useState(true);
 
   // Price follows plan, months and setup fee until you type your own.
   const reprice = (p: Plan, m: number, s: boolean): void => {
-    if (!touched) setAmount(String(priceEgp(p, m, s)));
+    if (!touched) setAmount(String(priceEgp(p, m, s, ownPrice)));
   };
   const value = Number(amount);
   const ready = Number.isFinite(value) && value >= 0 && (!inPilot || start !== "");
@@ -66,6 +70,7 @@ export function BillByHand({
               reference: reference || undefined,
               note: note || undefined,
               key: crypto.randomUUID(),
+              keepPrice: touched && keepPrice,
             },
             paid ? "Payment recorded. The brand gets a receipt by email." : "Invoice made. Send the pay link from the list below (WhatsApp or Resend invoice email).",
           );
@@ -138,6 +143,12 @@ export function BillByHand({
           Includes the one-off setup fee ({SETUP_FEE / 100} EGP)
         </label>
         {touched && (
+          <label className="check">
+            <input type="checkbox" checked={keepPrice} onChange={(e) => setKeepPrice(e.target.checked)} /> Keep this price for renewals (
+            {((value - (setup ? SETUP_FEE / 100 : 0)) / months).toLocaleString("en-US", { maximumFractionDigits: 2 })} EGP a month), and count it in MRR
+          </label>
+        )}
+        {touched && (
           <p className="small muted">
             Your own price. List price would be {priceEgp(plan, months, setup).toLocaleString("en-US")} EGP.{" "}
             <button
@@ -194,5 +205,33 @@ export function BillByHand({
         <p className="small muted">Any other open plan invoice for this brand is cancelled, so they only ever see one.</p>
       </form>
     </details>
+  );
+}
+
+/** The brand's own monthly price (early bird, a deal): renewals, MRR, the portal and pilot emails use it. */
+export function OwnPrice({ id, plan, ownPrice, send }: { id: string; plan: Plan; ownPrice: number | null; send: (path: string, body: unknown, done: string) => Promise<void> }) {
+  const [v, setV] = useState(ownPrice === null ? "" : String(ownPrice / 100));
+  const list = PLANS[plan].monthlyPrice / 100;
+  return (
+    <form
+      className="row own-price"
+      onSubmit={(e) => {
+        e.preventDefault();
+        const n = v.trim() === "" ? null : Number(v);
+        if (n !== null && !Number.isFinite(n)) return;
+        void send(`/accounts/${id}/price`, { priceEgp: n === list ? null : n }, n === null || n === list ? "Back to the list price." : `Monthly price set to ${n.toLocaleString("en-US")} EGP.`);
+      }}
+    >
+      <label>
+        Monthly price (EGP)
+        <input inputMode="decimal" value={v} placeholder={`${list} (list price)`} onChange={(e) => setV(e.target.value.replace(/[^0-9.]/g, ""))} />
+      </label>
+      <button className="btn small ghost" type="submit">
+        Save price
+      </button>
+      <span className="small muted">
+        {ownPrice === null ? `List price: ${list.toLocaleString("en-US")} EGP.` : `Own price (list is ${list.toLocaleString("en-US")} EGP).`} Used for renewal invoices and MRR. Empty = list price.
+      </span>
+    </form>
   );
 }

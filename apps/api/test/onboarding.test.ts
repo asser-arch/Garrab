@@ -790,7 +790,7 @@ describe("pilot clock", () => {
     const mails = await outbox(a.email);
     // Catching up at day 14: the final results replace the day-10 report.
     expect(mails.map((m) => m.subject)).toEqual(["Week one of your pilot", "Your pilot ends in 2 days", "Your Garrab pilot results, Pilot"]);
-    expect(mails[1]!.html).toContain("5000 EGP a month");
+    expect(mails[1]!.html).toContain("5,000 EGP a month");
     const final = mails[2]!.html;
     expect(final).toContain("Pilot results");
     expect(final).toContain("5,000 EGP a month");

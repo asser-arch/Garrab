@@ -1,7 +1,7 @@
 import "@garrab/shared/ui.css";
 import "./admin.css";
 import { StrictMode, useCallback, useEffect, useState } from "react";
-import { BillByHand } from "./BillByHand.js";
+import { BillByHand, OwnPrice } from "./BillByHand.js";
 import { InstallGuide } from "./InstallGuide.js";
 import { Support, useSupportWaiting } from "./Support.js";
 import { Usage } from "./Usage.js";
@@ -403,6 +403,7 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
           endsAt: (d.account.pilot_ends_at as string | null) ?? null,
           target: d.account.target_plan_id === "growth" || d.account.plan_id === "growth" ? "growth" : "starter",
           setupFeeDue: Number(d.account.setup_fee_due) === 1 && !d.account.paid_through,
+          ownPrice: d.account.monthly_price === null || d.account.monthly_price === undefined ? null : Number(d.account.monthly_price),
         }}
         onChange={async () => (await load(), onChange())}
       />
@@ -672,7 +673,7 @@ function Money({
   status: string;
   hold: boolean;
   notes: string;
-  pilot: { inPilot: boolean; endsAt: string | null; target: "starter" | "growth"; setupFeeDue: boolean };
+  pilot: { inPilot: boolean; endsAt: string | null; target: "starter" | "growth"; setupFeeDue: boolean; ownPrice: number | null };
   onChange: () => Promise<void>;
 }) {
   type B = {
@@ -736,7 +737,10 @@ function Money({
         </button>
       </div>
       {status !== "onboarding" && (
-        <BillByHand id={id} inPilot={pilot.inPilot} pilotEndsAt={pilot.endsAt} targetPlan={pilot.target} setupFeeDue={pilot.setupFeeDue} send={act} />
+        <>
+          <OwnPrice id={id} plan={pilot.target} ownPrice={pilot.ownPrice} send={act} />
+          <BillByHand id={id} inPilot={pilot.inPilot} pilotEndsAt={pilot.endsAt} targetPlan={pilot.target} setupFeeDue={pilot.setupFeeDue} ownPrice={pilot.ownPrice} send={act} />
+        </>
       )}
       <table>
         <tbody>

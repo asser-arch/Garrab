@@ -137,13 +137,13 @@ export const emails = {
       { label: "See details", url: portal },
     ),
 
-  pilotDay12: (to: string, plan: PlanId, payUrl: string): EmailMessage =>
+  pilotDay12: (to: string, plan: PlanId, payUrl: string, price: number = PLANS[plan].monthlyPrice): EmailMessage =>
     msg(
       to,
       "Your pilot ends in 2 days",
       "Keep try-on running",
       [
-        `Your pilot ends in 2 days. To keep it running, the ${PLANS[plan].name} plan is ${PLANS[plan].monthlyPrice / 100} EGP a month, paid before each month. No minimum term.`,
+        `Your pilot ends in 2 days. To keep it running, the ${PLANS[plan].name} plan is ${(price / 100).toLocaleString("en-US")} EGP a month, paid before each month. No minimum term.`,
         `If you don't continue, try-on switches off ${BILLING.graceDays} days after the pilot ends. Nothing else on your shop changes.`,
       ],
       { label: "Continue my plan", url: payUrl },
