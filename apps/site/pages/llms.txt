@@ -1,0 +1,44 @@
+# Garrab (جرّاب)
+
+> Garrab is an AI virtual try-on service for Egyptian online brands. A shopper uploads one photo and sees the brand's clothing on themselves, or a home décor piece (lamp, rug, cushion, art, mirror) placed in their own room, before they buy. It works on Shopify, WooCommerce and any website, or as a link in an Instagram bio, stories and WhatsApp. Arabic and English. Free 14-day pilot.
+
+Website: https://garrabb.com/ (Arabic: https://garrabb.com/ar)
+Start a free pilot: https://app.garrabb.com/start
+Contact: WhatsApp +20 100 911 0001
+Company: Garrab is powered by Infinisync by Arotech (https://www.theinfinisync.com)
+
+## Who it's for
+- Egyptian fashion brands selling online: abayas, dresses, modest wear, jackets, accessories.
+- Egyptian home décor brands: lamps, rugs, cushions, wall art, mirrors, furniture.
+- Brands with a website (Shopify, WooCommerce, other) and brands that sell only on Instagram or WhatsApp.
+
+## How it works
+1. Garrab reads the brand's products from its website, or the brand uploads product photos (many at once).
+2. Garrab tests each product on stock models (fashion) or in stock rooms (home décor); the brand approves which products go live.
+3. Shoppers tap "Try it on" under Add to cart (website) or open the brand's Garrab link (Instagram/WhatsApp), upload a photo, and get an AI preview in about 20 seconds.
+
+## Features
+- Try-on of clothing on the shopper's own photo; room preview for home décor.
+- "Try it on" button that matches the brand's own Add to cart button; one line of code, installed by Garrab.
+- Try-on link and brand page for Instagram bios, stories and WhatsApp.
+- The brand's logo and colours on every try-on page.
+- Brand approves every product before shoppers can try it.
+- AI size finder in Arabic and English (Growth plan).
+- Results for the brand: shoppers, views, try-ons, previews, Buy taps, per product and per period.
+- Arabic (right to left) and English shopper pages.
+- Privacy: the shopper's photo is used only to create the preview, is not stored by Garrab, and location data is removed before upload.
+- Previews are AI images: a close guide, not an exact photo.
+
+## Pricing (Egyptian pounds)
+- Free pilot: 14 days, 300 previews, all products, no card, no setup fee.
+- Starter: 5,000 EGP per month, 250 previews.
+- Growth: 8,500 EGP per month, 600 previews and the size finder.
+- Extra previews: 800 EGP per 100.
+- One-off setup fee of 1,500 EGP only when continuing on a paid plan (waived for founding brands).
+- Payment by InstaPay or bank transfer.
+
+## Common questions
+- Does it work with Shopify? Yes. Also WooCommerce, any website, and Instagram-only shops.
+- Does it work for home décor? Yes: the item is placed in a photo of the shopper's own room.
+- Is it in Arabic? Yes, Arabic and English.
+- How long does setup take? Usually the same day; the try-on link works as soon as one product is approved.

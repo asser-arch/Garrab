@@ -55,7 +55,8 @@
         "API_ORIGIN": "https://api.garrabb.com",
         "TURNSTILE_SITE_KEY": "REPLACE_AT_PART_7",
         "ENVIRONMENT": "prod",
-        "APP_HOST": "app.garrabb.com"
+        "APP_HOST": "app.garrabb.com",
+        "LANDING_HOST": "garrabb.com"
       },
       "routes": [
         {

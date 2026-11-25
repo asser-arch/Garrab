@@ -6,6 +6,7 @@
  *  - /t/<slug>                  brand page listing those products (the Instagram bio link)
  *  - /portal, /portal/*         brand portal (single-page app)
  *  - /start, /privacy, /terms   public pages
+ *  - garrabb.com (LANDING_HOST)  landing page (EN /, AR /ar), robots.txt, sitemap.xml, llms.txt; www redirects there
  *  - /portal-api/*, /api/start  forwarded to the API Worker (same origin: first-party cookies, no CORS)
  */
 interface Env {
@@ -16,6 +17,9 @@ interface Env {
   ENVIRONMENT: string;
   /** Canonical host (app.<domain>). The apex and www redirect here; cdn.<domain> serves only the widget. */
   APP_HOST?: string;
+  /** Marketing host (prod: garrabb.com): serves the landing page, robots, sitemap, llms.txt. www redirects here.
+   *  Unset (dev, staging): the landing page is served on the app host instead, marked noindex. */
+  LANDING_HOST?: string;
   /** Local dev only: reach the API over HTTP (local service bindings between wrangler processes are flaky). */
   API_DEV_URL?: string;
 }
@@ -78,6 +82,61 @@ async function template(req: Request, env: Env, path: string, csp: string, injec
   });
 }
 
+// ---------------------------------------------------------------- landing page (garrabb.com)
+
+const LANDING_PAGES: Record<string, string> = { "/": "/landing.html", "/ar": "/landing-ar.html", "/ar/": "/landing-ar.html" };
+const LANDING_FILES = new Set([
+  "/landing.css", "/robots.txt", "/sitemap.xml", "/llms.txt", "/og-en.png", "/og-ar.png",
+  "/favicon.ico", "/favicon.svg", "/favicon-32.png", "/apple-touch-icon.png", "/email-logo.png", "/email-logo-dark.png",
+]);
+
+async function landingPage(req: Request, env: Env, file: string, indexable: boolean): Promise<Response> {
+  const res = await env.ASSETS.fetch(new Request(new URL(file, req.url)));
+  const headers: Record<string, string> = {
+    ...BASE_HEADERS,
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": "public, max-age=300",
+    "content-security-policy": pageCsp(env),
+    // Keep the referrer for outbound links from marketing pages (WhatsApp, the app) — still nothing sensitive here.
+    "referrer-policy": "strict-origin-when-cross-origin",
+  };
+  if (!indexable) headers["x-robots-tag"] = "noindex"; // staging/dev copies must never compete with garrabb.com
+  return new Response(res.body, { headers });
+}
+
+async function landingFile(req: Request, env: Env): Promise<Response> {
+  const res = await env.ASSETS.fetch(req);
+  const out = new Response(res.body, res);
+  for (const [k, v] of Object.entries(BASE_HEADERS)) out.headers.set(k, v);
+  out.headers.set("cache-control", "public, max-age=3600");
+  if (new URL(req.url).pathname.endsWith(".txt")) out.headers.set("content-type", "text/plain; charset=utf-8");
+  return out;
+}
+
+/** robots.txt on the app host: public pages yes; brand portal, payments and the try-on internals no. */
+function appRobots(env: Env): Response {
+  const body =
+    env.ENVIRONMENT === "prod"
+      ? [
+          "User-agent: *",
+          "Allow: /start",
+          "Allow: /privacy",
+          "Allow: /terms",
+          "Disallow: /portal",
+          "Disallow: /portal-api/",
+          "Disallow: /pay",
+          "Disallow: /pay-api/",
+          "Disallow: /frame",
+          "Disallow: /api/",
+          "Disallow: /pi/",
+          "Disallow: /bl/",
+          "",
+          `Sitemap: https://${env.LANDING_HOST ?? "garrabb.com"}/sitemap.xml`,
+        ].join("\n")
+      : "User-agent: *\nDisallow: /"; // staging and dev: never indexed
+  return new Response(`${body}\n`, { headers: { ...BASE_HEADERS, "content-type": "text/plain; charset=utf-8", "cache-control": "public, max-age=3600" } });
+}
+
 /** Forward to the API Worker, keeping cookies; the API checks Origin itself. */
 function forward(req: Request, env: Env, path: string): Promise<Response> {
   const url = new URL(req.url);
@@ -90,10 +149,27 @@ export default {
     const url = new URL(req.url);
     const p = url.pathname;
 
+    // Marketing site: garrabb.com (www redirects to it). Only the landing files live there; anything
+    // else (/start, /portal, /privacy…) goes to the app host.
+    const landing = env.LANDING_HOST;
+    if (landing && url.hostname === `www.${landing}`) return Response.redirect(`https://${landing}${p}${url.search}`, 301);
+    if (landing && url.hostname === landing) {
+      if (LANDING_PAGES[p]) return landingPage(req, env, LANDING_PAGES[p], true);
+      if (LANDING_FILES.has(p)) return landingFile(req, env);
+      return Response.redirect(`https://${env.APP_HOST ?? landing}${p}${url.search}`, 301);
+    }
+
     if (env.APP_HOST && env.ENVIRONMENT !== "dev" && url.hostname !== env.APP_HOST) {
       const cdnWidget = url.hostname.startsWith("cdn.") && p === "/w.js";
       if (!cdnWidget) return Response.redirect(`https://${env.APP_HOST}${p}${url.search}`, 301);
     }
+
+    // App host: the landing page lives on the marketing host in prod; elsewhere it's shown here (noindex).
+    if (LANDING_PAGES[p]) {
+      if (landing) return Response.redirect(`https://${landing}${p === "/" ? "/" : p}`, 301);
+      return landingPage(req, env, LANDING_PAGES[p], false);
+    }
+    if (p === "/robots.txt") return appRobots(env);
 
     if (p.startsWith("/portal-api/")) return forward(req, env, p);
     const productImage = /^\/pi\/([A-Z0-9]{26})\/([a-z0-9]{26}\.(?:jpg|png|webp))$/.exec(p);
@@ -112,7 +188,7 @@ export default {
     const cfg = { api: env.API_ORIGIN, turnstileSiteKey: env.TURNSTILE_SITE_KEY };
     if (FRAME_RE.test(p)) return template(req, env, "/frame.html", frameCsp(env, true), cfg);
     if (HOSTED_RE.test(p)) return template(req, env, "/frame.html", frameCsp(env, false), cfg);
-    if (p === "/start" || p === "/") return template(req, env, "/start.html", pageCsp(env), cfg);
+    if (p === "/start") return template(req, env, "/start.html", pageCsp(env), cfg);
     if (/^\/pay\/[A-Za-z0-9]{32}\/?$/.test(p)) {
       const res = await env.ASSETS.fetch(new Request(new URL("/pay.html", req.url)));
       return new Response(res.body, {
