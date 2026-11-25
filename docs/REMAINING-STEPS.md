@@ -53,3 +53,17 @@ Your side:
 1. Invite a test **home décor** brand (Type of brand → Home décor), add a rug or cushion, and try "See it in your room" on your phone.
 2. To see the size finder, invite a test brand with **Plan after pilot → Growth**, and type sizes (e.g. S, M, L, XL) when adding a product.
 3. Ask an Arabic speaker to read the new size-finder wording (the "Find my size" form and answers), like you did for the try-on wording.
+
+## Paymob card payments (waiting for Paymob's merchant review, 25 Nov 2026)
+
+Decision (Asser, 25 Nov): **keep list prices, no card surcharge**. Garrab absorbs Paymob's fee
+(2.75% of the amount before tax + 3 EGP per payment; ask Paymob whether 14% VAT is added on the fee).
+Rates are in `packages/shared/src/plans.ts` (`PAYMOB_FEE`, `paymobFee()`).
+
+When Paymob approves the account:
+1. Ask Asser for the Paymob keys through the secure credential form (never in chat), as GitHub secrets.
+2. Add a Paymob provider next to InstaPay on the pay page (InstaPay first, as the free option); its webhook
+   confirms payments through `applyPayment()` like the other providers (idempotent per transaction id).
+3. Store the fee on each payment (Paymob's reported fee, else `paymobFee()`), and show on the admin
+   dashboard: revenue, Paymob fees, net; margins on net.
+4. Test a real small payment on staging, then live.

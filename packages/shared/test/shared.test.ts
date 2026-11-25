@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
+import { paymobFee } from "../src/plans.js";
 import {
   AR_IS_DRAFT,
   BILLING,
@@ -164,5 +165,12 @@ describe("design tokens (§11)", () => {
     expect(css).toContain("--forest:#143822;");
     expect(css).toContain("--radius-pill:999px;");
     expect(css).toContain("--font:Cairo, system-ui, sans-serif;");
+  });
+});
+
+describe("Paymob fee (absorbed by Garrab, shown on the dashboard)", () => {
+  it("2.75% + 3 EGP", () => {
+    expect(paymobFee(500_000)).toBe(14_050); // Starter 5,000 EGP → 140.50 EGP
+    expect(paymobFee(850_000)).toBe(23_675); // Growth 8,500 EGP → 236.75 EGP
   });
 });

@@ -93,6 +93,19 @@ export const COMPANY = {
   whatsapp: "201009110001",
 } as const;
 
+/**
+ * Card payments through Paymob (pending Paymob's merchant review, 25 Nov 2026). Asser's decision (25 Nov):
+ * list prices stay the same; card payments are NOT surcharged. Garrab absorbs the fee and the admin
+ * dashboard shows it (revenue, Paymob fees, net) so margins are on real money. InstaPay and bank transfer
+ * stay free and are offered first. Fee is on the transaction value before tax; Paymob may add VAT on its fee.
+ */
+export const PAYMOB_FEE = { percentBp: 275, fixed: egp(3) } as const;
+
+/** Paymob's fee on one card payment (piastres). */
+export function paymobFee(amount: number): number {
+  return Math.round((amount * PAYMOB_FEE.percentBp) / 10_000) + PAYMOB_FEE.fixed;
+}
+
 export const BILLING = {
   /** Invoice is created this many days before the due date (= paid_through). */
   invoiceLeadDays: 7,
