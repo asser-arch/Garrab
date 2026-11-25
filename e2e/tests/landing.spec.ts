@@ -10,7 +10,7 @@ test("landing page: content, structured data and languages", async ({ page }) =>
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "https://garrabb.com/");
   await expect(page.locator('link[hreflang="ar"]')).toHaveAttribute("href", "https://garrabb.com/ar");
   const types = await page.evaluate(() =>
-    [...document.querySelectorAll('script[type="application/ld+json"]')].flatMap((s) => (JSON.parse(s.textContent!)["@graph"] as { "@type": string }[]).map((x) => x["@type"])),
+    Array.from(document.querySelectorAll('script[type="application/ld+json"]')).flatMap((s) => (JSON.parse(s.textContent!)["@graph"] as { "@type": string }[]).map((x) => x["@type"])),
   );
   expect(types).toEqual(expect.arrayContaining(["Organization", "SoftwareApplication", "FAQPage"]));
   await expect(page.getByRole("link", { name: "Start your free 14-day pilot" })).toHaveAttribute("href", "https://app.garrabb.com/start");
