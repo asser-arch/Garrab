@@ -7,6 +7,7 @@
  * call from anywhere: queue jobs, the 15-minute sweep, portal actions, admin buttons.
  * Every step can be overridden by the admin (audit-logged).
  */
+import { CONTENT_RULES_REASON } from "./tests.js";
 import { OnboardingStep } from "@garrab/shared";
 import { PILOT } from "@garrab/shared/plans";
 import { emails } from "../emails.js";
@@ -335,17 +336,19 @@ export async function overrideStep(env: Env, accountId: string, to: Step, reason
 
 /** Brand approval in the portal: approve or hide one product. */
 export async function decideProduct(env: Env, accountId: string, productId: string, decision: "approved" | "hidden"): Promise<boolean> {
-  // A product our automatic check wasn't sure about ("needs review", it has previews) is the brand's call too:
-  // approving it switches it on. Products that failed or are still testing can't be approved.
+  // The brand has the final say on any product that has test previews, even one our automatic check flagged
+  // ("needs review" or a low score): approving it switches it on. Not possible: still testing, no previews at
+  // all, or blocked by the AI's content rules.
   const r = await env.DB.prepare(
     `UPDATE products SET brand_decision = ?1, approved = ?2,
-            enabled = CASE WHEN ?2 = 1 AND needs_review = 1 THEN 1 ELSE enabled END,
-            needs_review = CASE WHEN ?2 = 1 AND needs_review = 1 THEN 0 ELSE needs_review END,
+            enabled = CASE WHEN ?2 = 1 THEN 1 ELSE enabled END,
+            needs_review = CASE WHEN ?2 = 1 THEN 0 ELSE needs_review END,
             updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
       WHERE id = ?3 AND account_id = ?4 AND selected = 1
-        AND (?2 = 0 OR enabled = 1 OR (needs_review = 1 AND EXISTS (SELECT 1 FROM product_tests t WHERE t.product_id = products.id AND t.r2_key IS NOT NULL)))`,
+        AND (?2 = 0 OR enabled = 1 OR (test_score IS NOT NULL AND COALESCE(disabled_reason, '') <> ?5
+             AND EXISTS (SELECT 1 FROM product_tests t WHERE t.product_id = products.id AND t.r2_key IS NOT NULL)))`,
   )
-    .bind(decision, decision === "approved" ? 1 : 0, productId, accountId)
+    .bind(decision, decision === "approved" ? 1 : 0, productId, accountId, CONTENT_RULES_REASON)
     .run();
   return r.meta.changes === 1;
 }

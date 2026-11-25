@@ -3,6 +3,8 @@ import { go } from "../main.js";
 import { api, atOrAfter, type Me, type Product } from "../api.js";
 import { ProductName } from "../Rename.js";
 
+const RULES = "This product can't be shown in try-on (content rules).";
+
 interface Shot {
   src: string;
   label: string;
@@ -220,7 +222,7 @@ export function Approve({
                 Our automatic check wasn't sure about this one. Look closely at the previews: approve it if you're happy, or test it again.
               </p>
             )}
-            {(p.result === "passed" || (p.result === "review" && p.tests.length > 0)) && (
+            {(p.result === "passed" || ((p.result === "review" || (p.result === "failed" && p.reason !== RULES)) && p.tests.length > 0)) && (
               <div className="row" style={{ marginTop: 12 }}>
                 <button
                   className={`btn small ${p.decision === "approved" ? "chosen" : ""}`}
@@ -236,7 +238,7 @@ export function Approve({
                 >
                   {p.decision === "hidden" ? "Hidden" : "Hide"}
                 </button>
-                {p.result === "review" && p.retestsLeft > 0 && (
+                {p.result !== "passed" && p.retestsLeft > 0 && (
                   <button type="button" className="btn small ghost" onClick={() => void retest(p.id)}>
                     Test again
                   </button>
@@ -245,13 +247,14 @@ export function Approve({
             )}
             {p.result === "failed" && (
               <p className="small warn">
-                {p.reason ?? "Our AI couldn't make a good preview from this photo."}
-                {p.retestsLeft > 0 && p.reason !== "This product can't be shown in try-on (content rules)."
-                  ? " AI previews vary, so a new test often works. A clear photo of just the product helps too."
-                  : " Message us in Support and we'll take a look."}
+                {p.reason === RULES
+                  ? `${RULES} Message us in Support if you think this is a mistake.`
+                  : p.tests.length > 0
+                    ? "Our automatic check flagged these previews. Look at them closely (tap to enlarge): approve if you're happy with how the product looks, otherwise hide it or test again."
+                    : "Our AI couldn't make a preview from this photo. A clear photo of just the product helps; message us in Support and we'll take a look."}
               </p>
             )}
-            {p.result === "failed" && p.retestsLeft > 0 && p.reason !== "This product can't be shown in try-on (content rules)." && (
+            {p.result === "failed" && p.tests.length === 0 && p.retestsLeft > 0 && p.reason !== RULES && (
               <p style={{ margin: "10px 0 0" }}>
                 <button type="button" className="btn small ghost" onClick={() => void retest(p.id)}>
                   Test again

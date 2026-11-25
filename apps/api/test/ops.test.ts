@@ -343,6 +343,15 @@ describe("brand renames, re-tests and decides its own products", () => {
     expect(await env.DB.prepare("SELECT enabled, approved, needs_review FROM products WHERE id = ?").bind(unsure).first()).toEqual({ enabled: 1, approved: 1, needs_review: 0 });
     expect((await call(`/products/${raw}/decision`, { decision: "approved" })).status).toBe(404);
     expect(await env.DB.prepare("SELECT approved FROM products WHERE id = ?").bind(raw).first()).toEqual({ approved: 0 });
+    // A flagged (low score) product that has previews: the brand has the final say.
+    await env.DB.prepare("INSERT INTO product_tests (id, account_id, product_id, fixture, r2_key, score) VALUES (?, ?, ?, 'fixtures/model-b.jpg', 'tests/y.jpg', 2)").bind(`t${uniq()}`, b.id, raw).run();
+    expect((await call(`/products/${raw}/decision`, { decision: "approved" })).status).toBe(200);
+    expect(await env.DB.prepare("SELECT enabled, approved FROM products WHERE id = ?").bind(raw).first()).toEqual({ enabled: 1, approved: 1 });
+    // Blocked by content rules: never.
+    const rules = await add("Swimwear", "test_score=1");
+    await env.DB.prepare("UPDATE products SET disabled_reason = 'This product can''t be shown in try-on (content rules).' WHERE id = ?").bind(rules).run();
+    await env.DB.prepare("INSERT INTO product_tests (id, account_id, product_id, fixture, r2_key, score) VALUES (?, ?, ?, 'fixtures/model-a.jpg', 'tests/z.jpg', 1)").bind(`t${uniq()}`, b.id, rules).run();
+    expect((await call(`/products/${rules}/decision`, { decision: "approved" })).status).toBe(404);
   });
 });
 
