@@ -185,7 +185,7 @@ describe("/v1/tryon", () => {
     expect(MockTryOnProvider.deleted).toHaveLength(1);
   });
 
-  it("per-account daily cap auto-pauses the account and alerts", async () => {
+  it("per-account daily cap: previews stop for the day and Asser is alerted once; the account is never paused", async () => {
     const s = await seedAccount({ plan: "starter" });
     const ctx = await ctxFor(s);
     const { cairoDay } = await import("../src/lib/time.js");
@@ -193,12 +193,40 @@ describe("/v1/tryon", () => {
       .bind(s.accountId, cairoDay())
       .run();
     expect((await postTryOn({ ctx, product: s.productId, photo: fakeJpeg() })).status).toBe(503);
+    expect((await postTryOn({ ctx, product: s.productId, photo: fakeJpeg(), ip: "192.0.2.77" })).status).toBe(503);
     const a = await env.DB.prepare("SELECT status FROM accounts WHERE id = ?").bind(s.accountId).first<{ status: string }>();
-    expect(a?.status).toBe("paused");
-    const al = await env.DB.prepare("SELECT kind FROM alerts WHERE account_id = ?").bind(s.accountId).first<{ kind: string }>();
-    expect(al?.kind).toBe("account_cap");
-    const audit = await env.DB.prepare("SELECT to_status, actor FROM audit_log WHERE account_id = ?").bind(s.accountId).first();
-    expect(audit).toEqual({ to_status: "paused", actor: "system" });
+    expect(a?.status).toBe("active");
+    const al = await env.DB.prepare("SELECT kind FROM alerts WHERE account_id = ?").bind(s.accountId).all<{ kind: string }>();
+    expect(al.results.map((x) => x.kind)).toEqual(["account_cap"]);
+  });
+
+  it("Garrab's own AI work (product tests, checks, support) doesn't count toward the brand's daily cap", async () => {
+    const s = await seedAccount({ plan: "starter" });
+    const { recordUsage } = await import("../src/lib/metering.js");
+    const { cairoDay } = await import("../src/lib/time.js");
+    for (const k of ["test", "score", "support"] as const) await recordUsage(env, s.accountId, k, "x", true, 10);
+    await recordUsage(env, s.accountId, "tryon", "x", true, 10);
+    const c = await env.DB.prepare("SELECT count FROM daily_counters WHERE account_id = ? AND day = ? AND metric = 'ai_calls'").bind(s.accountId, cairoDay()).first<{ count: number }>();
+    expect(c?.count).toBe(1);
+  });
+
+  it("accounts paused by the old cap rule are put back automatically", async () => {
+    const s = await seedAccount({ plan: "starter" });
+    const { transitionStatus } = await import("../src/lib/ops.js");
+    const { restoreCapPaused } = await import("../src/jobs.js");
+    // A brand in its pilot (like the one this happened to).
+    await env.DB.prepare("UPDATE accounts SET status = 'pilot', plan_id = 'pilot', paid_through = NULL, pilot_started_at = ?, pilot_ends_at = ? WHERE id = ?")
+      .bind(new Date().toISOString(), new Date(Date.now() + 10 * 86_400_000).toISOString(), s.accountId)
+      .run();
+    await transitionStatus(env, { id: s.accountId, status: "pilot" }, "paused", "system", "Daily AI call cap exceeded (possible abuse or cost spike)");
+    const other = await seedAccount({ plan: "starter" });
+    await transitionStatus(env, { id: other.accountId, status: "active" }, "paused", "admin:asser", "Paused by hand");
+    const { cairoDay } = await import("../src/lib/time.js");
+    await env.DB.prepare("INSERT INTO daily_counters (account_id, day, metric, count) VALUES (?, ?, 'ai_calls', 500)").bind(s.accountId, cairoDay()).run();
+    await restoreCapPaused(env, new Date());
+    expect(await env.DB.prepare("SELECT count FROM daily_counters WHERE account_id = ? AND day = ? AND metric = 'ai_calls'").bind(s.accountId, cairoDay()).first()).toEqual({ count: 0 });
+    expect(await env.DB.prepare("SELECT status FROM accounts WHERE id = ?").bind(s.accountId).first()).toEqual({ status: "pilot" });
+    expect(await env.DB.prepare("SELECT status FROM accounts WHERE id = ?").bind(other.accountId).first()).toEqual({ status: "paused" });
   });
 });
 

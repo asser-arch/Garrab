@@ -117,8 +117,9 @@ export const USAGE = {
 } as const;
 
 export const CAPS = {
-  /** Per-account daily cap = this multiple of the account's average daily allowance. */
-  perAccountDailyMultiple: 3,
+  /** Per-account daily cap on shoppers' AI calls = this multiple of the account's average daily allowance
+   *  (pilot: 300 / 14 days × 5 = 108 a day). Hitting it stops previews until midnight; it never pauses the account. */
+  perAccountDailyMultiple: 5,
   /** How many products the automatic first pick selects for testing (also the pilot limit). */
   autoSelectProducts: 10,
   /** Global daily AI spend cap in USD. Overridable in settings. */

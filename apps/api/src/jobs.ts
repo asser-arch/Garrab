@@ -12,7 +12,7 @@ import type { Job } from "./jobs-types.js";
 import { ulid } from "./lib/crypto.js";
 import { sendOnce } from "./lib/email.js";
 import { log } from "./lib/log.js";
-import { alert } from "./lib/ops.js";
+import { alert, transitionStatus } from "./lib/ops.js";
 import { cairoClock, cairoDay, nowIso } from "./lib/time.js";
 import { buildReport } from "./lib/report.js";
 import { reportEmail } from "./reportEmail.js";
@@ -152,8 +152,38 @@ export const retryBusyTests: JobFn = async (env) => {
   await retryBusyProducts(env);
 };
 
+/**
+ * Older code paused a brand when it hit the daily AI cap (our own product tests counted too), taking all of its
+ * products offline. Put any account still paused that way back where it belongs, as the admin's Restore does.
+ */
+export const restoreCapPaused: JobFn = async (env) => {
+  const rows = await env.DB.prepare(
+    `SELECT a.id FROM accounts a
+      WHERE a.status = 'paused' AND a.manual_hold = 0
+        AND (SELECT l.reason FROM audit_log l WHERE l.account_id = a.id AND l.action = 'status' ORDER BY l.created_at DESC, l.id DESC LIMIT 1)
+            LIKE 'Daily AI call cap exceeded%'
+      LIMIT 50`,
+  ).all<{ id: string }>();
+  for (const r of rows.results) {
+    const a = await accountFacts(env, r.id);
+    if (!a || a.status !== "paused") continue;
+    if (!a.paid_through && !a.pilot_started_at) await transitionStatus(env, a, "onboarding", "system", "Restore: paused by the old daily cap");
+    // Today's count still includes our own test calls: recount it from shoppers' calls only.
+    await env.DB.prepare(
+      `UPDATE daily_counters SET count = (SELECT COUNT(*) FROM usage_events WHERE account_id = ?1 AND kind IN ('tryon','room','size','fit_read')
+                                            AND created_at >= strftime('%Y-%m-%dT%H:%M:%fZ','now','-24 hours'))
+        WHERE account_id = ?1 AND day = ?2 AND metric = 'ai_calls'`,
+    )
+      .bind(r.id, cairoDay())
+      .run();
+    const status = await reconcileAccount(env, r.id, new Date(), "system");
+    log("cap_pause_restored", { account: r.id, status: status ?? "" });
+  }
+};
+
 const EVERY_TICK: Record<string, JobFn> = {
   retry_busy_tests: retryBusyTests,
+  restore_cap_paused: restoreCapPaused,
   retry_pending_deletes: retryPendingDeletes,
   onboarding_sweep: onboardingSweep,
   payment_claims: (env, now) => pingPendingClaims(env, now),

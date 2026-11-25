@@ -53,9 +53,9 @@ describe("plans.ts matches the brief (§1)", () => {
     expect([...SERVING_STATUSES]).toEqual(["pilot", "active", "past_due"]);
   });
 
-  it("daily cap is 3x the average daily allowance", () => {
-    expect(dailyCap(PLANS.starter)).toBe(Math.ceil((250 / 30) * 3));
-    expect(dailyCap(PLANS.pilot)).toBe(Math.ceil((300 / 14) * 3));
+  it("daily cap is 5x the average daily allowance", () => {
+    expect(dailyCap(PLANS.starter)).toBe(Math.ceil((250 / 30) * 5));
+    expect(dailyCap(PLANS.pilot)).toBe(Math.ceil((300 / 14) * 5));
   });
 
   it("no price or limit is hard-coded outside plans.ts", () => {

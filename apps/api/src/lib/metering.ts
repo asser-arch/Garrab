@@ -3,13 +3,22 @@ import type { Env } from "../env.js";
 import { ulid } from "./crypto.js";
 import type { AccountRow } from "./db.js";
 import { getSetting, setSetting } from "./db.js";
-import { alert, transitionStatus } from "./ops.js";
+import { alert } from "./ops.js";
 import { cairoDay } from "./time.js";
 import { sendOnce } from "./email.js";
 import { emails } from "../emails.js";
 import { addDays, addMonths } from "../billing/dates.js";
 
 export type UsageKind = "tryon" | "room" | "size" | "fit_read" | "test" | "score" | "support";
+/** AI calls made for shoppers: the only ones that count toward a brand's daily cap. */
+const SHOPPER_KINDS: ReadonlySet<UsageKind> = new Set(["tryon", "room", "size", "fit_read"]);
+const bumpCap = (env: Env, accountId: string, day: string) =>
+  env.DB.prepare(
+    `INSERT INTO daily_counters (account_id, day, metric, count) VALUES (?, ?, 'cap_alert', 1)
+     ON CONFLICT(account_id, day, metric) DO UPDATE SET count = count + 1`,
+  )
+    .bind(accountId, day)
+    .run();
 
 /**
  * Start of the current usage cycle. Paid accounts: the billing month that contains today
@@ -79,10 +88,14 @@ export async function checkCaps(env: Env, account: AccountRow): Promise<"ok" | "
     await alert(env, "global_cap", null, `Global daily AI spend cap (${capUsd} USD) reached. All previews paused.`);
     return "global_cap";
   }
+  // Shoppers' AI calls only (Garrab's own product tests, checks and support replies don't count). Hitting the
+  // cap stops previews for the rest of the Cairo day; it never pauses the account (that took brands offline).
   const calls = await counter(env, account.id, "ai_calls", day);
   if (calls >= dailyCap(PLANS[account.plan_id])) {
-    await transitionStatus(env, account, "paused", "system", "Daily AI call cap exceeded (possible abuse or cost spike)");
-    await alert(env, "account_cap", account.id, `${account.name}: daily cap hit, account paused. Restore from admin if expected.`);
+    if ((await counter(env, account.id, "cap_alert", day)) === 0) {
+      await bumpCap(env, account.id, day);
+      await alert(env, "account_cap", account.id, `${account.name}: daily shopper preview cap reached; previews stop until midnight Cairo time. Raise it from the admin if this is real traffic.`);
+    }
     return "account_cap";
   }
   return "ok";
@@ -104,7 +117,7 @@ export async function recordUsage(
       "INSERT INTO usage_events (id, account_id, kind, provider, ok, error_code, cost_micro_usd) VALUES (?, ?, ?, ?, ?, ?, ?)",
     ).bind(ulid(), accountId, kind, provider, ok ? 1 : 0, errorCode, costMicroUsd),
     ...[
-      [accountId, "ai_calls", 1],
+      ...(SHOPPER_KINDS.has(kind) ? [[accountId, "ai_calls", 1]] : []),
       [accountId, "spend_micro_usd", costMicroUsd],
       ["*", "spend_micro_usd", costMicroUsd],
     ].map(([a, m, n]) =>
