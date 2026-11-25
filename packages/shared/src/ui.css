@@ -395,3 +395,20 @@ p.powered a:hover { text-decoration: underline; }
 .period select { width: auto; min-height: 40px; padding: 6px 36px 6px 14px; font-size: 14px; }
 .period-custom { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .period-custom input { width: auto; min-height: 40px; padding: 6px 10px; font-size: 14px; }
+
+/* Portal home: "This week" for live brands; setup folds away once done. */
+.week { margin-bottom: 20px; }
+.week-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+.week-stats > div { background: var(--cream); border-radius: var(--radius-item, 14px); padding: 14px 16px; display: flex; flex-direction: column; }
+.week-value { font-size: 30px; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; color: var(--forest); }
+.week-label { font-size: 13px; color: var(--muted); }
+.week-top { display: flex; align-items: center; gap: 12px; margin: 16px 0 0; }
+.week-top img { width: 44px; height: 55px; object-fit: cover; border-radius: 8px; border: 1px solid var(--sand); }
+.empty-next { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; margin-top: 12px; }
+.empty-next p { margin: 0; flex: 1 1 280px; }
+details.setup > summary { list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; }
+details.setup > summary::-webkit-details-marker { display: none; }
+details.setup > summary h2 { margin: 0; }
+details.setup[open] > summary { margin-bottom: 12px; }
+.empty-card { text-align: center; padding: 40px 28px; }
+.empty-card p { max-width: 46ch; margin: 8px auto 20px; }

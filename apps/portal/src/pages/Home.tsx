@@ -1,6 +1,81 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { go } from "../main.js";
-import type { Me } from "../api.js";
+import { api, atOrAfter, type Me } from "../api.js";
+
+interface Week {
+  totals: { shoppers?: number; previews: number; buys: number; views: number };
+  products: { id: string; title: string; image: string | null; previews: number }[];
+}
+
+const cairoToday = (): string => new Date().toLocaleDateString("en-CA", { timeZone: "Africa/Cairo" });
+const daysAgo = (n: number): string => new Date(Date.parse(`${cairoToday()}T00:00:00Z`) - n * 86_400_000).toISOString().slice(0, 10);
+
+/** Live brands: what Garrab did for them in the last 7 days, or what to do when nothing happened yet. */
+function ThisWeek({ me }: { me: Me }) {
+  const [w, setW] = useState<Week | null>(null);
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    void api<Week>(`/results?from=${daysAgo(6)}&to=${cairoToday()}`).then(setW, () => undefined);
+  }, []);
+  if (!w) return null;
+  const t = w.totals;
+  const top = w.products[0];
+  const quiet = t.views === 0 && t.previews === 0;
+  return (
+    <div className="card week">
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <h2 style={{ margin: 0 }}>This week</h2>
+        <button className="linkish small" onClick={() => go("/portal/results")}>
+          See full results
+        </button>
+      </div>
+      {quiet ? (
+        <div className="empty-next">
+          <p>
+            <strong>No shoppers have reached your try-on yet this week.</strong> Most try-ons start from an Instagram story or the link in your bio.
+          </p>
+          {me.brandLink && (
+            <button
+              className="btn"
+              onClick={() => {
+                void navigator.clipboard?.writeText(me.brandLink!.url).then(() => setCopied(true));
+              }}
+            >
+              {copied ? "Link copied ✓" : "Copy my try-on link"}
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          <div className="week-stats">
+            <div>
+              <span className="week-value">{(t.shoppers ?? 0).toLocaleString("en-US")}</span>
+              <span className="week-label">Shoppers</span>
+            </div>
+            <div>
+              <span className="week-value">{t.previews.toLocaleString("en-US")}</span>
+              <span className="week-label">Previews</span>
+            </div>
+            <div>
+              <span className="week-value">{t.buys.toLocaleString("en-US")}</span>
+              <span className="week-label">Buy taps</span>
+            </div>
+          </div>
+          {top && top.previews > 0 && (
+            <p className="week-top">
+              {top.image && <img src={top.image} alt="" referrerPolicy="no-referrer" />}
+              <span>
+                <span className="small muted">Most tried</span>
+                <br />
+                <strong>{top.title}</strong> · {top.previews} previews
+              </span>
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 function NextAction({ me }: { me: Me }) {
   const social = me.account.platform === "social_only" || !me.account.website;
@@ -121,6 +196,7 @@ export function Home({
   }, [me.step, refresh]);
 
   const n = me.usage ? me.usage.included + me.usage.extra : 0;
+  const live = atOrAfter(me.step, "pilot_live");
   return (
     <>
       <h1>
@@ -129,9 +205,13 @@ export function Home({
       <div className="card dark">
         <NextAction me={me} />
       </div>
+      {live && <ThisWeek me={me} />}
       <div className="grid">
-        <div className="card">
-          <h2>Setup</h2>
+        <details className="card setup" open={!live}>
+          <summary>
+            <h2>Setup</h2>
+            {live && <span className="chip mint">All done</span>}
+          </summary>
           <ol className="steps">
             {me.steps.map((s, i) => (
               <li key={s.step}>
@@ -157,7 +237,7 @@ export function Home({
               </li>
             ))}
           </ol>
-        </div>
+        </details>
         <div className="card">
           <h2>
             Previews this {me.account.status === "pilot" ? "pilot" : "month"}

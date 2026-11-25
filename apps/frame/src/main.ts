@@ -35,6 +35,8 @@ interface State {
   /** Growth plan and a clothing product with sizes: offer "Find my size". */
   sizeFinder: boolean;
   hosted?: { slug: string; brand: string; title: string; image: string | null; buyUrl: string | null };
+  /** The product's photo in the widget (website) flow, for the waiting screen. */
+  productImage?: string | null;
   /** The brand's look (colour, logo). */
   look?: Look | null;
   resultUrl: string | null;
@@ -321,6 +323,7 @@ function startScreen(st: State, error?: string): void {
         )
       : h("div", {}, brandMark(st.look), h("h1", { tabindex: "-1", class: "title" }, st.kind === "decor" ? t.buttonRoom : t.buttonTryOn)),
     error ? h("p", { class: "error", role: "alert" }, error) : null,
+    tipsBox(st),
     pick,
     input,
     st.sizeFinder ? sizeButton(st) : null,
@@ -331,17 +334,34 @@ function startScreen(st: State, error?: string): void {
   );
 }
 
+/** Three quick tips for a good photo (people or rooms), shown above the upload button. */
+function tipsBox(st: State): HTMLElement {
+  const t = st.t;
+  const tips = st.kind === "decor" ? [t.tipRoom1, t.tipRoom2, t.tipRoom3] : [t.tipPerson1, t.tipPerson2, t.tipPerson3];
+  return h("div", { class: "tips" }, h("p", { class: "tips-title" }, t.tipsTitle), h("ul", {}, ...tips.map((x) => h("li", {}, x))));
+}
+
+/** Waiting for the preview: the product, and three steps that tick along (the real call has no progress). */
 function progressScreen(st: State): void {
-  show(
-    h(
-      "div",
-      { class: "progress", "aria-busy": "true" },
-      h("div", { class: "spinner", "aria-hidden": "true" }),
-      h("h1", { tabindex: "-1" }, st.t.progress),
-      h("p", { class: "muted progress-hint" }, st.t.progressHint),
-    ),
+  const t = st.t;
+  const steps = [t.progressStep1, t.progressStep2, t.progressStep3].map((x, i) => h("li", { class: i === 0 ? "now" : "" }, x));
+  const image = st.hosted?.image ?? st.productImage ?? null;
+  const box = h(
+    "div",
+    { class: "progress", "aria-busy": "true" },
+    image ? h("figure", { class: "progress-look" }, productImg(image), h("div", { class: "spinner", "aria-hidden": "true" })) : h("div", { class: "spinner", "aria-hidden": "true" }),
+    h("h1", { tabindex: "-1" }, t.progress),
+    h("ol", { class: "progress-steps", "aria-hidden": "true" }, ...steps),
+    h("p", { class: "muted progress-hint" }, t.progressHint),
   );
-  announce(st.t.progress);
+  show(box);
+  announce(t.progress);
+  const advance = (i: number): void => {
+    if (!box.isConnected) return; // the preview arrived (or failed): stop
+    steps.forEach((el, j) => el.setAttribute("class", j < i ? "done" : j === i ? "now" : ""));
+  };
+  setTimeout(() => advance(1), 4000);
+  setTimeout(() => advance(2), 13000);
 }
 
 function resultScreen(st: State, url: string): void {

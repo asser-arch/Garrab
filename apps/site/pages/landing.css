@@ -119,8 +119,7 @@ html[lang="ar"] .section h2, html[lang="ar"] .final h2 { letter-spacing: 0; font
 .card h2 { font-size: 30px; margin-bottom: 12px; }
 .ticks { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 8px; }
 .ticks li { position: relative; padding-inline-start: 28px; }
-.ticks li::before { content: ""; position: absolute; inset-inline-start: 0; top: .5em; width: 16px; height: 9px; border-inline-start: 2.5px solid var(--teal); border-bottom: 2.5px solid var(--teal); transform: rotate(-45deg); }
-html[dir="rtl"] .ticks li::before { transform: rotate(45deg) scaleX(-1); }
+.ticks li::before { content: ""; position: absolute; inset-inline-start: 0; top: .5em; width: 16px; height: 9px; border-left: 2.5px solid var(--teal); border-bottom: 2.5px solid var(--teal); transform: rotate(-45deg); }
 
 .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-top: 36px; }
 .feat { background: var(--paper); border: 1px solid var(--sand); border-radius: var(--r-item); padding: 24px; }

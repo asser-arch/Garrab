@@ -123,6 +123,22 @@ export function Approve({
       </div>
     );
 
+  if (list.length === 0)
+    return (
+      <>
+        <h1>
+          Approve <span className="soft">your previews</span>
+        </h1>
+        <div className="card empty-card">
+          <h2>Nothing to approve yet</h2>
+          <p className="muted">Add your products and we'll test them. Their previews appear here for you to approve, usually within 10 minutes.</p>
+          <button className="btn" onClick={() => go("/portal/products")}>
+            Add products
+          </button>
+        </div>
+      </>
+    );
+
   const decide = async (id: string, decision: "approved" | "hidden") => {
     await api(`/products/${id}/decision`, { body: { decision } });
     await load();
