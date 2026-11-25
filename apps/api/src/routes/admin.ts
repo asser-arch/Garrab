@@ -23,7 +23,7 @@ import { uploadProduct } from "./portal.js";
 import { adminWrites, messages as supportMessages, threads as supportThreads } from "../lib/support.js";
 import { cycleStartOf } from "../lib/metering.js";
 import { addDays } from "../billing/dates.js";
-import { accountFacts, applyPayment, ensurePlanInvoice, openPlanInvoice, payUrl, pdfUrl, reconcileAccount } from "../billing/ledger.js";
+import { accountFacts, applyPayment, createInvoice, ensurePlanInvoice, openPlanInvoice, payUrl, pdfUrl, reconcileAccount } from "../billing/ledger.js";
 import { decideClaim } from "../billing/instapay.js";
 import { runJobNow } from "../jobs.js";
 import { buildDigest } from "../ops/digest.js";
@@ -455,6 +455,66 @@ admin.post("/accounts/:id/invoice", async (c) => {
   const inv = await ensurePlanInvoice(c.env, a, new Date());
   await audit(c.env, a.id, c.get("admin"), "invoice", inv.number);
   return c.json({ ok: true, number: inv.number, payUrl: payUrl(c.env, inv.pay_token) });
+});
+
+/**
+ * Billing by hand: make an invoice for a plan (any number of months, any price: discounts, custom deals) and
+ * either record that it's already paid (InstaPay seen in the app, bank transfer, cash) or leave it open and
+ * send the brand its pay link. Brand in its pilot: Garrab chooses whether the paid months start counting now
+ * or the day after the pilot ends (keeping the remaining pilot days); the choice is kept on the invoice, so it
+ * also applies when the brand pays an open one. Any other open plan invoice is voided.
+ */
+admin.post("/accounts/:id/record", async (c) => {
+  const body = z
+    .object({
+      plan: z.enum(["starter", "growth"]),
+      months: z.number().int().min(1).max(12),
+      /** Total in EGP (whole or with piastres), setup fee included when `setupFee` is on. */
+      amountEgp: z.number().min(0).max(1_000_000),
+      setupFee: z.boolean(),
+      paid: z.boolean(),
+      /** Brand in its pilot: start counting the paid months now, or after the pilot ends. Required then. */
+      start: z.enum(["now", "after_pilot"]).optional(),
+      method: z.enum(["instapay", "bank_transfer", "cash", "other"]).default("instapay"),
+      reference: z.string().trim().max(80).optional(),
+      note: z.string().trim().max(300).optional(),
+      key: z.string().min(8).max(64),
+    })
+    .safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  const d = body.data;
+  const a = await accountFacts(c.env, c.req.param("id"));
+  if (!a || a.status === "onboarding") return c.json({ error: "not_billable", reason: "The brand isn't live yet: approve a product first." }, 400);
+  if (a.status === "pilot" && !a.paid_through && !d.start) return c.json({ error: "choose_start", reason: "Choose when the paid months start: now, or after the pilot." }, 400);
+  const startNow = d.start !== "after_pilot";
+  const total = Math.round(d.amountEgp * 100);
+  const setup = d.setupFee ? Math.min(SETUP_FEE, total) : 0;
+  const today = cairoDay();
+  const lines = [
+    { label: `${PLANS[d.plan].name} plan, ${d.months === 1 ? "one month" : `${d.months} months`}`, amount: total - setup },
+    ...(setup ? [{ label: "One-off setup", amount: setup }] : []),
+  ];
+  // Only one plan invoice is open at a time: the new one replaces any other.
+  await c.env.DB.prepare("UPDATE invoices SET status = 'void' WHERE account_id = ? AND kind = 'plan' AND status = 'open'").bind(a.id).run();
+  const due = a.status === "pilot" && a.pilot_ends_at && !d.paid ? cairoDay(new Date(a.pilot_ends_at)) : today;
+  const inv = await createInvoice(c.env, a, { kind: "plan", periodStart: null, dueDate: due < today ? today : due, plan: d.plan, months: d.months, lines, startNow });
+  await audit(c.env, a.id, c.get("admin"), d.paid ? "record_payment" : "invoice", inv.number, { total, months: d.months, plan: d.plan });
+  if (d.paid) {
+    const r = await applyPayment(c.env, {
+      invoiceId: inv.id,
+      provider: "manual",
+      txnId: `manual:${d.key}`,
+      amount: inv.total,
+      method: d.method,
+      reference: d.reference ?? null,
+      note: d.note ?? null,
+      actor: `admin:${c.get("admin")}`,
+      startToday: startNow,
+    });
+    if (!r.applied && r.reason !== "duplicate") return c.json({ error: r.reason }, 409);
+  }
+  const fresh = (await c.env.DB.prepare("SELECT number, status, period_start, period_end, pay_token FROM invoices WHERE id = ?").bind(inv.id).first<{ number: string; status: string; period_start: string | null; period_end: string | null; pay_token: string }>())!;
+  return c.json({ ok: true, number: fresh.number, status: fresh.status, periodStart: fresh.period_start, periodEnd: fresh.period_end, payUrl: payUrl(c.env, fresh.pay_token) });
 });
 
 admin.post("/accounts/:id/notes", async (c) => {

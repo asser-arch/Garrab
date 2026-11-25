@@ -24,8 +24,14 @@ test("landing page: content, structured data and languages", async ({ page }) =>
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(page.getByRole("heading", { level: 1 })).toContainText("قبل ما يشتروا");
 
+  // Meta Pixel: allowed on the marketing pages, but staging/local copies never load Meta's script.
+  expect((await page.request.get(`${APP}/`)).headers()["content-security-policy"]).toContain("https://connect.facebook.net");
+  expect(await page.evaluate(() => typeof (window as unknown as { fbq?: unknown }).fbq)).toBe("undefined");
+  // Never on brand or shopper pages.
+  expect((await page.request.get(`${APP}/portal`)).headers()["content-security-policy"] ?? "").not.toContain("facebook");
+
   // The local/staging copy must never be indexed (only garrabb.com is).
   const r = await page.request.get(`${APP}/`);
   expect(r.headers()["x-robots-tag"]).toBe("noindex");
-  for (const f of ["/llms.txt", "/sitemap.xml", "/landing.css", "/og-en.png"]) expect((await page.request.get(`${APP}${f}`)).status(), f).toBe(200);
+  for (const f of ["/llms.txt", "/sitemap.xml", "/landing.css", "/og-en.png", "/pixel.js"]) expect((await page.request.get(`${APP}${f}`)).status(), f).toBe(200);
 });

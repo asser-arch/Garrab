@@ -14,7 +14,7 @@ import { log } from "../lib/log.js";
 import { alert, transitionStatus } from "../lib/ops.js";
 import { cairoDay } from "../lib/time.js";
 import { cycleStartOf } from "../lib/metering.js";
-import { addDays, daysBetween, periodFrom } from "./dates.js";
+import { addDays, addMonths, daysBetween, periodFrom } from "./dates.js";
 import { canTransition, naturalStatus } from "./status.js";
 
 export const payUrl = (env: Env, token: string): string => `${env.APP_ORIGIN}/pay/${token}`;
@@ -39,6 +39,10 @@ export interface InvoiceRow {
   pay_token: string;
   paid_at: string | null;
   created_at: string;
+  /** Months this plan invoice covers (admin invoices can cover several; default 1). */
+  months: number;
+  /** Paid during the pilot: 1 = start counting the day it's paid, 0 = after the pilot ends. */
+  start_now: number;
 }
 
 interface AccFacts {
@@ -82,12 +86,25 @@ export function billingPlan(a: Pick<AccFacts, "plan_id" | "target_plan_id">): Ex
 export async function createInvoice(
   env: Env,
   a: AccFacts,
-  opts: { kind: "plan" | "pack"; periodStart: string | null; dueDate: string },
+  opts: {
+    kind: "plan" | "pack";
+    periodStart: string | null;
+    dueDate: string;
+    /** Admin-made invoices: the plan, how many months, and the exact lines (custom prices, discounts). */
+    plan?: Exclude<PlanId, "pilot">;
+    months?: number;
+    lines?: { label: string; amount: number }[];
+    /** Paid during the pilot: start counting the day it's paid (default) or, if false, after the pilot ends. */
+    startNow?: boolean;
+  },
 ): Promise<InvoiceRow> {
   const id = ulid();
-  const plan = billingPlan(a);
+  const plan = opts.plan ?? billingPlan(a);
+  const months = opts.months ?? 1;
   const lines: { label: string; amount: number }[] = [];
-  if (opts.kind === "plan") {
+  if (opts.lines) {
+    lines.push(...opts.lines);
+  } else if (opts.kind === "plan") {
     const period = opts.periodStart ? periodFrom(opts.periodStart) : null;
     lines.push({ label: `${PLANS[plan].name} plan, one month${period ? ` (${period.start} to ${period.end})` : ""}`, amount: PLANS[plan].monthlyPrice });
     // One-off setup fee on the first paid invoice of a non-founding brand (founding pilots pay none).
@@ -98,13 +115,13 @@ export async function createInvoice(
   const subtotal = lines.reduce((s, l) => s + l.amount, 0);
   const vat = Math.round((subtotal * BILLING.vatRateBp) / 10_000);
   const year = Number(opts.dueDate.slice(0, 4));
-  const period = opts.kind === "plan" && opts.periodStart ? periodFrom(opts.periodStart) : null;
+  const period = opts.kind === "plan" && opts.periodStart ? periodOf(opts.periodStart, months) : null;
   // One transaction: bump the year's counter and use it, so numbers are sequential with no gaps.
   await env.DB.batch([
     env.DB.prepare("INSERT INTO invoice_counter (year, last) VALUES (?, 1) ON CONFLICT(year) DO UPDATE SET last = last + 1").bind(year),
     env.DB.prepare(
-      `INSERT INTO invoices (id, account_id, number, kind, plan_id, period_start, period_end, pack_previews, lines_json, subtotal, vat_rate_bp, vat, total, due_date, pay_token)
-       VALUES (?, ?, (SELECT ? || '-' || ? || '-' || printf('%04d', last) FROM invoice_counter WHERE year = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO invoices (id, account_id, number, kind, plan_id, period_start, period_end, pack_previews, lines_json, subtotal, vat_rate_bp, vat, total, due_date, pay_token, months, start_now)
+       VALUES (?, ?, (SELECT ? || '-' || ? || '-' || printf('%04d', last) FROM invoice_counter WHERE year = ?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(
       id,
       a.id,
@@ -123,11 +140,33 @@ export async function createInvoice(
       subtotal + vat,
       opts.dueDate,
       randomToken(32),
+      opts.kind === "plan" ? months : 1,
+      opts.startNow === false ? 0 : 1,
     ),
   ]);
   const inv = (await env.DB.prepare("SELECT * FROM invoices WHERE id = ?").bind(id).first<InvoiceRow>())!;
   log("invoice_created", { account: a.id, kind: opts.kind });
   return inv;
+}
+
+/** A paid period of `months` months from `start` (inclusive dates). */
+export function periodOf(start: string, months = 1): { start: string; end: string } {
+  return { start, end: addDays(addMonths(start, months), -1) };
+}
+
+/**
+ * A plan invoice paid during the pilot whose months haven't started yet (they start the day after the pilot
+ * ends, so the brand keeps its pilot days). It is switched on by reconcileAccount on its first day.
+ */
+export async function prepaidInvoice(env: Env, accountId: string): Promise<InvoiceRow | null> {
+  return env.DB.prepare(
+    `SELECT i.* FROM invoices i JOIN accounts a ON a.id = i.account_id
+      WHERE i.account_id = ? AND i.kind = 'plan' AND i.status = 'paid' AND i.period_start IS NOT NULL
+        AND (a.paid_through IS NULL OR i.period_start > a.paid_through)
+      ORDER BY i.period_start LIMIT 1`,
+  )
+    .bind(accountId)
+    .first<InvoiceRow>();
 }
 
 export async function openPlanInvoice(env: Env, accountId: string): Promise<InvoiceRow | null> {
@@ -144,6 +183,11 @@ export async function openPlanInvoice(env: Env, accountId: string): Promise<Invo
 export async function ensurePlanInvoice(env: Env, a: AccFacts, now: Date): Promise<InvoiceRow> {
   const open = await openPlanInvoice(env, a.id);
   if (open) return open;
+  // Already paid in advance during the pilot: nothing more to pay.
+  if (a.status === "pilot" && !a.paid_through) {
+    const pre = await prepaidInvoice(env, a.id);
+    if (pre) return pre;
+  }
   const today = cairoDay(now);
   const renewal = a.paid_through && !["expired", "archived"].includes(a.status);
   const due = renewal ? a.paid_through! : a.pilot_ends_at && a.status === "pilot" ? cairoDay(new Date(a.pilot_ends_at)) : today;
@@ -154,8 +198,16 @@ export async function ensurePlanInvoice(env: Env, a: AccFacts, now: Date): Promi
 
 /** Move the account to where the ledger says it should be. Sends the matching notice once. */
 export async function reconcileAccount(env: Env, accountId: string, now: Date, actor = "cron"): Promise<AccountStatus | null> {
-  const a = await accountFacts(env, accountId);
+  let a = await accountFacts(env, accountId);
   if (!a) return null;
+  // Months paid during the pilot start the day after it ends: switch them on when that day comes.
+  if (!a.paid_through && !a.manual_hold) {
+    const pre = await prepaidInvoice(env, a.id);
+    if (pre && pre.period_start! <= cairoDay(now)) {
+      await startPaidPeriod(env, a, pre.period_end!, pre.plan_id ?? billingPlan(a), now.toISOString(), actor);
+      a = (await accountFacts(env, accountId))!;
+    }
+  }
   if (a.manual_hold || a.status === "onboarding") return a.status;
   const hold = await env.DB.prepare("SELECT 1 AS x FROM payment_claims WHERE account_id = ? AND status = 'pending' AND hold_until > ? LIMIT 1")
     .bind(a.id, now.toISOString())
@@ -208,6 +260,8 @@ export interface PaymentInput {
   reference?: string | null;
   note?: string | null;
   actor: string;
+  /** Paid during the pilot: start the paid months today (true) or after the pilot (false). Unset: the invoice's own setting. */
+  startToday?: boolean;
 }
 
 /**
@@ -217,6 +271,26 @@ export interface PaymentInput {
  *          pilot or reactivating an expired/archived account), status back to where the ledger says.
  *   pack → +100 previews in the current cycle.
  */
+/** Switch on paid months: paid_through, the plan, and the "converted" onboarding step. */
+async function startPaidPeriod(env: Env, a: AccFacts, paidThrough: string, plan: PlanId, at: string, actor: string): Promise<void> {
+  const stmts = [
+    env.DB.prepare(
+      "UPDATE accounts SET paid_through = ?, plan_id = ?, setup_fee_due = 0, cancel_at_period_end = 0, status_version = status_version + 1 WHERE id = ?",
+    ).bind(paidThrough, plan, a.id),
+  ];
+  if (a.onboarding_step === "pilot_live" || a.onboarding_step === "expired") {
+    stmts.push(
+      env.DB.prepare("UPDATE accounts SET onboarding_step = 'converted', onboarding_step_at = ? WHERE id = ?").bind(at, a.id),
+      env.DB.prepare(
+        `INSERT INTO onboarding_steps (account_id, step, state, entered_at, done_at, actor) VALUES (?, 'converted', 'done', ?, ?, ?)
+         ON CONFLICT(account_id, step) DO UPDATE SET state = 'done', done_at = excluded.done_at`,
+      ).bind(a.id, at, at, actor),
+    );
+  }
+  await env.DB.batch(stmts);
+  invalidateStatus(a.id);
+}
+
 export async function applyPayment(env: Env, p: PaymentInput, now = new Date()): Promise<{ applied: boolean; reason?: string }> {
   const inv = await env.DB.prepare("SELECT * FROM invoices WHERE id = ?").bind(p.invoiceId).first<InvoiceRow>();
   if (!inv) return { applied: false, reason: "no_invoice" };
@@ -243,27 +317,26 @@ export async function applyPayment(env: Env, p: PaymentInput, now = new Date()):
   let paidThrough: string | null = null;
 
   if (inv.kind === "plan") {
-    const fresh = !a.paid_through || a.status === "expired" || a.status === "archived";
-    const start = fresh ? today : addDays(a.paid_through!, 1);
-    const period = periodFrom(start);
-    paidThrough = period.end;
+    const months = inv.months || 1;
     const plan = inv.plan_id ?? billingPlan(a);
-    const stmts = [
-      env.DB.prepare("UPDATE invoices SET period_start = ?, period_end = ? WHERE id = ?").bind(period.start, period.end, inv.id),
-      env.DB.prepare(
-        "UPDATE accounts SET paid_through = ?, plan_id = ?, setup_fee_due = 0, cancel_at_period_end = 0, status_version = status_version + 1 WHERE id = ?",
-      ).bind(paidThrough, plan, a.id),
-    ];
-    if (a.onboarding_step === "pilot_live" || a.onboarding_step === "expired") {
-      stmts.push(
-        env.DB.prepare("UPDATE accounts SET onboarding_step = 'converted', onboarding_step_at = ? WHERE id = ?").bind(paidAt, a.id),
-        env.DB.prepare(
-          `INSERT INTO onboarding_steps (account_id, step, state, entered_at, done_at, actor) VALUES (?, 'converted', 'done', ?, ?, ?)
-           ON CONFLICT(account_id, step) DO UPDATE SET state = 'done', done_at = excluded.done_at`,
-        ).bind(a.id, paidAt, paidAt, p.actor),
-      );
+    const pilotEnd = a.pilot_ends_at ? cairoDay(new Date(a.pilot_ends_at)) : null;
+    // Paid during the pilot: Garrab chooses per invoice (admin) whether the paid months start counting today
+    // or the day after the pilot ends (the brand keeps its remaining pilot days).
+    const startNow = p.startToday ?? inv.start_now === 1;
+    if (a.status === "pilot" && !a.paid_through && pilotEnd && pilotEnd >= today && !startNow) {
+      const period = periodOf(addDays(pilotEnd, 1), months);
+      paidThrough = period.end;
+      await env.DB.batch([
+        env.DB.prepare("UPDATE invoices SET period_start = ?, period_end = ? WHERE id = ?").bind(period.start, period.end, inv.id),
+        env.DB.prepare("UPDATE accounts SET target_plan_id = ?, setup_fee_due = 0, cancel_at_period_end = 0 WHERE id = ?").bind(plan, a.id),
+      ]);
+    } else {
+      const fresh = !a.paid_through || a.status === "expired" || a.status === "archived";
+      const period = periodOf(fresh ? today : addDays(a.paid_through!, 1), months);
+      paidThrough = period.end;
+      await env.DB.prepare("UPDATE invoices SET period_start = ?, period_end = ? WHERE id = ?").bind(period.start, period.end, inv.id).run();
+      await startPaidPeriod(env, a, paidThrough, plan, paidAt, p.actor);
     }
-    await env.DB.batch(stmts);
   } else {
     const cycle = cycleStartOf(a, today);
     const included = PLANS[a.plan_id].includedPreviews;

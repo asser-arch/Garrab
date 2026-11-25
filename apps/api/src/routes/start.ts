@@ -4,6 +4,7 @@ import type { Env } from "../env.js";
 import { createAccount } from "../lib/accounts.js";
 import { ulid } from "../lib/crypto.js";
 import { log } from "../lib/log.js";
+import { sendMetaLead } from "../lib/meta.js";
 import { alert } from "../lib/ops.js";
 import { verifyTurnstile } from "../lib/turnstile.js";
 
@@ -50,6 +51,24 @@ start.post("/start", async (c) => {
     await alert(c.env, "referral", accountId, `New lead via ${referrer.name}: ${f.brandName} signed up from ${referrer.name}'s try-on page.`);
   }
   if (created) await c.env.JOBS.send({ t: "advance", a: accountId });
+  // Meta Conversions API (server half of the sign-up "Lead"; the page fires the browser half with the same ID).
+  const raw = (body ?? {}) as Record<string, unknown>;
+  const str = (v: unknown, re: RegExp): string | null => (typeof v === "string" && re.test(v) ? v : null);
+  const eventId = str(raw.eventId, /^[A-Za-z0-9-]{8,64}$/);
+  if (created && eventId) {
+    const work = sendMetaLead(c.env, {
+      eventId,
+      email: f.email,
+      phone: f.whatsapp,
+      sourceUrl: `${c.env.APP_ORIGIN}/start`,
+      ip: c.req.header("cf-connecting-ip") ?? null,
+      userAgent: c.req.header("user-agent")?.slice(0, 400) ?? null,
+      fbp: str(raw.fbp, /^fb\.\d\.\d+\.\d+$/),
+      fbc: str(raw.fbc, /^fb\.\d\.\d+\.[A-Za-z0-9_-]{1,500}$/),
+    });
+    if (c.env.ENVIRONMENT === "test") await work;
+    else c.executionCtx.waitUntil(work);
+  }
   log("lead", { account: accountId, ok: created });
   // Same answer whether or not the email already had an account (no account probing).
   return c.json({ ok: true });

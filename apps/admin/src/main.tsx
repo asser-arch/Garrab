@@ -1,6 +1,7 @@
 import "@garrab/shared/ui.css";
 import "./admin.css";
 import { StrictMode, useCallback, useEffect, useState } from "react";
+import { BillByHand } from "./BillByHand.js";
 import { InstallGuide } from "./InstallGuide.js";
 import { Support, useSupportWaiting } from "./Support.js";
 import { Usage } from "./Usage.js";
@@ -392,7 +393,19 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
         </details>
       )}
       </div>
-      <Money id={id} status={String(d.account.status)} hold={Number(d.account.manual_hold) === 1} notes={String(d.account.notes ?? "")} onChange={async () => (await load(), onChange())} />
+      <Money
+        id={id}
+        status={String(d.account.status)}
+        hold={Number(d.account.manual_hold) === 1}
+        notes={String(d.account.notes ?? "")}
+        pilot={{
+          inPilot: d.account.status === "pilot" && !d.account.paid_through,
+          endsAt: (d.account.pilot_ends_at as string | null) ?? null,
+          target: d.account.target_plan_id === "growth" || d.account.plan_id === "growth" ? "growth" : "starter",
+          setupFeeDue: Number(d.account.setup_fee_due) === 1 && !d.account.paid_through,
+        }}
+        onChange={async () => (await load(), onChange())}
+      />
       <details className="section history">
       <summary>
         <h3>History</h3> <span className="muted small">({d.audit.length} events)</span>
@@ -647,7 +660,21 @@ function Costs({ id }: { id: string }) {
   );
 }
 
-function Money({ id, status, hold, notes, onChange }: { id: string; status: string; hold: boolean; notes: string; onChange: () => Promise<void> }) {
+function Money({
+  id,
+  status,
+  hold,
+  notes,
+  pilot,
+  onChange,
+}: {
+  id: string;
+  status: string;
+  hold: boolean;
+  notes: string;
+  pilot: { inPilot: boolean; endsAt: string | null; target: "starter" | "growth"; setupFeeDue: boolean };
+  onChange: () => Promise<void>;
+}) {
   type B = {
     invoices: { id: string; number: string; kind: string; total: number; status: string; due_date: string; payUrl: string; pdfUrl: string; whatsapp: string | null }[];
     payments: { provider: string; amount: number; method: string; reference: string | null; actor: string; created_at: string }[];
@@ -708,6 +735,9 @@ function Money({ id, status, hold, notes, onChange }: { id: string; status: stri
           Resend sign-in link
         </button>
       </div>
+      {status !== "onboarding" && (
+        <BillByHand id={id} inPilot={pilot.inPilot} pilotEndsAt={pilot.endsAt} targetPlan={pilot.target} setupFeeDue={pilot.setupFeeDue} send={act} />
+      )}
       <table>
         <tbody>
           {b.invoices.length === 0 && (

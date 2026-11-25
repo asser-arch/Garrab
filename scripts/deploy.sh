@@ -30,7 +30,7 @@ rm -f "$RUNNER_TEMP/secrets.json"
 # Provider keys kept as GitHub secrets: synced to the Worker on every deploy (so replacing one in GitHub
 # is all it takes to rotate it). Unset ones are skipped and the app keeps using its mock or fallback.
 node -e '
-const names = ["GENLOOK_API_KEY", "GEMINI_API_KEY", "RESEND_API_KEY", "OPERATOR_EMAIL", "CF_ACCESS_TEAM_DOMAIN", "CF_ACCESS_AUD", "TURNSTILE_SECRET"];
+const names = ["GENLOOK_API_KEY", "GEMINI_API_KEY", "RESEND_API_KEY", "OPERATOR_EMAIL", "CF_ACCESS_TEAM_DOMAIN", "CF_ACCESS_AUD", "TURNSTILE_SECRET", "META_CAPI_TOKEN"];
 const out = {};
 for (const n of names) if (process.env[n]) out[n] = process.env[n];
 console.error(`provider keys to sync: ${Object.keys(out).join(", ") || "none"}`);

@@ -122,3 +122,15 @@ table.usage tr.total td { font-weight: 700; background: var(--cream); }
 button.sort { border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; white-space: nowrap; }
 button.sort:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px; border-radius: 4px; }
 @media (max-width: 640px) { table.usage td, table.usage th { white-space: normal; } .usage-filters input[type="search"] { min-width: 0; width: 100%; } }
+
+/* Billing by hand */
+.bill-hand { margin: 12px 0; border: 1px solid var(--sand); border-radius: 14px; padding: 0 16px; background: var(--paper); }
+.bill-hand summary { cursor: pointer; padding: 12px 0; font-weight: 700; }
+.bill-hand form { display: grid; gap: 12px; padding-bottom: 14px; }
+.bill-hand label { display: grid; gap: 4px; font-size: 14px; }
+.bill-hand label.check, .seg-field label { display: flex; align-items: center; gap: 8px; }
+.seg-field { border: 1px solid var(--sand); border-radius: 12px; padding: 10px 14px; margin: 0; display: grid; gap: 6px; }
+.seg-field legend { font-weight: 600; font-size: 14px; padding: 0 4px; }
+.bh-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.bill-hand input[type="radio"], .bill-hand input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; flex: none; margin: 0; padding: 0; }
+.bill-hand .seg-field label, .bill-hand label.check { display: flex; justify-content: flex-start; align-items: center; gap: 10px; font-size: 14px; }

@@ -430,3 +430,63 @@ describe("uploaded photos for the AI providers", () => {
     expect((await appFetch(env)(`https://app.test/pi/${acct}/01bbbbbbbbbbbbbbbbbbbbbbbb.png`)).status).toBe(404);
   });
 });
+
+describe("admin: billing by hand (invoice or payment)", () => {
+  async function pilotBrand(daysLeft: number) {
+    const { accountId } = await createAccount(env, { brandName: `Early ${uniq()}`, email: `e-${uniq()}@brand.example`, plan: "starter", website: `https://early-${uniq()}.example` });
+    const start = new Date(Date.now() - (14 - daysLeft) * 86_400_000);
+    await env.DB.prepare("UPDATE accounts SET status = 'pilot', plan_id = 'pilot', target_plan_id = 'starter', pilot_started_at = ?, pilot_ends_at = ?, onboarding_step = 'pilot_live', setup_fee_due = 1 WHERE id = ?")
+      .bind(start.toISOString(), new Date(start.getTime() + 14 * 86_400_000).toISOString(), accountId)
+      .run();
+    return accountId;
+  }
+  const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T12:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+  it("paid during the pilot: the pilot keeps running, the paid months start the day after it ends", async () => {
+    const id = await pilotBrand(5);
+    const pilotEnd = cairoDay(new Date((await accountFacts(env, id))!.pilot_ends_at!));
+    const r = await post(`/accounts/${id}/record`, { plan: "growth", months: 3, amountEgp: 22000, setupFee: false, paid: true, start: "after_pilot", method: "bank_transfer", reference: "TRX-9", key: `k-${uniq()}` });
+    expect(r.status).toBe(200);
+    const j = (await r.json()) as { status: string; periodStart: string; periodEnd: string; number: string };
+    expect(j.status).toBe("paid");
+    expect(j.periodStart).toBe(addDays(pilotEnd, 1));
+    const a = (await accountFacts(env, id))!;
+    expect(a).toMatchObject({ status: "pilot", plan_id: "pilot", paid_through: null, target_plan_id: "growth", setup_fee_due: 0 });
+    const inv = await env.DB.prepare("SELECT total, months, lines_json FROM invoices WHERE number = ?").bind(j.number).first<{ total: number; months: number; lines_json: string }>();
+    expect(inv).toMatchObject({ total: 2_200_000, months: 3 });
+    expect(JSON.parse(inv!.lines_json)[0].label).toBe("Growth plan, 3 months");
+    // Nothing more to pay: no new invoice near the pilot's end.
+    expect((await ensurePlanInvoice(env, a, new Date())).number).toBe(j.number);
+    // The day the paid months start, the brand becomes a paying Growth customer until the end of month 3.
+    const { reconcileAccount } = await import("../src/billing/ledger.js");
+    await reconcileAccount(env, id, new Date(Date.parse(`${j.periodStart}T10:00:00Z`)));
+    expect(await accountFacts(env, id)).toMatchObject({ status: "active", plan_id: "growth", paid_through: j.periodEnd, onboarding_step: "converted" });
+  });
+
+  it("'start today' and a setup fee line; or an open invoice to send, which replaces the old open one", async () => {
+    const id = await pilotBrand(8);
+    const old = await ensurePlanInvoice(env, (await accountFacts(env, id))!, new Date());
+    const open = (await (await post(`/accounts/${id}/record`, { plan: "starter", months: 1, amountEgp: 6500, setupFee: true, paid: false, start: "after_pilot", key: `k-${uniq()}` })).json()) as { status: string; payUrl: string; number: string };
+    expect(open.status).toBe("open");
+    expect(open.payUrl).toMatch(/\/pay\//);
+    expect(await env.DB.prepare("SELECT status FROM invoices WHERE id = ?").bind(old.id).first()).toEqual({ status: "void" });
+    const lines = JSON.parse((await env.DB.prepare("SELECT lines_json FROM invoices WHERE number = ?").bind(open.number).first<{ lines_json: string }>())!.lines_json);
+    expect(lines).toEqual([{ label: "Starter plan, one month", amount: 500_000 }, { label: "One-off setup", amount: 150_000 }]);
+
+    // In the pilot the start must be chosen.
+    expect((await post(`/accounts/${id}/record`, { plan: "starter", months: 1, amountEgp: 4000, setupFee: false, paid: true, method: "cash", key: `k-${uniq()}` })).status).toBe(400);
+    const paid = (await (await post(`/accounts/${id}/record`, { plan: "starter", months: 1, amountEgp: 4000, setupFee: false, paid: true, start: "now", method: "cash", key: `k-${uniq()}` })).json()) as { periodStart: string };
+    expect(paid.periodStart).toBe(cairoDay());
+    expect(await accountFacts(env, id)).toMatchObject({ status: "active", plan_id: "starter" });
+    expect((await post(`/accounts/${id}/record`, { plan: "starter", months: 13, amountEgp: 1, setupFee: false, paid: true, start: "now", key: `k-${uniq()}` })).status).toBe(400);
+  });
+
+  it("an open invoice set to 'start now', paid later by the brand, starts counting the day it's paid", async () => {
+    const id = await pilotBrand(6);
+    const open = (await (await post(`/accounts/${id}/record`, { plan: "starter", months: 2, amountEgp: 10000, setupFee: false, paid: false, start: "now", key: `k-${uniq()}` })).json()) as { number: string };
+    const inv = (await env.DB.prepare("SELECT id, total FROM invoices WHERE number = ?").bind(open.number).first<{ id: string; total: number }>())!;
+    await applyPayment(env, { invoiceId: inv.id, provider: "instapay_direct", txnId: `t-${uniq()}`, amount: inv.total, method: "instapay", actor: "telegram" });
+    expect(await accountFacts(env, id)).toMatchObject({ status: "active", plan_id: "starter" });
+    expect(await env.DB.prepare("SELECT period_start FROM invoices WHERE id = ?").bind(inv.id).first()).toEqual({ period_start: cairoDay() });
+  });
+});

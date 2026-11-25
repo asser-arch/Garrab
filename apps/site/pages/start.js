@@ -42,10 +42,18 @@
     if (data.instagram && data.instagram[0] !== "@") data.instagram = "@" + data.instagram;
     if (!tsToken) { msg.textContent = "Please complete the check above."; return; }
     data.turnstileToken = tsToken;
+    // One ID for this sign-up, shared by the browser and server halves of the Meta "Lead" (counted once).
+    var eventId = (window.crypto && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2));
+    data.eventId = eventId;
+    document.cookie.split("; ").forEach(function (c) {
+      var kv = c.split("=");
+      if (kv[0] === "_fbp") data.fbp = kv.slice(1).join("=");
+      if (kv[0] === "_fbc") data.fbc = kv.slice(1).join("=");
+    });
     fetch("/api/start", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
-        if (res.ok) { form.hidden = true; var d = document.getElementById("done"); d.hidden = false; d.focus(); return; }
+        if (res.ok) { form.hidden = true; var d = document.getElementById("done"); d.hidden = false; d.focus(); try { window.garrabLead(eventId); } catch (x) { /* tracking never breaks sign-up */ } return; }
         var names = { brandName: "brand name", contactName: "your name", email: "email", whatsapp: "WhatsApp number", website: "website", instagram: "Instagram handle" };
         msg.textContent = res.j.fields ? "Please check: " + res.j.fields.map(function (f) { return names[f.path] || f.path; }).join(", ") + "." : "Something went wrong. Please try again.";
       })

@@ -4,7 +4,7 @@
  * Every job is idempotent. Each run is recorded in cron_runs (shown in the admin status line).
  */
 import { PILOT, PLANS, TIMINGS } from "@garrab/shared/plans";
-import { accountFacts, billingRun, ensurePlanInvoice, payUrl, reconcileAccount } from "./billing/ledger.js";
+import { accountFacts, billingRun, ensurePlanInvoice, payUrl, prepaidInvoice, reconcileAccount } from "./billing/ledger.js";
 import { pingPendingClaims } from "./billing/instapay.js";
 import { emails } from "./emails.js";
 import type { Env } from "./env.js";
@@ -64,7 +64,8 @@ export const pilotClock: JobFn = async (env, now) => {
     if (!user) continue;
     // The first month's invoice exists from day 12; its pay link goes in the day-12 and day-14 emails.
     const facts = day >= PILOT.emailDays.endingSoon ? await accountFacts(env, a.id) : null;
-    const payLink = facts ? payUrl(env, (await ensurePlanInvoice(env, facts, now)).pay_token) : portalUrl(env, "/billing");
+    const prepaid = await prepaidInvoice(env, a.id); // already paid for the months after the pilot
+    const payLink = facts && !prepaid ? payUrl(env, (await ensurePlanInvoice(env, facts, now)).pay_token) : portalUrl(env, "/billing");
     const c = await counters(env, a.id, cairoDay(new Date(a.pilot_started_at)));
     const used = (await env.DB.prepare("SELECT used FROM cycle_usage WHERE account_id = ? AND cycle_start = ?").bind(a.id, a.cycle_start).first<{ used: number }>())?.used ?? 0;
     const plan = a.target_plan_id ?? "starter";
@@ -88,7 +89,7 @@ export const pilotClock: JobFn = async (env, now) => {
           }),
         });
     }
-    if (day >= PILOT.emailDays.endingSoon)
+    if (day >= PILOT.emailDays.endingSoon && !prepaid)
       await sendOnce(env, { accountId: a.id, template: "pilot_day_12", dedupeKey: `pilot_day_12:${a.id}`, msg: emails.pilotDay12(user.email, plan, payLink) });
     // Day 14: the final results, same branded report, with the pay link.
     if (day >= PILOT.emailDays.results) {
@@ -101,9 +102,11 @@ export const pilotClock: JobFn = async (env, now) => {
           msg: reportEmail(user.email, r, {
             kind: "final",
             dayNumber: PILOT.days,
-            cta: { label: "Continue my plan", url: payLink },
+            cta: prepaid ? { label: "See full results", url: portalUrl(env, "/results") } : { label: "Continue my plan", url: payLink },
             endsOn: null,
-            planLine: `To keep try-on running, the ${PLANS[plan].name} plan is ${(PLANS[plan].monthlyPrice / 100).toLocaleString("en-US")} EGP a month, paid before each month. No minimum term.`,
+            planLine: prepaid
+              ? `You've already paid: your ${PLANS[prepaid.plan_id ?? plan].name} plan starts on ${prepaid.period_start} and runs until ${prepaid.period_end}. Thank you!`
+              : `To keep try-on running, the ${PLANS[plan].name} plan is ${(PLANS[plan].monthlyPrice / 100).toLocaleString("en-US")} EGP a month, paid before each month. No minimum term.`,
           }),
         });
     }

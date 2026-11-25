@@ -29,6 +29,8 @@ export interface Env {
   AI_MOCK?: string;
   GENLOOK_USD_PER_CREDIT?: string;
   GEMINI_API_KEY?: string;
+  /** Meta Conversions API token for the "Garrab" dataset (GitHub secret META_CAPI_TOKEN). Unset: nothing sent. */
+  META_CAPI_TOKEN?: string;
   GEMINI_TEXT_MODEL?: string;
 
   RESEND_API_KEY?: string;

@@ -48,15 +48,18 @@ function frameCsp(env: Env, embeddable: boolean): string {
   ].join("; ");
 }
 
-function pageCsp(env: Env, extraScript = ""): string {
+/** Meta Pixel hosts: Garrab's own marketing pages only (landing + /start), never brand or shopper pages. */
+const META = { script: " https://connect.facebook.net", connect: " https://www.facebook.com https://connect.facebook.net" };
+
+function pageCsp(env: Env, extraScript = "", meta = false): string {
   const turnstile = env.TURNSTILE_SITE_KEY === "mock" ? "" : " https://challenges.cloudflare.com";
   return [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${turnstile}${extraScript}`,
+    `script-src 'self' 'unsafe-inline'${turnstile}${extraScript}${meta ? META.script : ""}`,
     "style-src 'self' https://fonts.googleapis.com",
     "font-src https://fonts.gstatic.com",
     `img-src 'self' data: blob: https:${env.ENVIRONMENT === "dev" ? " http://localhost:* http://127.0.0.1:*" : ""}`,
-    "connect-src 'self'",
+    `connect-src 'self'${meta ? META.connect : ""}`,
     `frame-src${turnstile || " 'none'"}`,
     "base-uri 'none'",
     "form-action 'self'",
@@ -86,7 +89,7 @@ async function template(req: Request, env: Env, path: string, csp: string, injec
 
 const LANDING_PAGES: Record<string, string> = { "/": "/landing.html", "/ar": "/landing-ar.html", "/ar/": "/landing-ar.html" };
 const LANDING_FILES = new Set([
-  "/landing.css", "/landing.js", "/robots.txt", "/sitemap.xml", "/llms.txt", "/og-en.png", "/og-ar.png",
+  "/landing.css", "/landing.js", "/pixel.js", "/robots.txt", "/sitemap.xml", "/llms.txt", "/og-en.png", "/og-ar.png",
   "/favicon.ico", "/favicon.svg", "/favicon-32.png", "/apple-touch-icon.png", "/email-logo.png", "/email-logo-dark.png",
 ]);
 
@@ -96,7 +99,7 @@ async function landingPage(req: Request, env: Env, file: string, indexable: bool
     ...BASE_HEADERS,
     "content-type": "text/html; charset=utf-8",
     "cache-control": "public, max-age=300",
-    "content-security-policy": pageCsp(env),
+    "content-security-policy": pageCsp(env, "", true),
     // Keep the referrer for outbound links from marketing pages (WhatsApp, the app) — still nothing sensitive here.
     "referrer-policy": "strict-origin-when-cross-origin",
   };
@@ -190,7 +193,7 @@ export default {
     const cfg = { api: env.API_ORIGIN, turnstileSiteKey: env.TURNSTILE_SITE_KEY };
     if (FRAME_RE.test(p)) return template(req, env, "/frame.html", frameCsp(env, true), cfg);
     if (HOSTED_RE.test(p)) return template(req, env, "/frame.html", frameCsp(env, false), cfg);
-    if (p === "/start") return template(req, env, "/start.html", pageCsp(env), cfg);
+    if (p === "/start") return template(req, env, "/start.html", pageCsp(env, "", true), cfg);
     if (/^\/pay\/[A-Za-z0-9]{32}\/?$/.test(p)) {
       const res = await env.ASSETS.fetch(new Request(new URL("/pay.html", req.url)));
       return new Response(res.body, {
