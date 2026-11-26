@@ -55,7 +55,7 @@ export async function alert(env: Env, kind: string, accountId: string | null, me
     await fetch(`https://api.telegram.org/bot${env.TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text: `⚠️ ${message}` }),
+      body: JSON.stringify({ chat_id: env.TELEGRAM_CHAT_ID, text: `${env.ENVIRONMENT === "prod" ? "" : "[Staging] "}⚠️ ${message}` }),
     });
   } catch {
     // Alert is in the DB and the digest; Telegram is best effort.

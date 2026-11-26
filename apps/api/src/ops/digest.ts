@@ -112,6 +112,8 @@ ${d.quiet ? "<p>All quiet. Nothing needs you today.</p>" : d.sections
 }
 
 export async function sendDigest(env: Env, now: Date): Promise<void> {
+  // One digest a day, from live only: staging's test brands would be noise (its alerts still arrive, labelled).
+  if (env.ENVIRONMENT === "staging") return;
   const day = cairoDay(now);
   const d = await buildDigest(env, now);
   if (env.OPERATOR_EMAIL) await sendOnce(env, { accountId: null, template: "digest", dedupeKey: `digest:${day}`, msg: renderDigest(day, d, env.OPERATOR_EMAIL) });

@@ -48,6 +48,11 @@ export class ResendProvider implements EmailProvider {
   }
 }
 
+async function shortHash(s: string): Promise<string> {
+  const d = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(d)].slice(0, 8).map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 /** Provider error text without email addresses, capped. */
 export function cleanError(s: string): string {
   return s.replace(/[^\s@<>"]+@[^\s@<>"]+/g, "[email]").replace(/\s+/g, " ").trim().slice(0, 200);
@@ -88,7 +93,12 @@ export async function sendOnce(
     const prev = await env.DB.prepare("SELECT status FROM notifications WHERE dedupe_key = ?").bind(opts.dedupeKey).first<{ status: string }>();
     if (prev?.status !== "failed") return false;
   }
-  const r = await emailProvider(env).send(opts.msg, opts.dedupeKey);
+  // Staging emails say so in the subject (they go to the same inboxes as live ones).
+  const msg = env.ENVIRONMENT === "prod" || isLocal(env) ? opts.msg : { ...opts.msg, subject: `[Staging] ${opts.msg.subject}` };
+  // Resend's idempotency key: unique per environment (staging and live share the Resend account) and per
+  // content, so a retry with changed content (e.g. a regenerated digest) is a new send, not a 409 conflict.
+  // Duplicates are still prevented by the notifications table above.
+  const r = await emailProvider(env).send(msg, `${env.ENVIRONMENT}:${opts.dedupeKey}:${await shortHash(`${msg.to}\n${msg.subject}\n${msg.html}`)}`);
   await env.DB.prepare("UPDATE notifications SET status = ?, provider_id = ?, error = ? WHERE dedupe_key = ?")
     .bind(r.ok ? "sent" : "failed", r.id, r.ok ? null : (r.error ?? "unknown"), opts.dedupeKey)
     .run();

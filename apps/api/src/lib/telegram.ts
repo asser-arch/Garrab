@@ -32,11 +32,16 @@ async function call(env: Env, method: string, body: unknown): Promise<unknown> {
   }
 }
 
+/** Staging posts to the same chat as live: label it so the two are never confused. */
+export function envLabel(env: Env): string {
+  return env.ENVIRONMENT === "prod" ? "" : `[${env.ENVIRONMENT === "staging" ? "Staging" : env.ENVIRONMENT}] `;
+}
+
 export async function sendTelegram(env: Env, text: string, buttons: Button[][] = []): Promise<void> {
   if (!env.TELEGRAM_CHAT_ID) return;
   await call(env, "sendMessage", {
     chat_id: env.TELEGRAM_CHAT_ID,
-    text,
+    text: envLabel(env) + text,
     ...(buttons.length ? { reply_markup: { inline_keyboard: buttons } } : {}),
   });
 }
