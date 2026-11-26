@@ -14,8 +14,8 @@ interface Result {
 }
 
 const T = {
-  en: { yours: "Your product", ai: "On our model · AI preview", aiRoom: "In a room · AI preview", foot: "Garrab · AI virtual try-on for online brands · garrabb.com", made: "Made for" },
-  ar: { yours: "منتجك", ai: "على موديلنا · معاينة بالذكاء الاصطناعي", aiRoom: "في أوضة · معاينة بالذكاء الاصطناعي", foot: "جرّاب · تجربة افتراضية بالذكاء الاصطناعي · garrabb.com", made: "معمول لـ" },
+  en: { yours: "Your product", ai: "On our model · AI preview", aiRoom: "In a room · AI preview", aiOwn: "On the model · AI preview", aiOwnRoom: "In the room · AI preview", foot: "Garrab · AI virtual try-on for online brands · garrabb.com", made: "Made for" },
+  ar: { yours: "منتجك", ai: "على موديلنا · معاينة بالذكاء الاصطناعي", aiRoom: "في أوضة · معاينة بالذكاء الاصطناعي", aiOwn: "على الموديل · معاينة بالذكاء الاصطناعي", aiOwnRoom: "في الأوضة · معاينة بالذكاء الاصطناعي", foot: "جرّاب · تجربة افتراضية بالذكاء الاصطناعي · garrabb.com", made: "معمول لـ" },
 };
 
 const load = (src: string) =>
@@ -27,8 +27,9 @@ const load = (src: string) =>
   });
 
 /** Their product (left) and the AI preview (right) on one 1600×1000 card, flat Garrab colours. */
-async function compose(r: Result, mode: Mode, brand: string, lang: "en" | "ar"): Promise<string> {
+async function compose(r: Result, mode: Mode, brand: string, lang: "en" | "ar", own: boolean): Promise<string> {
   const t = T[lang];
+  const aiLabel = own ? (mode === "room" ? t.aiOwnRoom : t.aiOwn) : mode === "room" ? t.aiRoom : t.ai;
   const W = 1600, H = 1000, pad = 56, top = 150, boxH = H - top - 120, gap = 40, boxW = (W - pad * 2 - gap) / 2;
   const c = document.createElement("canvas");
   c.width = W;
@@ -45,10 +46,10 @@ async function compose(r: Result, mode: Mode, brand: string, lang: "en" | "ar"):
   g.fillText(brand ? `${t.made} ${brand}` : "Garrab", x0, 86);
   g.fillStyle = "#5C5D57";
   g.font = "400 24px Cairo, Arial, sans-serif";
-  g.fillText(t.foot, x0, 124);
+  g.fillText(brand ? t.foot : t.foot.replace(/^(Garrab|جرّاب) · /, ""), x0, 124);
   const [a, b] = await Promise.all([load(r.product), load(r.preview)]);
   const boxes = rtl ? [b, a] : [a, b];
-  const labels = rtl ? [mode === "room" ? t.aiRoom : t.ai, t.yours] : [t.yours, mode === "room" ? t.aiRoom : t.ai];
+  const labels = rtl ? [aiLabel, t.yours] : [t.yours, aiLabel];
   boxes.forEach((img, k) => {
     const bx = pad + k * (boxW + gap);
     g.fillStyle = "#FCFBF8";
@@ -89,7 +90,10 @@ const save = (href: string, name: string): void => {
 export function Outreach() {
   const [mode, setMode] = useState<Mode>("person");
   const [fixtures, setFixtures] = useState<Record<Mode, string[]>>({ person: [], room: [] });
-  const [fixture, setFixture] = useState(0);
+  const [fixture, setFixture] = useState<number | "own">(0);
+  const [ownFile, setOwnFile] = useState<File | null>(null);
+  const [ownUrl, setOwnUrl] = useState<string | null>(null);
+  const [usedOwn, setUsedOwn] = useState(false);
   const [brand, setBrand] = useState("");
   const [title, setTitle] = useState("");
   const [link, setLink] = useState("");
@@ -107,14 +111,22 @@ export function Outreach() {
       .then((j: Record<Mode, string[]> | null) => j && setFixtures(j));
   }, []);
   useEffect(() => {
-    if (result) void compose(result, mode, brand.trim(), lang).then(setCard);
-  }, [result, brand, lang, mode]);
+    if (result) void compose(result, mode, brand.trim(), lang, usedOwn).then(setCard);
+  }, [result, brand, lang, mode, usedOwn]);
+  // A new person/room photo for each kind: forget the old one when switching fashion ↔ home décor.
+  const pickOwn = (f: File | null): void => {
+    if (ownUrl) URL.revokeObjectURL(ownUrl);
+    setOwnFile(f);
+    setOwnUrl(f ? URL.createObjectURL(f) : null);
+    if (f) setFixture("own");
+  };
 
   const make = async (): Promise<void> => {
     setErr(null);
     setResult(null);
     setCard(null);
     if (!file && !link.trim()) return setErr("Add a photo or paste a link.");
+    if (fixture === "own" && !ownFile) return setErr(`Upload the ${mode === "room" ? "room" : "person"} photo, or pick one of ours.`);
     setBusy(true);
     try {
       const fd = new FormData();
@@ -122,10 +134,12 @@ export function Outreach() {
       else fd.set("link", link.trim());
       fd.set("title", title.trim());
       fd.set("mode", mode);
-      fd.set("fixture", String(fixture));
+      fd.set("fixture", String(fixture === "own" ? 0 : fixture));
+      if (fixture === "own" && ownFile) fd.set("own", ownFile);
       const r = await fetch("/admin-api/outreach/preview", { method: "POST", body: fd });
       const j = (await r.json().catch(() => ({}))) as Result & { reason?: string; error?: string };
       if (!r.ok) throw new Error(j.reason ?? j.error ?? `HTTP ${r.status}`);
+      setUsedOwn(fixture === "own");
       setResult(j);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Something went wrong. Try again.");
@@ -159,10 +173,10 @@ export function Outreach() {
           <fieldset className="seg-field">
             <legend>Their shop sells</legend>
             <label>
-              <input type="radio" name="o-mode" checked={mode === "person"} onChange={() => (setMode("person"), setFixture(0))} /> Fashion (on a model)
+              <input type="radio" name="o-mode" checked={mode === "person"} onChange={() => (setMode("person"), setFixture(0), pickOwn(null))} /> Fashion (on a model)
             </label>
             <label>
-              <input type="radio" name="o-mode" checked={mode === "room"} onChange={() => (setMode("room"), setFixture(0))} /> Home décor (in a room)
+              <input type="radio" name="o-mode" checked={mode === "room"} onChange={() => (setMode("room"), setFixture(0), pickOwn(null))} /> Home décor (in a room)
             </label>
           </fieldset>
 
@@ -217,20 +231,34 @@ export function Outreach() {
           )}
           <p className="small muted">Instagram often hides photos from links: if a post link doesn't work, save the photo and upload it.</p>
 
-          {list.length > 0 && (
-            <fieldset className="seg-field">
-              <legend>{mode === "room" ? "Room" : "Model"}</legend>
-              <div className="fixture-pick">
-                {list.map((src, i) => (
-                  <label key={i} className={fixture === i ? "on" : ""}>
-                    <input type="radio" name="o-fix" checked={fixture === i} onChange={() => setFixture(i)} className="sr-only" />
-                    <img src={src} alt={`${mode === "room" ? "Room" : "Model"} ${String.fromCharCode(65 + i)}`} />
-                    <span>{`${mode === "room" ? "Room" : "Model"} ${String.fromCharCode(65 + i)}`}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-          )}
+          <fieldset className="seg-field">
+            <legend>{mode === "room" ? "Room" : "Model"}</legend>
+            <div className="fixture-pick">
+              {list.map((src, i) => (
+                <label key={i} className={fixture === i ? "on" : ""}>
+                  <input type="radio" name="o-fix" checked={fixture === i} onChange={() => setFixture(i)} className="sr-only" />
+                  <img src={src} alt={`${mode === "room" ? "Room" : "Model"} ${String.fromCharCode(65 + i)}`} />
+                  <span>{`${mode === "room" ? "Room" : "Model"} ${String.fromCharCode(65 + i)}`}</span>
+                </label>
+              ))}
+              <label className={`own ${fixture === "own" ? "on" : ""}`}>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic,image/heif,.heic"
+                  className="sr-only"
+                  aria-label={mode === "room" ? "Upload a room photo" : "Upload a person photo"}
+                  onChange={(e) => pickOwn(e.target.files?.[0] ?? null)}
+                />
+                {ownUrl ? <img src={ownUrl} alt={mode === "room" ? "Your room photo" : "Your person photo"} /> : <span className="own-tile" aria-hidden="true">+</span>}
+                <span>{ownUrl ? "Your photo" : "Upload your own"}</span>
+              </label>
+            </div>
+            <p className="small muted" style={{ margin: 0 }}>
+              {mode === "room"
+                ? "Your own: any room photo, e.g. one the customer sent. Straight on, good light, the spot for the piece visible."
+                : "Your own: any person photo, e.g. one the customer sent. Full body, standing, good light. Only with their permission; it's used for this one preview and never saved."}
+            </p>
+          </fieldset>
 
           <p>
             <button className="btn" type="submit" disabled={busy}>
@@ -269,7 +297,7 @@ export function Outreach() {
                 Make another version
               </button>
             </div>
-            <p className="small muted">AI previews vary: if this one isn't great, make another version or try the other {mode === "room" ? "room" : "model"}.</p>
+            <p className="small muted">AI previews vary: if this one isn't great, make another version or try another {mode === "room" ? "room" : "model"}.</p>
           </div>
         )}
       </div>

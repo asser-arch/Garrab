@@ -152,3 +152,5 @@ button.sort:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px;
 .outreach .seg { display: inline-flex; border: 1px solid var(--sand); border-radius: 999px; overflow: hidden; }
 .outreach .seg button { border: 0; background: transparent; padding: 6px 14px; min-height: 36px; font: inherit; cursor: pointer; }
 .outreach .seg button.on { background: var(--forest); color: var(--paper); }
+.fixture-pick .own-tile { width: 96px; height: 128px; border-radius: 10px; border: 2px dashed var(--sage); display: grid; place-items: center; font-size: 36px; color: var(--forest); }
+.fixture-pick label.own:focus-within { outline: 3px solid var(--teal); outline-offset: 2px; }

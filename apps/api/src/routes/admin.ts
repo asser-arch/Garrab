@@ -542,7 +542,8 @@ admin.post("/accounts/:id/price", async (c) => {
 
 /**
  * Outreach preview: one try-on (or room preview) of a prospect's product, to send them before they sign up.
- * multipart: photo (file) or link (image, product page or post), title, mode (person|room), fixture (0|1).
+ * multipart: photo (file) or link (image, product page or post), title, mode (person|room), fixture (0|1),
+ * own (optional file: a person or room photo to use instead of a stock one; never stored).
  */
 admin.post("/outreach/preview", async (c) => {
   const form = await c.req.formData().catch(() => null);
@@ -565,7 +566,17 @@ admin.post("/outreach/preview", async (c) => {
     if ("error" in got) return c.json({ error: "no_image", reason: got.error }, 422);
     product = got;
   } else return c.json({ error: "invalid", reason: "Add a photo or a link." }, 400);
-  const r = await outreachPreview(c.env, { product, title, mode, fixture });
+  // Optional: their own person / room photo instead of a stock one (used for this preview only, never stored).
+  const ownFile = form.get("own");
+  let own: { bytes: Uint8Array; type: string } | null = null;
+  if (ownFile instanceof File && ownFile.size > 0) {
+    if (ownFile.size > 10 * 1024 * 1024) return c.json({ error: "too_large", reason: "That person or room photo is too big (max 10 MB)." }, 413);
+    const bytes = new Uint8Array(await ownFile.arrayBuffer());
+    const type = sniffImage(bytes);
+    if (!type) return c.json({ error: "not_an_image", reason: "Use a JPG, PNG, WEBP or iPhone (HEIC) photo of the person or room." }, 415);
+    own = { bytes, type };
+  }
+  const r = await outreachPreview(c.env, { product, title, mode, fixture, own });
   await audit(c.env, null, c.get("admin"), "outreach_preview", r.ok ? "made" : r.error, { title, mode });
   return r.ok ? c.json(r) : c.json({ error: "failed", reason: r.error }, 502);
 });

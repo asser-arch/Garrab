@@ -62,4 +62,33 @@ describe("outreach preview (admin)", () => {
     const none = await exports.default.fetch("https://api.test/admin-api/outreach/preview", { method: "POST", headers: ADMIN, body: new FormData() });
     expect(none.status).toBe(400);
   });
+
+  it("uses a person / room photo you upload instead of a stock one, and keeps nothing", async () => {
+    let seen = "";
+    const tryon: TryOnProvider = {
+      name: "scripted",
+      async tryOn(req) {
+        seen = new TextDecoder().decode(req.photo);
+        return { ok: true, image: fakeJpeg("RESULT"), contentType: "image/jpeg", costMicroUsd: 0, productSynced: false };
+      },
+      async deleteUserData() {
+        return true;
+      },
+    };
+    const before = (await env.FILES.list()).objects.length;
+    const r = await outreachPreview(env, { product: { bytes: fakeJpeg("P"), type: "image/jpeg" }, title: "Rug", mode: "room", fixture: 0, own: { bytes: fakeJpeg("THEIR-ROOM"), type: "image/jpeg" } }, { tryon });
+    expect(r.ok && r.fixture).toBe("Your room photo");
+    expect(seen).toContain("THEIR-ROOM");
+    expect((await env.FILES.list()).objects.length).toBe(before);
+
+    const fd = new FormData();
+    fd.set("photo", new Blob([fakeJpeg("PRODUCT")], { type: "image/jpeg" }), "p.jpg");
+    fd.set("own", new Blob([fakeJpeg("PERSON")], { type: "image/jpeg" }), "me.jpg");
+    const res = await exports.default.fetch("https://api.test/admin-api/outreach/preview", { method: "POST", headers: ADMIN, body: fd });
+    expect(((await res.json()) as { fixture: string }).fixture).toBe("Your model photo");
+    const bad = new FormData();
+    bad.set("photo", new Blob([fakeJpeg("PRODUCT")], { type: "image/jpeg" }), "p.jpg");
+    bad.set("own", new Blob([new TextEncoder().encode("not an image")], { type: "text/plain" }), "x.txt");
+    expect((await exports.default.fetch("https://api.test/admin-api/outreach/preview", { method: "POST", headers: ADMIN, body: bad })).status).toBe(415);
+  });
 });

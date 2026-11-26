@@ -74,17 +74,27 @@ export async function imageFromLink(url: string, fetcher: typeof fetch = workerF
 
 export async function outreachPreview(
   env: Env,
-  input: { product: Img; title: string; mode: "person" | "room"; fixture: number },
+  input: { product: Img; title: string; mode: "person" | "room"; fixture: number; own?: { bytes: Uint8Array; type: string } | null },
   deps: { tryon?: TryOnProvider } = {},
 ): Promise<{ ok: true; product: string; preview: string; fixture: string } | { ok: false; error: string }> {
-  const fixtures = await listFixtures(env, input.mode);
-  const key = fixtures[Math.min(Math.max(input.fixture, 0), fixtures.length - 1)];
-  if (!key) return { ok: false, error: "No test models or rooms are set up." };
-  const photoObj = await env.FILES.get(key);
-  if (!photoObj) return { ok: false, error: "The test photo is missing." };
-  const photo = new Uint8Array(await photoObj.arrayBuffer());
+  // The person or room: Garrab's stock photo, or one Garrab support uploads (e.g. sent by the prospect).
+  // An uploaded one is handled like a shopper's photo: used for this one preview, never stored.
+  let photo: Uint8Array;
+  let label: string;
+  const fixtures = input.own ? [] : await listFixtures(env, input.mode);
+  if (input.own) {
+    photo = input.own.type === "image/jpeg" ? stripJpegMetadata(input.own.bytes) : input.own.bytes;
+    label = input.mode === "room" ? "Your room photo" : "Your model photo";
+  } else {
+    const key = fixtures[Math.min(Math.max(input.fixture, 0), fixtures.length - 1)];
+    if (!key) return { ok: false, error: "No test models or rooms are set up." };
+    const photoObj = await env.FILES.get(key);
+    if (!photoObj) return { ok: false, error: "The test photo is missing." };
+    photo = new Uint8Array(await photoObj.arrayBuffer());
+    label = `${input.mode === "room" ? "Room" : "Model"} ${String.fromCharCode(65 + fixtures.indexOf(key))}`;
+  }
   const photoType = sniffImage(photo);
-  if (!photoType) return { ok: false, error: "The test photo can't be read." };
+  if (!photoType) return { ok: false, error: "That person or room photo can't be read. Use a JPG, PNG, WEBP or iPhone (HEIC) photo." };
 
   const product = input.product.type === "image/jpeg" ? { ...input.product, bytes: stripJpegMetadata(input.product.bytes) } : input.product;
   const name = `${ulid().toLowerCase()}.${product.type === "image/png" ? "png" : product.type === "image/webp" ? "webp" : "jpg"}`;
@@ -110,7 +120,7 @@ export async function outreachPreview(
       ok: true,
       product: `data:${product.type};base64,${toBase64(product.bytes)}`,
       preview: `data:${r.contentType};base64,${toBase64(r.image)}`,
-      fixture: `${input.mode === "room" ? "Room" : "Model"} ${String.fromCharCode(65 + fixtures.indexOf(key))}`,
+      fixture: label,
     };
   } finally {
     await env.FILES.delete(r2);
