@@ -3,6 +3,7 @@ import "./admin.css";
 import { StrictMode, useCallback, useEffect, useState } from "react";
 import { BillByHand, OwnPrice } from "./BillByHand.js";
 import { InstallGuide } from "./InstallGuide.js";
+import { Outreach } from "./Outreach.js";
 import { Support, useSupportWaiting } from "./Support.js";
 import { Usage } from "./Usage.js";
 import { BulkAdd } from "../../portal/src/BulkAdd.js";
@@ -1129,7 +1130,7 @@ function App() {
   const [open, setOpen] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const supportFor = /support=([A-Z0-9]+)/.exec(location.hash)?.[1] ?? null;
-  const [tab, setTab] = useState<"dashboard" | "usage" | "onboarding" | "support" | "install">(supportFor ? "support" : "dashboard");
+  const [tab, setTab] = useState<"dashboard" | "usage" | "onboarding" | "support" | "install" | "outreach">(supportFor ? "support" : "dashboard");
   const waiting = useSupportWaiting();
   // The brand card's "How to install" link opens the guide.
   useEffect(() => {
@@ -1164,6 +1165,7 @@ function App() {
           <a href="#" aria-current={tab === "support" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("support"), setOpen(null))}>
             Support{waiting > 0 && <span className="nav-badge" aria-label={`${waiting} waiting`}>{waiting}</span>}
           </a>
+          <a href="#" aria-current={tab === "outreach" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("outreach"), setOpen(null))}>Outreach</a>
           <a href="#" aria-current={tab === "install" ? "page" : undefined} onClick={(e) => (e.preventDefault(), setTab("install"), setOpen(null))}>Install guide</a>
         </nav>
       </div>
@@ -1174,6 +1176,7 @@ function App() {
       {tab === "usage" && <Usage openBrand={(id) => (setOpen(id), scrollTo(0, 0))} />}
       {tab === "support" && <Support initial={supportFor} openBrand={(id) => (setOpen(id), scrollTo(0, 0))} />}
       {tab === "install" && <InstallGuide onBrands={() => setTab("dashboard")} />}
+      {tab === "outreach" && <Outreach />}
       {tab === "onboarding" && (
       <>
       <div className="page-head">

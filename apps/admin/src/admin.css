@@ -137,3 +137,18 @@ button.sort:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px;
 .own-price { align-items: flex-end; margin: 10px 0; }
 .own-price label { display: grid; gap: 4px; font-size: 14px; }
 .own-price input { width: 180px; }
+
+/* Outreach preview */
+.outreach form { display: grid; gap: 14px; }
+.outreach label { display: grid; gap: 4px; font-size: 14px; }
+.outreach .seg-field label { display: flex; align-items: center; gap: 10px; }
+.outreach input[type="radio"]:not(.sr-only) { width: 18px; height: 18px; min-height: 18px; margin: 0; flex: none; }
+.fixture-pick { display: flex; gap: 12px; flex-wrap: wrap; }
+.fixture-pick label { display: grid; gap: 6px; justify-items: center; cursor: pointer; padding: 6px; border-radius: 14px; border: 2px solid transparent; }
+.fixture-pick label.on { border-color: var(--forest); }
+.fixture-pick img { width: 96px; height: 128px; object-fit: cover; border-radius: 10px; }
+.outreach-result { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--sand); display: grid; gap: 12px; }
+.outreach-card { width: 100%; border-radius: 16px; border: 1px solid var(--sand); }
+.outreach .seg { display: inline-flex; border: 1px solid var(--sand); border-radius: 999px; overflow: hidden; }
+.outreach .seg button { border: 0; background: transparent; padding: 6px 14px; min-height: 36px; font: inherit; cursor: pointer; }
+.outreach .seg button.on { background: var(--forest); color: var(--paper); }

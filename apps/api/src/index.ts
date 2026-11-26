@@ -33,7 +33,9 @@ app.use("/portal-api/*", (c, next) =>
 );
 const smallLimit = bodyLimit({ maxSize: 64 * 1024, ...tooLarge });
 // Admin: small bodies, except adding product photos for a brand.
-app.use("/admin-api/*", (c, next) => (/^\/admin-api\/accounts\/[^/]+\/products\/upload$/.test(c.req.path) ? uploadLimit(c, next) : smallLimit(c, next)));
+app.use("/admin-api/*", (c, next) =>
+  /^\/admin-api\/accounts\/[^/]+\/products\/upload$/.test(c.req.path) || c.req.path === "/admin-api/outreach/preview" ? uploadLimit(c, next) : smallLimit(c, next),
+);
 for (const path of ["/webhooks/*", "/v1/start", "/v1/events", "/v1/pay/*"]) {
   app.use(path, smallLimit);
 }

@@ -26,6 +26,10 @@ import { addDays } from "../billing/dates.js";
 import { accountFacts, applyPayment, createInvoice, monthlyPrice, ensurePlanInvoice, openPlanInvoice, payUrl, pdfUrl, reconcileAccount } from "../billing/ledger.js";
 import { decideClaim } from "../billing/instapay.js";
 import { runJobNow } from "../jobs.js";
+import { imageFromLink, outreachPreview } from "../lib/outreach.js";
+import { listFixtures } from "../onboarding/tests.js";
+import { sniffImage } from "../lib/photo.js";
+import { toBase64 } from "../providers/google.js";
 import { buildDigest } from "../ops/digest.js";
 import { STEP_LABEL, advance, overrideStep, portalUrl, type Step } from "../onboarding/machine.js";
 
@@ -534,6 +538,51 @@ admin.post("/accounts/:id/price", async (c) => {
   if (r.meta.changes !== 1) return c.json({ error: "not_found" }, 404);
   await audit(c.env, c.req.param("id"), c.get("admin"), "price", v === null ? "list price" : `${v / 100} EGP a month`);
   return c.json({ ok: true });
+});
+
+/**
+ * Outreach preview: one try-on (or room preview) of a prospect's product, to send them before they sign up.
+ * multipart: photo (file) or link (image, product page or post), title, mode (person|room), fixture (0|1).
+ */
+admin.post("/outreach/preview", async (c) => {
+  const form = await c.req.formData().catch(() => null);
+  if (!form) return c.json({ error: "invalid" }, 400);
+  const mode = form.get("mode") === "room" ? "room" : "person";
+  const title = String(form.get("title") ?? "").trim().slice(0, 120) || (mode === "room" ? "Home décor piece" : "Outfit");
+  const fixture = Number(form.get("fixture") ?? 0) === 1 ? 1 : 0;
+  const file = form.get("photo");
+  const link = String(form.get("link") ?? "").trim();
+  let product;
+  if (file instanceof File && file.size > 0) {
+    if (file.size > 10 * 1024 * 1024) return c.json({ error: "too_large", reason: "Photo too big (max 10 MB)." }, 413);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const type = sniffImage(bytes);
+    if (!type || type === "image/heic") return c.json({ error: "not_an_image", reason: "Use a JPG, PNG or WEBP photo." }, 415);
+    product = { bytes, type };
+  } else if (link) {
+    if (!httpUrl(1000).safeParse(link).success) return c.json({ error: "invalid", reason: "That link doesn't look right." }, 400);
+    const got = await imageFromLink(link);
+    if ("error" in got) return c.json({ error: "no_image", reason: got.error }, 422);
+    product = got;
+  } else return c.json({ error: "invalid", reason: "Add a photo or a link." }, 400);
+  const r = await outreachPreview(c.env, { product, title, mode, fixture });
+  await audit(c.env, null, c.get("admin"), "outreach_preview", r.ok ? "made" : r.error, { title, mode });
+  return r.ok ? c.json(r) : c.json({ error: "failed", reason: r.error }, 502);
+});
+
+/** The stock models / rooms to choose from (small previews for the admin). */
+admin.get("/outreach/fixtures", async (c) => {
+  const out: Record<string, string[]> = {};
+  for (const mode of ["person", "room"] as const) {
+    out[mode] = [];
+    for (const key of await listFixtures(c.env, mode)) {
+      const o = await c.env.FILES.get(key);
+      if (!o) continue;
+      const b = new Uint8Array(await o.arrayBuffer());
+      out[mode].push(`data:${sniffImage(b) ?? "image/jpeg"};base64,${toBase64(b)}`);
+    }
+  }
+  return c.json(out);
 });
 
 admin.post("/accounts/:id/notes", async (c) => {
