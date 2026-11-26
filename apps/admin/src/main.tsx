@@ -468,6 +468,8 @@ const JOB_NAME: Record<string, string> = {
   pilot_clock: "Pilot emails (day 7, 10, 12, 14)",
   retry_busy_tests: "Re-test products when Google was busy",
   retry_pending_deletes: "Finish photo deletions",
+  restore_cap_paused: "Restore brands paused by the old daily cap",
+  google_balance: "Google balance check",
 };
 /** Times are shown in Cairo time, like everything else in Garrab. */
 const cairo = (ts: string | null | undefined): string => {
@@ -818,6 +820,7 @@ interface Dash {
   month: { label: string; revenue: number; aiCostUsd: number; aiCostEgp: number | null; margin: number | null };
   egpPerUsd: number | null;
   dailyCapUsd: number;
+  googleBalance: { setUsd: number; at: string; spentUsd: number; leftUsd: number; perDayUsd: number; daysLeft: number | null } | null;
   globalKill: boolean;
   privacyClaim: boolean;
   clients: { id: string; name: string; status: string; plan: string; paidThrough: string | null; previews: string; revenue30: number; costUsd30: number; margin30: number | null; manualHold: boolean }[];
@@ -924,6 +927,42 @@ function Dashboard({ open }: { open: (id: string) => void }) {
           <p className="label">Invoices due soon</p>
           <p className="stat">{d.dueSoon}</p>
           <p className="hint">In the next 3 days</p>
+        </div>
+      </div>
+      <div className="card google-balance">
+        <h2>Google balance</h2>
+        {d.googleBalance ? (
+          <>
+            <p className={`stat${d.googleBalance.leftUsd < 10 ? " neg" : ""}`}>
+              {d.googleBalance.leftUsd.toFixed(2)} USD left
+              {d.egpPerUsd !== null && <span className="soft small"> · about {Math.round(d.googleBalance.leftUsd * d.egpPerUsd).toLocaleString("en-US")} EGP</span>}
+            </p>
+            <p className="sub">
+              You entered {d.googleBalance.setUsd.toFixed(2)} USD on {cairo(d.googleBalance.at)}; Garrab has spent about {d.googleBalance.spentUsd.toFixed(2)} USD on Google AI since.
+              {d.googleBalance.daysLeft !== null
+                ? ` At the last 7 days' pace (${d.googleBalance.perDayUsd.toFixed(2)} USD a day), that's about ${d.googleBalance.daysLeft} days.`
+                : " No Google AI spending in the last 7 days."}{" "}
+              You get an alert when it's under 10 USD or 3 days.
+            </p>
+          </>
+        ) : (
+          <p className="sub">Not set yet. Enter the balance Google shows you, and Garrab will count down from it with every AI preview, test and answer.</p>
+        )}
+        <div className="row">
+          <button
+            className="btn small ghost"
+            onClick={async () => {
+              const v = prompt("Your Google balance right now, in USD (from Google AI Studio → Billing, or Google Cloud → Billing):", "");
+              if (v === null || v.trim() === "") return;
+              const n = Number(v.replace(/[^0-9.]/g, ""));
+              if (!Number.isFinite(n)) return;
+              await api("/settings", { googleBalanceUsd: n });
+              await load();
+            }}
+          >
+            {d.googleBalance ? "Update balance (after a top-up)" : "Enter balance"}
+          </button>
+          <span className="small muted">An estimate from our own records of each AI call (Google's list prices). Google's billing page is the exact figure.</span>
         </div>
       </div>
       <div className="card">

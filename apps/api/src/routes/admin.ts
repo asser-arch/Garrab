@@ -26,6 +26,7 @@ import { addDays } from "../billing/dates.js";
 import { accountFacts, applyPayment, createInvoice, monthlyPrice, ensurePlanInvoice, openPlanInvoice, payUrl, pdfUrl, reconcileAccount } from "../billing/ledger.js";
 import { decideClaim } from "../billing/instapay.js";
 import { runJobNow } from "../jobs.js";
+import { googleBalance, setGoogleBalance } from "../lib/googleBalance.js";
 import { imageFromLink, outreachPreview } from "../lib/outreach.js";
 import { listFixtures } from "../onboarding/tests.js";
 import { sniffImage } from "../lib/photo.js";
@@ -321,6 +322,7 @@ admin.get("/dashboard", async (c) => {
     month: { label: month, revenue: monthRevenue, aiCostUsd: monthCostUsd, aiCostEgp: monthCostEgp, margin: monthCostEgp === null ? null : monthRevenue - monthCostEgp },
     egpPerUsd: fx,
     dailyCapUsd: await getSetting<number>(env, "global_daily_cap_usd", CAPS.globalDailyUsd),
+    googleBalance: await googleBalance(env),
     globalKill,
     privacyClaim: await getSetting(env, "privacy_claim_verified", false),
     clients: rows,
@@ -709,11 +711,17 @@ admin.post("/alerts/:id/resolve", async (c) => {
 
 admin.post("/settings", async (c) => {
   const body = z
-    .object({ egpPerUsd: z.number().positive().max(1000).nullable().optional(), globalDailyCapUsd: z.number().positive().max(10_000).optional() })
+    .object({
+      egpPerUsd: z.number().positive().max(1000).nullable().optional(),
+      globalDailyCapUsd: z.number().positive().max(10_000).optional(),
+      /** The Google balance (USD) shown in Google's billing page right now. */
+      googleBalanceUsd: z.number().min(0).max(1_000_000).optional(),
+    })
     .safeParse(await c.req.json().catch(() => null));
   if (!body.success) return c.json({ error: "invalid" }, 400);
   if (body.data.egpPerUsd !== undefined) await setSetting(c.env, "egp_per_usd", body.data.egpPerUsd);
   if (body.data.globalDailyCapUsd !== undefined) await setSetting(c.env, "global_daily_cap_usd", body.data.globalDailyCapUsd);
+  if (body.data.googleBalanceUsd !== undefined) await setGoogleBalance(c.env, body.data.googleBalanceUsd);
   await audit(c.env, null, c.get("admin"), "settings", JSON.stringify(body.data));
   return c.json({ ok: true });
 });

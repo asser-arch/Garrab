@@ -20,6 +20,7 @@ import { importForAccount } from "./onboarding/import.js";
 import { STEP_LABEL, advance, checkInstall, portalUrl, type Step } from "./onboarding/machine.js";
 import { retryBusyProducts, testProduct } from "./onboarding/tests.js";
 import { sendDigest } from "./ops/digest.js";
+import { checkGoogleBalance } from "./lib/googleBalance.js";
 import { tryOnProvider } from "./providers/tryon.js";
 
 type JobFn = (env: Env, now: Date) => Promise<void>;
@@ -187,6 +188,7 @@ export const restoreCapPaused: JobFn = async (env) => {
 const EVERY_TICK: Record<string, JobFn> = {
   retry_busy_tests: retryBusyTests,
   restore_cap_paused: restoreCapPaused,
+  google_balance: (env, now) => checkGoogleBalance(env, now),
   retry_pending_deletes: retryPendingDeletes,
   onboarding_sweep: onboardingSweep,
   payment_claims: (env, now) => pingPendingClaims(env, now),
