@@ -89,10 +89,10 @@ export async function testProduct(
   deps: { tryon?: TryOnProvider; scorer?: ScoringProvider } = {},
 ): Promise<TestOutcome> {
   const product = await env.DB.prepare(
-    "SELECT id, title, description, images_json, includes_headwear, test_score, kind, reveals_skin FROM products WHERE id = ? AND account_id = ? AND selected = 1",
+    "SELECT id, title, description, images_json, includes_headwear, test_score, kind, reveals_skin, size_text FROM products WHERE id = ? AND account_id = ? AND selected = 1",
   )
     .bind(productId, accountId)
-    .first<{ id: string; title: string; description: string | null; images_json: string; includes_headwear: number; test_score: number | null; kind: string; reveals_skin: number | null }>();
+    .first<{ id: string; title: string; description: string | null; images_json: string; includes_headwear: number; test_score: number | null; kind: string; reveals_skin: number | null; size_text: string | null }>();
   if (!product) return "already_tested";
   if (product.test_score !== null) return "already_tested"; // idempotent
   // Claim the product before any paid call: only one test runs per product (a stale claim, e.g. a
@@ -182,6 +182,7 @@ export async function testProduct(
           imageUrls: images,
           includesHeadwear: product.includes_headwear === 1,
           synced: false,
+          size: mode === "room" ? product.size_text : null,
         },
         photo,
         photoType,
@@ -233,7 +234,7 @@ export async function testProduct(
         best = { key, score: 3, rubric: null, reason: "Test mode: the try-on is simulated, so check this product by hand.", cost: 0 };
         break;
       }
-      const sc = await scorer.score({ title: product.title, productImageUrl: images[0] ?? "", result: r.image, resultType: r.contentType, room: mode === "room" });
+      const sc = await scorer.score({ title: product.title, productImageUrl: images[0] ?? "", result: r.image, resultType: r.contentType, room: mode === "room", size: mode === "room" ? product.size_text : null });
       await recordUsage(env, accountId, "score", scorer.name, sc.score !== null, sc.costMicroUsd);
       spent += r.costMicroUsd + sc.costMicroUsd;
       const overall = sc.score?.overall ?? 3; // scorer down → human review, never auto-enable

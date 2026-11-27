@@ -55,6 +55,9 @@ export interface Product {
   decision: "approved" | "hidden" | null;
   /** How many more times the brand can ask for new test previews of this product. */
   retestsLeft: number;
+  /** Home décor: real size used for room previews; set by the brand, or read from the shop. */
+  size: string | null;
+  sizeByBrand: boolean;
   tests: string[];
 }
 

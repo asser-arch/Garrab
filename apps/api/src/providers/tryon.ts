@@ -14,6 +14,8 @@ export interface TryOnProduct {
   includesHeadwear: boolean;
   /** We already sent this product inline once; try a reference first. */
   synced: boolean;
+  /** Home décor: real-world size ("height 35 cm, diameter 15 cm") so the room preview keeps the scale. */
+  size?: string | null;
 }
 
 export interface TryOnRequest {

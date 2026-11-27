@@ -212,7 +212,7 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
   type D = {
     account: Record<string, unknown>;
     steps: { step: string; state: string; entered_at: string; actor: string; note: string | null }[];
-    products: { id: string; title: string; images_json: string; selected: number; test_score: number | null; enabled: number; needs_review: number; disabled_reason: string | null; brand_decision: string | null }[];
+    products: { id: string; title: string; kind: string; images_json: string; selected: number; test_score: number | null; enabled: number; needs_review: number; disabled_reason: string | null; brand_decision: string | null; size_text: string | null; size_source: string | null }[];
     tests: { id: string; product_id: string; fixture: string; score: number | null; reason: string | null }[];
     audit: { actor: string; action: string; reason: string | null; created_at: string }[];
   };
@@ -457,6 +457,24 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
                   </div>
                 );
               })()}
+              {p.kind === "decor" && (
+                <p className="small" style={{ margin: "6px 0 0" }}>
+                  Size: {p.size_text ?? <span className="warn-text">not found</span>}
+                  {p.size_text && <span className="muted"> ({p.size_source === "brand" ? "set by hand" : "read from the shop"})</span>}{" "}
+                  <button
+                    type="button"
+                    className="linkish small"
+                    onClick={async () => {
+                      const v = prompt('Real size (e.g. "height 35 cm, diameter 15 cm" or "160 × 230 cm"). Empty = read it from the shop again:', p.size_text ?? "");
+                      if (v === null) return;
+                      await api(`/products/${p.id}/size`, { size: v });
+                      await load();
+                    }}
+                  >
+                    {p.size_text ? "Change" : "Add size"}
+                  </button>
+                </p>
+              )}
               {p.disabled_reason && <p className="small muted" style={{ margin: "6px 0 0" }}>Why: {p.disabled_reason}</p>}
               <div className="row" style={{ marginTop: 8 }}>
                 {!p.enabled && (

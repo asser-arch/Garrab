@@ -10,6 +10,7 @@ import { CAPS, productLimit, type PlanId } from "@garrab/shared/plans";
 import type { Env } from "../env.js";
 import { sha256Hex, ulid } from "../lib/crypto.js";
 import { log } from "../lib/log.js";
+import { parseDimensions } from "../lib/dimensions.js";
 
 export const BOT_UA = "GarrabBot/1.0 (+product import for brands that signed up; contact via the brand)";
 
@@ -376,12 +377,14 @@ export async function saveProducts(env: Env, accountId: string, products: Import
     stmts.push(
       env.DB.prepare(
         `INSERT INTO products (id, account_id, external_ref, url_path, product_url, source, title, description, images_json, sizes_json,
-                               kind, content_hash, price_piastres)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                               kind, content_hash, price_piastres, size_text, size_source)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(account_id, external_ref) DO UPDATE SET
            url_path = excluded.url_path, product_url = excluded.product_url, title = excluded.title,
            description = excluded.description, images_json = excluded.images_json, sizes_json = excluded.sizes_json,
            price_piastres = excluded.price_piastres, kind = excluded.kind,
+           size_text = CASE WHEN products.size_source = 'brand' THEN products.size_text ELSE excluded.size_text END,
+           size_source = CASE WHEN products.size_source = 'brand' THEN 'brand' ELSE excluded.size_source END,
            provider_synced_at = CASE WHEN products.content_hash = excluded.content_hash THEN products.provider_synced_at ELSE NULL END,
            content_hash = excluded.content_hash,
            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')`,
@@ -399,6 +402,11 @@ export async function saveProducts(env: Env, accountId: string, products: Import
         kindFor(category, p.kind),
         hash,
         p.pricePiastres,
+        ...(() => {
+          // Home décor: its real size from the shop's text, for room previews at the right scale.
+          const size = kindFor(category, p.kind) === "decor" ? parseDimensions(p.title, p.description, p.sizes.join(" ")) : null;
+          return [size, kindFor(category, p.kind) === "decor" ? "auto" : null];
+        })(),
       ),
     );
   }

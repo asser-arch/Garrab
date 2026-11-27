@@ -25,7 +25,7 @@ export interface ScoringProvider {
    * upper arms, low neckline, midriff, legs above the knee, sheer fabric)? null = couldn't tell.
    */
   revealsSkin?(input: { title: string; productImageUrl: string }): Promise<{ reveals: boolean | null; costMicroUsd: number }>;
-  score(input: { title: string; productImageUrl: string; result: Uint8Array; resultType: string; room?: boolean }): Promise<{ score: Score | null; costMicroUsd: number }>;
+  score(input: { title: string; productImageUrl: string; result: Uint8Array; resultType: string; room?: boolean; size?: string | null }): Promise<{ score: Score | null; costMicroUsd: number }>;
 }
 
 const SCHEMA = {
@@ -90,7 +90,7 @@ export class GeminiScorer implements ScoringProvider {
     }
   }
 
-  async score(input: { title: string; productImageUrl: string; result: Uint8Array; resultType: string; room?: boolean }): Promise<{ score: Score | null; costMicroUsd: number }> {
+  async score(input: { title: string; productImageUrl: string; result: Uint8Array; resultType: string; room?: boolean; size?: string | null }): Promise<{ score: Score | null; costMicroUsd: number }> {
     let product: { data: string; mime: string } | null = null;
     try {
       const r = await this.fetcher(input.productImageUrl, { signal: AbortSignal.timeout(15_000) });
@@ -109,7 +109,9 @@ export class GeminiScorer implements ScoringProvider {
           text: input.room
             ? `You are checking an AI room preview for a small home décor shop: the product placed in a stock photo of a room. Product: "${input.title}". ${
                 product ? "Image 1 is the product photo. Image 2 is the room preview." : "The image is the room preview."
-              } Score strictly. For "garment_preserved" judge the item's colour, pattern and material; for "plausible_fit" judge whether it sits in the room at a believable size and position. A preview where the room itself is distorted cannot score above 3 overall.`
+              } Score strictly. For "garment_preserved" judge the item's colour, pattern and material; for "plausible_fit" judge whether it sits in the room at a believable size and position.${
+                input.size ? ` Its real size is ${input.size}: compared with the furniture (a sofa seat is about 45 cm high, a door about 200 cm), a clearly wrong scale cannot score above 2 for plausible_fit or above 3 overall.` : ""
+              } A preview where the room itself is distorted cannot score above 3 overall.`
             : `You are checking an AI virtual try-on result for a small fashion shop. Product: "${input.title}". ${
                 product ? "Image 1 is the product photo. Image 2 is the try-on result on a stock model." : "The image is the try-on result on a stock model."
               } Score strictly. A result with any visible distortion of the face or hands cannot score above 3 overall.`,

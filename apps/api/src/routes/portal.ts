@@ -27,6 +27,7 @@ import {
 import { ulid } from "../lib/crypto.js";
 import { sniffImage, stripJpegMetadata } from "../lib/photo.js";
 import { clearProductTests, productPhotoUrl, removeProduct } from "../lib/products.js";
+import { setProductSize } from "../lib/dimensions.js";
 import { sendOnce } from "../lib/email.js";
 import { saveProducts, guessKind } from "../onboarding/import.js";
 import { CONTENT_RULES_REASON, FAILED_REASON, retryBusyProducts } from "../onboarding/tests.js";
@@ -200,7 +201,8 @@ portal.get("/me", async (c) => {
 portal.get("/products", async (c) => {
   const id = acct(c);
   const rows = await c.env.DB.prepare(
-    `SELECT id, title, images_json, kind, selected, test_score, enabled, needs_review, disabled_reason, brand_decision, product_url, source, brand_retests
+    `SELECT id, title, images_json, kind, selected, test_score, enabled, needs_review, disabled_reason, brand_decision, product_url, source, brand_retests,
+            size_text, size_source
        FROM products WHERE account_id = ? ORDER BY selected DESC, title LIMIT 500`,
   )
     .bind(id)
@@ -218,6 +220,8 @@ portal.get("/products", async (c) => {
       product_url: string | null;
       source: string;
       brand_retests: number;
+      size_text: string | null;
+      size_source: string | null;
     }>();
   const tests = await c.env.DB.prepare("SELECT id, product_id, fixture FROM product_tests WHERE account_id = ? AND r2_key IS NOT NULL ORDER BY created_at")
     .bind(id)
@@ -243,6 +247,9 @@ portal.get("/products", async (c) => {
       reason: p.disabled_reason === CONTENT_RULES_REASON ? CONTENT_RULES_REASON : p.disabled_reason ? FAILED_REASON : null,
       decision: p.brand_decision,
       retestsLeft: Math.max(0, BRAND_RETESTS - p.brand_retests),
+      /** Home décor: real size used for room previews, and whether the brand set it or Garrab read it. */
+      size: p.size_text,
+      sizeByBrand: p.size_source === "brand",
       tests: shown.filter((t) => t.product_id === p.id).map((t) => `/portal-api/test-image/${t.id}`),
     })),
   });
@@ -455,6 +462,15 @@ portal.post("/products/:id/rename", async (c) => {
   if (r.meta.changes !== 1) return c.json({ error: "not_found" }, 404);
   invalidateStatus(acct(c));
   return c.json({ ok: true });
+});
+
+/** Home décor: the brand sets (or clears) a product's real size, used to keep room previews at the right scale. */
+portal.post("/products/:id/size", async (c) => {
+  const body = z.object({ size: z.string().max(200) }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  if (!(await setProductSize(c.env, c.req.param("id"), acct(c), body.data.size))) return c.json({ error: "not_found" }, 404);
+  const p = await c.env.DB.prepare("SELECT size_text FROM products WHERE id = ?").bind(c.req.param("id")).first<{ size_text: string | null }>();
+  return c.json({ ok: true, size: p?.size_text ?? null });
 });
 
 /** The brand asks for new test previews of a product that failed or that our check wasn't sure about. */

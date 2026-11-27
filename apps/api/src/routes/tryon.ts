@@ -143,6 +143,7 @@ tryon.post("/tryon", async (c) => {
         imageUrls: JSON.parse(product.images_json) as string[],
         includesHeadwear: product.includes_headwear === 1,
         synced: product.provider_synced_at !== null,
+        size: room ? product.size_text : null,
       },
       photo: photo.bytes,
       photoType: photo.type,

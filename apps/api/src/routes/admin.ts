@@ -27,6 +27,7 @@ import { accountFacts, applyPayment, createInvoice, monthlyPrice, ensurePlanInvo
 import { decideClaim } from "../billing/instapay.js";
 import { runJobNow } from "../jobs.js";
 import { googleBalance, setGoogleBalance } from "../lib/googleBalance.js";
+import { setProductSize } from "../lib/dimensions.js";
 import { imageFromLink, outreachPreview } from "../lib/outreach.js";
 import { fixtureLabel, listFixtures } from "../onboarding/tests.js";
 import { sniffImage } from "../lib/photo.js";
@@ -168,7 +169,7 @@ admin.get("/accounts/:id", async (c) => {
   const [steps, products, tests, audit_log] = await Promise.all([
     c.env.DB.prepare("SELECT step, state, entered_at, done_at, actor, note FROM onboarding_steps WHERE account_id = ? ORDER BY entered_at").bind(id).all(),
     c.env.DB.prepare(
-      "SELECT id, title, kind, images_json, selected, test_score, enabled, needs_review, disabled_reason, brand_decision, approved FROM products WHERE account_id = ? ORDER BY selected DESC, title LIMIT 300",
+      "SELECT id, title, kind, images_json, selected, test_score, enabled, needs_review, disabled_reason, brand_decision, approved, size_text, size_source FROM products WHERE account_id = ? ORDER BY selected DESC, title LIMIT 300",
     )
       .bind(id)
       .all(),
@@ -657,6 +658,14 @@ admin.post("/accounts/:id/retest-all", async (c) => {
   for (const p of rows.results) await c.env.JOBS.send({ t: "test", a: id, p: p.id });
   await audit(c.env, id, c.get("admin"), "retest_all", `${rows.results.length} products`);
   return c.json({ ok: true, count: rows.results.length });
+});
+
+/** Home décor: set or clear a product's real size (room previews keep this scale). Empty = read it from the shop. */
+admin.post("/products/:id/size", async (c) => {
+  const body = z.object({ size: z.string().max(200) }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  if (!(await setProductSize(c.env, c.req.param("id"), null, body.data.size))) return c.json({ error: "not_found" }, 404);
+  return c.json({ ok: true });
 });
 
 admin.post("/accounts/:id/notes", async (c) => {

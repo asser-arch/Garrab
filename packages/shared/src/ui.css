@@ -441,3 +441,5 @@ details.setup[open] > summary { margin-bottom: 12px; }
 @keyframes authDress { 0% { fill: var(--peach); } 33% { fill: var(--mint); } 66% { fill: var(--lavender); } }
 @keyframes authWave { 0%, 100% { transform: rotate(-10deg); } 50% { transform: rotate(14deg); } }
 @keyframes authSelfie { 0%, 100% { transform: rotate(0); } 50% { transform: rotate(-5deg); } }
+.size-line { margin: 6px 0 0; }
+.warn-text { color: #9a3b12; }

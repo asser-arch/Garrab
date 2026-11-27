@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { BulkAdd, prepareProductPhoto } from "@garrab/ui/BulkAdd";
 import { api, atOrAfter, type Me, type Product } from "../api.js";
 import { ProductName } from "../Rename.js";
+import { ProductSize } from "../Size.js";
 
 export function Products({
   me,
@@ -316,6 +317,7 @@ export function Products({
                   />
                   <ProductName id={p.id} title={p.title} as="span" onSaved={load} />
                 </div>
+                {me.account.category === "home" && <ProductSize id={p.id} size={p.size} byBrand={p.sizeByBrand} onSaved={load} />}
                 <button
                   type="button"
                   className="linkish small"

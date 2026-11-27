@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { go } from "../nav.js";
 import { api, atOrAfter, type Me, type Product } from "../api.js";
 import { ProductName } from "../Rename.js";
+import { ProductSize } from "../Size.js";
 
 const RULES = "This product can't be shown in try-on (content rules).";
 
@@ -187,6 +188,7 @@ export function Approve({
             aria-label={p.title}
           >
             <ProductName id={p.id} title={p.title} onSaved={load} />
+            {me.account.category === "home" && <ProductSize id={p.id} size={p.size} byBrand={p.sizeByBrand} onSaved={load} />}
             <div className="thumbs">
               {(() => {
                 const shots: Shot[] = [

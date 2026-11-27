@@ -21,6 +21,7 @@ import { STEP_LABEL, advance, checkInstall, portalUrl, type Step } from "./onboa
 import { retryBusyProducts, testProduct } from "./onboarding/tests.js";
 import { sendDigest } from "./ops/digest.js";
 import { checkGoogleBalance } from "./lib/googleBalance.js";
+import { fillProductSizes } from "./lib/dimensions.js";
 import { tryOnProvider } from "./providers/tryon.js";
 
 type JobFn = (env: Env, now: Date) => Promise<void>;
@@ -189,6 +190,7 @@ const EVERY_TICK: Record<string, JobFn> = {
   retry_busy_tests: retryBusyTests,
   restore_cap_paused: restoreCapPaused,
   google_balance: (env, now) => checkGoogleBalance(env, now),
+  product_sizes: async (env) => void (await fillProductSizes(env)),
   retry_pending_deletes: retryPendingDeletes,
   onboarding_sweep: onboardingSweep,
   payment_claims: (env, now) => pingPendingClaims(env, now),

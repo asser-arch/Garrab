@@ -14,6 +14,7 @@
  * but Google keeps paid-tier prompts for a limited time for abuse monitoring.
  */
 import { workerFetch } from "../lib/http.js";
+import { scaleHint } from "../lib/dimensions.js";
 import type { TryOnProvider, TryOnRequest, TryOnResult } from "./tryon.js";
 
 /** List prices in USD (paid tier), checked 13–14 Nov 2026. */
@@ -89,6 +90,7 @@ export function roomPrompt(req: TryOnRequest): string {
     "Create one photorealistic image of the SAME room with this item placed where it would naturally go",
     "(a rug on the floor, a cushion on a sofa or bed, a lamp on a table or the floor, art or a mirror on a wall).",
     "Keep the room's layout, walls, furniture, light and camera angle unchanged. Keep the item's real colour, pattern, material and a believable size for the room.",
+    ...(p.size ? [scaleHint(p.size)] : []),
     "The product photos may have a shop logo or watermark printed on them: ignore it, it is not part of the item.",
     "Do not add people, text, logos or watermarks. Do not change anything else. Always answer with the edited image, never with text only.",
   ].join("\n");
