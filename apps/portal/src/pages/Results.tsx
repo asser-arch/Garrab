@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
-import { go } from "../main.js";
-import { PeriodFilter, cairoToday, plusDays, presetRange, type Preset } from "../period.js";
+import { go } from "../nav.js";
+import { PeriodFilter, cairoToday, plusDays, presetRange, type Preset } from "@garrab/ui/period";
 
 interface Totals {
   shoppers?: number;

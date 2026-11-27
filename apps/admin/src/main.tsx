@@ -6,8 +6,8 @@ import { InstallGuide } from "./InstallGuide.js";
 import { Outreach } from "./Outreach.js";
 import { Support, useSupportWaiting } from "./Support.js";
 import { Usage } from "./Usage.js";
-import { BulkAdd } from "../../portal/src/BulkAdd.js";
-import { stackTables } from "../../portal/src/stackTables.js";
+import { BulkAdd } from "@garrab/ui/BulkAdd";
+import { stackTables } from "@garrab/ui/stackTables";
 import { createRoot } from "react-dom/client";
 
 async function api<T>(path: string, body?: unknown): Promise<T> {

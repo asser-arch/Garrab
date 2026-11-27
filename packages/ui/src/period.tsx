@@ -1,4 +1,4 @@
-/** Period filter for results (portal Results, admin Usage). No app imports: the admin reuses it. */
+/** Period filter for results (portal Results, admin Usage). */
 // ---------------------------------------------------------------- period filter (Cairo days)
 
 export type Preset = "7d" | "30d" | "month" | "lastMonth" | "pilot" | "custom";

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { go } from "../main.js";
+import { go } from "../nav.js";
 import { api, atOrAfter, type Me, type Product } from "../api.js";
 import { ProductName } from "../Rename.js";
 

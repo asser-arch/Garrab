@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { BulkAdd, prepareProductPhoto } from "../BulkAdd.js";
+import { BulkAdd, prepareProductPhoto } from "@garrab/ui/BulkAdd";
 import { api, atOrAfter, type Me, type Product } from "../api.js";
 import { ProductName } from "../Rename.js";
 

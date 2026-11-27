@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { go } from "../main.js";
+import { go } from "../nav.js";
 import { api, atOrAfter, type Me } from "../api.js";
 
 interface Week {

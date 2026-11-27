@@ -10,19 +10,8 @@ import { Login } from "./pages/Login.js";
 import { Results } from "./pages/Results.js";
 import { Products } from "./pages/Products.js";
 import { Support } from "./Support.js";
-import { stackTables } from "./stackTables.js";
-
-export type Route = "/portal" | "/portal/products" | "/portal/approve" | "/portal/install" | "/portal/results" | "/portal/billing" | "/portal/login";
-
-function currentRoute(): Route {
-  const p = location.pathname.replace(/\/+$/, "") || "/portal";
-  return (["/portal/products", "/portal/approve", "/portal/install", "/portal/results", "/portal/billing", "/portal/login"].includes(p) ? p : "/portal") as Route;
-}
-
-export function go(to: Route): void {
-  history.pushState(null, "", to);
-  dispatchEvent(new PopStateEvent("popstate"));
-}
+import { stackTables } from "@garrab/ui/stackTables";
+import { currentRoute, go, type Route } from "./nav.js";
 
 function Link({ to, children }: { to: Route; children: React.ReactNode }) {
   const current = currentRoute() === to;

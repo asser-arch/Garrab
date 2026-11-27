@@ -1,0 +1,22 @@
+{
+  "name": "@garrab/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "React pieces used by both the brand portal and the admin (bulk product upload, period filter, phone tables).",
+  "exports": {
+    "./BulkAdd": "./src/BulkAdd.tsx",
+    "./period": "./src/period.tsx",
+    "./stackTables": "./src/stackTables.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@garrab/shared": "workspace:*",
+    "react": "19.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0"
+  }
+}

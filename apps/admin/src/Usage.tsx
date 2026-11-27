@@ -3,7 +3,7 @@
  * Filters: period (presets or custom dates), status, brand name. Columns sort; a totals row on top.
  */
 import { useEffect, useMemo, useState } from "react";
-import { PeriodFilter, presetRange, type Preset } from "../../portal/src/period.js";
+import { PeriodFilter, presetRange, type Preset } from "@garrab/ui/period";
 
 interface Row {
   id: string;
