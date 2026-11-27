@@ -89,7 +89,7 @@ const save = (href: string, name: string): void => {
 
 export function Outreach() {
   const [mode, setMode] = useState<Mode>("person");
-  const [fixtures, setFixtures] = useState<Record<Mode, string[]>>({ person: [], room: [] });
+  const [fixtures, setFixtures] = useState<Record<Mode, { label: string; src: string }[]>>({ person: [], room: [] });
   const [fixture, setFixture] = useState<number | "own">(0);
   const [ownFile, setOwnFile] = useState<File | null>(null);
   const [ownUrl, setOwnUrl] = useState<string | null>(null);
@@ -108,7 +108,7 @@ export function Outreach() {
   useEffect(() => {
     void fetch("/admin-api/outreach/fixtures")
       .then((r) => (r.ok ? r.json() : null))
-      .then((j: Record<Mode, string[]> | null) => j && setFixtures(j));
+      .then((j: Record<Mode, { label: string; src: string }[]> | null) => j && setFixtures(j));
   }, []);
   useEffect(() => {
     if (result) void compose(result, mode, brand.trim(), lang, usedOwn).then(setCard);
@@ -234,11 +234,11 @@ export function Outreach() {
           <fieldset className="seg-field">
             <legend>{mode === "room" ? "Room" : "Model"}</legend>
             <div className="fixture-pick">
-              {list.map((src, i) => (
-                <label key={i} className={fixture === i ? "on" : ""}>
+              {list.map((f, i) => (
+                <label key={f.label} className={fixture === i ? "on" : ""}>
                   <input type="radio" name="o-fix" checked={fixture === i} onChange={() => setFixture(i)} className="sr-only" />
-                  <img src={src} alt={`${mode === "room" ? "Room" : "Model"} ${String.fromCharCode(65 + i)}`} />
-                  <span>{`${mode === "room" ? "Room" : "Model"} ${String.fromCharCode(65 + i)}`}</span>
+                  <img src={f.src} alt={f.label} />
+                  <span>{f.label}</span>
                 </label>
               ))}
               <label className={`own ${fixture === "own" ? "on" : ""}`}>

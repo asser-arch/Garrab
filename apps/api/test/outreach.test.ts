@@ -43,7 +43,7 @@ describe("outreach preview (admin)", () => {
       },
     };
     const r = await outreachPreview(env, { product: { bytes: fakeJpeg("P"), type: "image/jpeg" }, title: "Kaftan", mode: "person", fixture: 1 }, { tryon });
-    expect(r.ok && r.fixture).toBe("Model B");
+    expect(r.ok && r.fixture).toBe("Woman B");
     expect(r.ok && r.preview.startsWith("data:image/jpeg;base64,")).toBe(true);
     expect(seenUrl).toContain(`/pi/${OUTREACH_ID}/`);
     expect((await env.FILES.list({ prefix: `products/${OUTREACH_ID}/` })).objects).toHaveLength(0);
@@ -58,7 +58,7 @@ describe("outreach preview (admin)", () => {
     const r = await exports.default.fetch("https://api.test/admin-api/outreach/preview", { method: "POST", headers: ADMIN, body: fd });
     expect(r.status).toBe(200);
     const j = (await r.json()) as { product: string; preview: string; fixture: string };
-    expect(j.fixture).toBe("Model A");
+    expect(j.fixture).toBe("Woman A");
     const none = await exports.default.fetch("https://api.test/admin-api/outreach/preview", { method: "POST", headers: ADMIN, body: new FormData() });
     expect(none.status).toBe(400);
   });

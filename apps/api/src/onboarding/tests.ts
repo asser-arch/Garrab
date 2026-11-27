@@ -16,23 +16,53 @@ import { isTemporary, tryOnProvider, type TryOnProvider } from "../providers/try
 
 export const FIXTURE_PREFIX = "fixtures/";
 
+export type TestModels = "women" | "men" | "both";
+
 /**
- * Test photos: two stock models (`fixtures/model-*`) for fashion, two stock rooms (`fixtures/room-*`)
- * for home décor. Anything else in `fixtures/` (older uploads) counts as a model photo.
+ * Test photos: stock women (`fixtures/model-*`) and men (`fixtures/man-*`) for fashion, stock rooms
+ * (`fixtures/room-*`) for home décor. A fashion brand is tested on its own choice: two women (default),
+ * two men, or one of each ("both"). "all" lists every person photo (the admin's outreach picker).
+ * Anything else in `fixtures/` (older uploads) counts as a woman model photo.
  */
-export async function listFixtures(env: Env, kind: "person" | "room" = "person"): Promise<string[]> {
+/** The veiled stock model: never used for products that show skin. */
+export const VEILED_FIXTURES = new Set(["fixtures/model-a.jpg"]);
+
+export async function listFixtures(
+  env: Env,
+  kind: "person" | "room" = "person",
+  models: TestModels | "all" = "women",
+  opts: { noVeil?: boolean } = {},
+): Promise<string[]> {
   const l = await env.FILES.list({ prefix: FIXTURE_PREFIX });
-  return l.objects
+  const keys = l.objects
     .map((o) => o.key)
     .filter((k) => /\.(jpe?g|png|webp)$/i.test(k))
-    .filter((k) => (kind === "room" ? k.startsWith(`${FIXTURE_PREFIX}room-`) : !k.startsWith(`${FIXTURE_PREFIX}room-`)))
-    .sort()
-    .slice(0, 2);
+    .sort();
+  if (kind === "room") return keys.filter((k) => k.startsWith(`${FIXTURE_PREFIX}room-`)).slice(0, 2);
+  const men = keys.filter((k) => k.startsWith(`${FIXTURE_PREFIX}man-`));
+  const allWomen = keys.filter((k) => !k.startsWith(`${FIXTURE_PREFIX}room-`) && !k.startsWith(`${FIXTURE_PREFIX}man-`));
+  if (models === "all") return [...allWomen.slice(0, 3), ...men.slice(0, 2)];
+  // A product that shows skin is never put on the veiled model (if every woman were veiled, keep them).
+  const unveiled = allWomen.filter((k) => !VEILED_FIXTURES.has(k));
+  const women = opts.noVeil && unveiled.length ? unveiled : allWomen;
+  if (models === "men") return men.length ? men.slice(0, 2) : women.slice(0, 2);
+  if (models === "both") return [women[0], men[0] ?? women[1]].filter((k): k is string => !!k);
+  return women.slice(0, 2);
+}
+
+/** "Woman A", "Man B", "Room A" for a stock photo key. */
+export function fixtureLabel(key: string): string {
+  const m = /fixtures\/(model|man|room)-([a-z])/i.exec(key);
+  if (!m) return "Model";
+  return `${m[1] === "man" ? "Man" : m[1] === "room" ? "Room" : "Woman"} ${m[2]!.toUpperCase()}`;
 }
 
 async function testSpendMicroUsd(env: Env, accountId: string): Promise<number> {
-  // Rolling 30 days: brands with no product limit can keep adding products month after month.
-  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  // Rolling 30 days: brands with no product limit can keep adding products month after month. "Re-test all"
+  // in the admin starts the count again.
+  const from = await env.DB.prepare("SELECT test_budget_from FROM accounts WHERE id = ?").bind(accountId).first<{ test_budget_from: string | null }>();
+  const rolling = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const since = from?.test_budget_from && from.test_budget_from > rolling ? from.test_budget_from : rolling;
   const r = await env.DB.prepare(
     "SELECT COALESCE(SUM(cost_micro_usd), 0) AS s FROM usage_events WHERE account_id = ? AND kind IN ('test','score') AND created_at >= ?",
   )
@@ -59,10 +89,10 @@ export async function testProduct(
   deps: { tryon?: TryOnProvider; scorer?: ScoringProvider } = {},
 ): Promise<TestOutcome> {
   const product = await env.DB.prepare(
-    "SELECT id, title, description, images_json, includes_headwear, test_score, kind FROM products WHERE id = ? AND account_id = ? AND selected = 1",
+    "SELECT id, title, description, images_json, includes_headwear, test_score, kind, reveals_skin FROM products WHERE id = ? AND account_id = ? AND selected = 1",
   )
     .bind(productId, accountId)
-    .first<{ id: string; title: string; description: string | null; images_json: string; includes_headwear: number; test_score: number | null; kind: string }>();
+    .first<{ id: string; title: string; description: string | null; images_json: string; includes_headwear: number; test_score: number | null; kind: string; reveals_skin: number | null }>();
   if (!product) return "already_tested";
   if (product.test_score !== null) return "already_tested"; // idempotent
   // Claim the product before any paid call: only one test runs per product (a stale claim, e.g. a
@@ -78,7 +108,26 @@ export async function testProduct(
   if (claim.meta.changes !== 1) return "already_tested";
 
   const mode = product.kind === "decor" ? "room" : "person";
-  const all = await listFixtures(env, mode);
+  const acc = await env.DB.prepare("SELECT test_models FROM accounts WHERE id = ?").bind(accountId).first<{ test_models: TestModels | null }>();
+  const models = acc?.test_models ?? "women";
+  const scorer = deps.scorer ?? scoringProvider(env);
+  const images = JSON.parse(product.images_json) as string[];
+  // Women's fashion: does the product show skin? Then the veiled model is left out. Checked once per product
+  // (kept for re-tests); if the check can't tell, the veiled model is left out too, to be safe.
+  let noVeil = false;
+  if (mode === "person" && models !== "men" && scorer.revealsSkin) {
+    let reveals = product.reveals_skin;
+    if (reveals === null) {
+      const r = await scorer.revealsSkin({ title: product.title, productImageUrl: images[0] ?? "" });
+      await recordUsage(env, accountId, "score", scorer.name, r.reveals !== null, r.costMicroUsd);
+      if (r.reveals !== null) {
+        reveals = r.reveals ? 1 : 0;
+        await env.DB.prepare("UPDATE products SET reveals_skin = ? WHERE id = ?").bind(reveals, productId).run();
+      }
+    }
+    noVeil = reveals !== 0;
+  }
+  const all = await listFixtures(env, mode, models, { noVeil });
   if (all.length === 0) return "no_fixtures";
   // Big catalogues: one test preview per product (half the cost). Products alternate between the test
   // models/rooms, so the brand still sees both across its catalogue.
@@ -89,8 +138,6 @@ export async function testProduct(
     .first<{ n: number; tested: number | null }>();
   const fixtures = (count?.n ?? 0) > CAPS.singleTestPreviewAbove ? [all[(count?.tested ?? 0) % all.length]!] : all;
   const tryon = deps.tryon ?? tryOnProvider(env, mode);
-  const scorer = deps.scorer ?? scoringProvider(env);
-  const images = JSON.parse(product.images_json) as string[];
   const scores: number[] = [];
   let lastReason = "";
   // Previews that already worked (an earlier attempt stopped by a temporary error) are kept: no repeat spend.

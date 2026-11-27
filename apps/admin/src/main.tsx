@@ -1,6 +1,6 @@
 import "@garrab/shared/ui.css";
 import "./admin.css";
-import { StrictMode, useCallback, useEffect, useState } from "react";
+import { StrictMode, useCallback, useEffect, useRef, useState } from "react";
 import { BillByHand, OwnPrice } from "./BillByHand.js";
 import { InstallGuide } from "./InstallGuide.js";
 import { Outreach } from "./Outreach.js";
@@ -176,6 +176,38 @@ function Invite({ onDone }: { onDone: () => void }) {
   );
 }
 
+/** "Woman A", "Man B", "Room A" from a stock photo key (older keys: "model A/B"). */
+function modelName(fixture: string, i: number): string {
+  const m = /fixtures\/(model|man|room)-([a-z])/i.exec(fixture);
+  return m ? `${m[1] === "man" ? "Man" : m[1] === "room" ? "Room" : "Woman"} ${m[2]!.toUpperCase()}` : `model ${String.fromCharCode(65 + i)}`;
+}
+
+/** Full-size view of a picture (product photo or test preview). Esc, the close button or a click outside closes it. */
+function Zoom({ src, caption, onClose }: { src: string; caption: string; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const dlg = ref.current;
+    if (dlg && !dlg.open) dlg.showModal();
+    return () => dlg?.close();
+  }, []);
+  return (
+    <dialog ref={ref} className="zoom-dialog" onClose={onClose} onClick={(e) => e.target === ref.current && onClose()} aria-label={caption}>
+      <div className="zoom-head">
+        <p className="small">{caption}</p>
+        <div className="row">
+          <a className="btn small ghost" href={src} target="_blank" rel="noopener">
+            Open in a new tab
+          </a>
+          <button type="button" className="btn small" onClick={onClose} autoFocus>
+            Close
+          </button>
+        </div>
+      </div>
+      <img src={src} alt={caption} referrerPolicy="no-referrer" />
+    </dialog>
+  );
+}
+
 function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; onChange: () => void }) {
   type D = {
     account: Record<string, unknown>;
@@ -185,6 +217,7 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
     audit: { actor: string; action: string; reason: string | null; created_at: string }[];
   };
   const [d, setD] = useState<D | null>(null);
+  const [zoom, setZoom] = useState<{ src: string; caption: string } | null>(null);
   const [to, setTo] = useState<string>("products_imported");
   const [reason, setReason] = useState("");
   const load = useCallback(async () => setD(await api<D>(`/accounts/${id}`)), [id]);
@@ -201,12 +234,33 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
     onChange();
   };
   if (!d) return <div className="card">Loading…</div>;
+  const zoomView = zoom && <Zoom src={zoom.src} caption={zoom.caption} onClose={() => setZoom(null)} />;
   const site = (d.account.website ?? (d.account.instagram ? `https://instagram.com/${String(d.account.instagram)}` : null)) as string | null;
   return (
     <div className="card detail" aria-label="Account detail">
+      {zoomView}
       <div className="detail-head">
         <div>
-          <h2>{String(d.account.name)}</h2>
+          <div className="row" style={{ alignItems: "baseline" }}>
+            <h2 style={{ margin: 0 }}>{String(d.account.name)}</h2>
+            <button
+              type="button"
+              className="linkish small"
+              onClick={async () => {
+                const v = prompt("Brand name (as the brand wants it shown):", String(d.account.name));
+                if (v === null || v.trim() === "" || v.trim() === String(d.account.name)) return;
+                try {
+                  await api(`/accounts/${id}/name`, { name: v.trim() });
+                  await load();
+                  onChange();
+                } catch (e) {
+                  alert(e instanceof Error ? e.message : "Couldn't save the name.");
+                }
+              }}
+            >
+              Edit name
+            </button>
+          </div>
           <p className="small muted" style={{ margin: "6px 0 0" }}>
             <StatusChip status={String(d.account.status)} /> <span className="chip">{nice(STEP_NAME, String(d.account.onboarding_step))}</span>{" "}
             <span className="chip lavender">{String(d.account.category) === "home" ? "Home décor · room preview" : "Fashion · try-on"}</span>{" "}
@@ -330,6 +384,36 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
       </details>
       <div className="section">
       <h3>Selected products</h3>
+        {String(d.account.category) !== "home" && (
+          <div className="row models-row">
+            <label className="small" htmlFor="test-models">
+              Test models
+            </label>
+            <select
+              id="test-models"
+              value={String(d.account.test_models ?? "women")}
+              onChange={async (e) => {
+                await api(`/accounts/${id}/test-models`, { models: e.target.value });
+                await load();
+              }}
+            >
+              <option value="women">Women (A is veiled; never used for products that show skin)</option>
+              <option value="men">Men</option>
+              <option value="both">One woman, one man</option>
+            </select>
+            <button
+              className="btn small ghost"
+              onClick={async () => {
+                if (!confirm("Make new test previews for all of this brand's chosen products (on the test models chosen here)? Old previews are replaced; approved products go live again as soon as their new test passes.")) return;
+                const r = await api<{ count: number }>(`/accounts/${id}/retest-all`, {});
+                alert(`${r.count} products are being re-tested. New previews appear here and in the brand's Approve page within a few minutes.`);
+                await load();
+              }}
+            >
+              Re-test all products
+            </button>
+          </div>
+        )}
       {d.products.filter((p) => p.selected).length === 0 && <p className="small muted">No products selected yet.</p>}
       <div className="grid">
         {d.products
@@ -350,19 +434,24 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
                   <div className="thumbs">
                     {photo && (
                       <figure style={{ margin: 0 }}>
-                        <div className="preview">
-                          <img src={photo} alt={`Uploaded photo of ${p.title}`} referrerPolicy="no-referrer" />
-                        </div>
+                        <button type="button" className="preview zoom" aria-label={`Enlarge the product photo of ${p.title}`} onClick={() => setZoom({ src: photo, caption: `${p.title} · product photo` })}>
+                          <img src={photo} alt="" referrerPolicy="no-referrer" />
+                        </button>
                         <figcaption className="small muted">Product photo</figcaption>
                       </figure>
                     )}
                     {runs.map((t, i) => (
                       <figure style={{ margin: 0 }} key={t.id} title={t.reason ?? ""}>
-                        <div className="preview">
+                        <button
+                          type="button"
+                          className="preview zoom"
+                          aria-label={`Enlarge the preview on ${modelName(t.fixture, i)}, score ${t.score}`}
+                          onClick={() => setZoom({ src: `/admin-api/test-image/${t.id}`, caption: `${p.title} · on ${modelName(t.fixture, i)} · score ${t.score ?? "?"}${t.reason ? ` · ${t.reason}` : ""}` })}
+                        >
                           <span className="chip">{t.score ?? "?"}</span>
-                          <img src={`/admin-api/test-image/${t.id}`} alt={`Try-on on model ${String.fromCharCode(65 + i)}, score ${t.score}`} />
-                        </div>
-                        <figcaption className="small muted">On model {String.fromCharCode(65 + i)}</figcaption>
+                          <img src={`/admin-api/test-image/${t.id}`} alt="" />
+                        </button>
+                        <figcaption className="small muted">On {modelName(t.fixture, i)}</figcaption>
                       </figure>
                     ))}
                   </div>

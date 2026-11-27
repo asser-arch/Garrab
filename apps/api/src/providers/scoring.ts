@@ -20,6 +20,11 @@ export interface Score {
 
 export interface ScoringProvider {
   readonly name: string;
+  /**
+   * Would this product, worn as shown, leave skin visible that a veiled woman keeps covered (bare shoulders or
+   * upper arms, low neckline, midriff, legs above the knee, sheer fabric)? null = couldn't tell.
+   */
+  revealsSkin?(input: { title: string; productImageUrl: string }): Promise<{ reveals: boolean | null; costMicroUsd: number }>;
   score(input: { title: string; productImageUrl: string; result: Uint8Array; resultType: string; room?: boolean }): Promise<{ score: Score | null; costMicroUsd: number }>;
 }
 
@@ -48,6 +53,41 @@ export class GeminiScorer implements ScoringProvider {
     private readonly fetcher: typeof fetch = workerFetch,
   ) {
     this.name = `gemini:${model}`;
+  }
+
+  async revealsSkin(input: { title: string; productImageUrl: string }): Promise<{ reveals: boolean | null; costMicroUsd: number }> {
+    try {
+      const img = await this.fetcher(input.productImageUrl, { signal: AbortSignal.timeout(15_000) });
+      const mime = (img.headers.get("content-type") ?? "").split(";")[0]!.trim();
+      if (!img.ok || !/^image\/(jpeg|png|webp)$/.test(mime)) return { reveals: null, costMicroUsd: 0 };
+      const r = await this.fetcher("https://generativelanguage.googleapis.com/v1beta/interactions", {
+        method: "POST",
+        headers: { "x-goog-api-key": this.apiKey, "content-type": "application/json", "Api-Revision": "2026-05-20" },
+        body: JSON.stringify({
+          model: this.model,
+          store: false,
+          generation_config: { seed: 7 },
+          input: [
+            {
+              type: "text",
+              text: `Product photo from a clothing shop: "${input.title}". Judge only the clothing item(s) for sale, as designed. Worn as shown, would this item leave visible any of: bare shoulders, upper arms (sleeveless or short sleeves above the elbow), cleavage or a low or open neckline or back, midriff, legs above the knee, or sheer/see-through fabric over skin? A modest long-sleeved, ankle-length item answers false.`,
+            },
+            { type: "image", mime_type: mime, data: toBase64(new Uint8Array(await img.arrayBuffer())) },
+          ],
+          response_format: { type: "text", mime_type: "application/json", schema: { type: "object", properties: { reveals_skin: { type: "boolean" } }, required: ["reveals_skin"] } },
+        }),
+        signal: AbortSignal.timeout(30_000),
+      });
+      if (!r.ok) return { reveals: null, costMicroUsd: 0 };
+      const j = (await r.json()) as { steps?: { type?: string; content?: { type?: string; text?: string }[] }[]; usage?: { total_input_tokens?: number; total_output_tokens?: number } };
+      const cost = Math.round((j.usage?.total_input_tokens ?? 1400) * 0.3 + (j.usage?.total_output_tokens ?? 20) * 2.5);
+      const text = (j.steps ?? []).filter((x) => x.type === "model_output").flatMap((x) => x.content ?? []).find((c) => c.type === "text")?.text;
+      if (!text) return { reveals: null, costMicroUsd: cost };
+      const o = JSON.parse(text) as { reveals_skin?: unknown };
+      return { reveals: typeof o.reveals_skin === "boolean" ? o.reveals_skin : null, costMicroUsd: cost };
+    } catch {
+      return { reveals: null, costMicroUsd: 0 };
+    }
   }
 
   async score(input: { title: string; productImageUrl: string; result: Uint8Array; resultType: string; room?: boolean }): Promise<{ score: Score | null; costMicroUsd: number }> {
@@ -114,10 +154,14 @@ export class GeminiScorer implements ScoringProvider {
 
 /**
  * Local/test scorer: deterministic. Titles containing "[low]" score 2, "[review]" score 3,
- * everything else 4.
+ * everything else 4. "[skin]" marks a product that shows skin.
  */
 export class MockScorer implements ScoringProvider {
   readonly name = "mock";
+  /** Titles containing "[skin]" show skin. */
+  async revealsSkin(input: { title: string }): Promise<{ reveals: boolean; costMicroUsd: number }> {
+    return { reveals: /\[skin\]/i.test(input.title), costMicroUsd: 100 };
+  }
   async score(input: { title: string }): Promise<{ score: Score; costMicroUsd: number }> {
     const overall = /\[low\]/i.test(input.title) ? 2 : /\[review\]/i.test(input.title) ? 3 : 4;
     const reason =

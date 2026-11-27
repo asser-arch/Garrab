@@ -28,7 +28,7 @@ import { decideClaim } from "../billing/instapay.js";
 import { runJobNow } from "../jobs.js";
 import { googleBalance, setGoogleBalance } from "../lib/googleBalance.js";
 import { imageFromLink, outreachPreview } from "../lib/outreach.js";
-import { listFixtures } from "../onboarding/tests.js";
+import { fixtureLabel, listFixtures } from "../onboarding/tests.js";
 import { sniffImage } from "../lib/photo.js";
 import { toBase64 } from "../providers/google.js";
 import { buildDigest } from "../ops/digest.js";
@@ -553,7 +553,7 @@ admin.post("/accounts/:id/price", async (c) => {
 
 /**
  * Outreach preview: one try-on (or room preview) of a prospect's product, to send them before they sign up.
- * multipart: photo (file) or link (image, product page or post), title, mode (person|room), fixture (0|1),
+ * multipart: photo (file) or link (image, product page or post), title, mode (person|room), fixture (index in the picker),
  * own (optional file: a person or room photo to use instead of a stock one; never stored).
  */
 admin.post("/outreach/preview", async (c) => {
@@ -561,7 +561,7 @@ admin.post("/outreach/preview", async (c) => {
   if (!form) return c.json({ error: "invalid" }, 400);
   const mode = form.get("mode") === "room" ? "room" : "person";
   const title = String(form.get("title") ?? "").trim().slice(0, 120) || (mode === "room" ? "Home décor piece" : "Outfit");
-  const fixture = Number(form.get("fixture") ?? 0) === 1 ? 1 : 0;
+  const fixture = Math.min(9, Math.max(0, Math.floor(Number(form.get("fixture") ?? 0)) || 0));
   const file = form.get("photo");
   const link = String(form.get("link") ?? "").trim();
   let product;
@@ -594,17 +594,61 @@ admin.post("/outreach/preview", async (c) => {
 
 /** The stock models / rooms to choose from (small previews for the admin). */
 admin.get("/outreach/fixtures", async (c) => {
-  const out: Record<string, string[]> = {};
+  const out: Record<string, { label: string; src: string }[]> = {};
   for (const mode of ["person", "room"] as const) {
     out[mode] = [];
-    for (const key of await listFixtures(c.env, mode)) {
+    for (const key of await listFixtures(c.env, mode, "all")) {
       const o = await c.env.FILES.get(key);
       if (!o) continue;
       const b = new Uint8Array(await o.arrayBuffer());
-      out[mode].push(`data:${sniffImage(b) ?? "image/jpeg"};base64,${toBase64(b)}`);
+      out[mode].push({ label: fixtureLabel(key), src: `data:${sniffImage(b) ?? "image/jpeg"};base64,${toBase64(b)}` });
     }
   }
   return c.json(out);
+});
+
+/** Fix a brand's name (e.g. typed wrong at sign-up). Its links (slug) stay the same. */
+admin.post("/accounts/:id/name", async (c) => {
+  const body = z.object({ name: z.string().trim().min(2).max(80) }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid", reason: "A name of 2 to 80 characters." }, 400);
+  const old = await c.env.DB.prepare("SELECT name FROM accounts WHERE id = ?").bind(c.req.param("id")).first<{ name: string }>();
+  if (!old) return c.json({ error: "not_found" }, 404);
+  await c.env.DB.prepare("UPDATE accounts SET name = ?, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?").bind(body.data.name, c.req.param("id")).run();
+  invalidateStatus(c.req.param("id"));
+  await audit(c.env, c.req.param("id"), c.get("admin"), "rename", `${old.name} → ${body.data.name}`);
+  return c.json({ ok: true });
+});
+
+/** Which stock models a fashion brand's products are tested on: women, men or both. */
+admin.post("/accounts/:id/test-models", async (c) => {
+  const body = z.object({ models: z.enum(["women", "men", "both"]) }).safeParse(await c.req.json().catch(() => null));
+  if (!body.success) return c.json({ error: "invalid" }, 400);
+  const r = await c.env.DB.prepare("UPDATE accounts SET test_models = ? WHERE id = ?").bind(body.data.models, c.req.param("id")).run();
+  if (r.meta.changes !== 1) return c.json({ error: "not_found" }, 404);
+  await audit(c.env, c.req.param("id"), c.get("admin"), "test_models", body.data.models);
+  return c.json({ ok: true });
+});
+
+/**
+ * Re-test (re-render) every chosen product of a brand, e.g. after switching it to male models. Old previews
+ * are removed; brand approvals are kept, so an approved product goes live again as soon as its new test
+ * passes. Starts a fresh test budget.
+ */
+admin.post("/accounts/:id/retest-all", async (c) => {
+  const id = c.req.param("id");
+  const rows = await c.env.DB.prepare("SELECT id FROM products WHERE account_id = ? AND selected = 1").bind(id).all<{ id: string }>();
+  for (const p of rows.results) await clearProductTests(c.env, id, p.id);
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      `UPDATE products SET test_score = NULL, test_started_at = NULL, test_retry_at = NULL, test_busy_count = 0, enabled = 0, needs_review = 0,
+              disabled_reason = NULL, brand_retests = 0 WHERE account_id = ? AND selected = 1`,
+    ).bind(id),
+    c.env.DB.prepare("UPDATE accounts SET test_budget_from = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = ?").bind(id),
+  ]);
+  invalidateStatus(id);
+  for (const p of rows.results) await c.env.JOBS.send({ t: "test", a: id, p: p.id });
+  await audit(c.env, id, c.get("admin"), "retest_all", `${rows.results.length} products`);
+  return c.json({ ok: true, count: rows.results.length });
 });
 
 admin.post("/accounts/:id/notes", async (c) => {

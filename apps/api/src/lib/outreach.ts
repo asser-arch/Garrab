@@ -11,7 +11,7 @@ import { workerFetch } from "./http.js";
 import { recordUsage } from "./metering.js";
 import { sniffImage, stripJpegMetadata } from "./photo.js";
 import { productPhotoUrl } from "./products.js";
-import { listFixtures } from "../onboarding/tests.js";
+import { fixtureLabel, listFixtures } from "../onboarding/tests.js";
 import { toBase64 } from "../providers/google.js";
 import { tryOnProvider, type TryOnProvider } from "../providers/tryon.js";
 
@@ -81,7 +81,7 @@ export async function outreachPreview(
   // An uploaded one is handled like a shopper's photo: used for this one preview, never stored.
   let photo: Uint8Array;
   let label: string;
-  const fixtures = input.own ? [] : await listFixtures(env, input.mode);
+  const fixtures = input.own ? [] : await listFixtures(env, input.mode, "all");
   if (input.own) {
     photo = input.own.type === "image/jpeg" ? stripJpegMetadata(input.own.bytes) : input.own.bytes;
     label = input.mode === "room" ? "Your room photo" : "Your model photo";
@@ -91,7 +91,7 @@ export async function outreachPreview(
     const photoObj = await env.FILES.get(key);
     if (!photoObj) return { ok: false, error: "The test photo is missing." };
     photo = new Uint8Array(await photoObj.arrayBuffer());
-    label = `${input.mode === "room" ? "Room" : "Model"} ${String.fromCharCode(65 + fixtures.indexOf(key))}`;
+    label = fixtureLabel(key);
   }
   const photoType = sniffImage(photo);
   if (!photoType) return { ok: false, error: "That person or room photo can't be read. Use a JPG, PNG, WEBP or iPhone (HEIC) photo." };
