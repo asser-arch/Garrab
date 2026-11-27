@@ -80,12 +80,47 @@ async function compose(r: Result, mode: Mode, brand: string, lang: "en" | "ar", 
   return c.toDataURL("image/jpeg", 0.92);
 }
 
-const save = (href: string, name: string): void => {
-  const a = document.createElement("a");
-  a.href = href;
-  a.download = name;
-  a.click();
+/** A data: URL → a JPEG file (synchronous, so the phone's share sheet still counts as a direct tap). */
+function toFile(dataUrl: string, name: string): File {
+  const [head, b64] = dataUrl.split(",");
+  const type = /data:([^;]+)/.exec(head ?? "")?.[1] ?? "image/jpeg";
+  const bin = atob(b64 ?? "");
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new File([bytes], name, { type });
+}
+
+/** Phones (iPhone, Android) can share files: "Save Image" to Photos, WhatsApp, Instagram… */
+const canShareFiles = (): boolean => {
+  try {
+    return typeof navigator.canShare === "function" && navigator.canShare({ files: [new File([new Uint8Array(1)], "x.jpg", { type: "image/jpeg" })] });
+  } catch {
+    return false;
+  }
 };
+const isPhone = (): boolean => matchMedia("(pointer: coarse)").matches;
+
+/**
+ * Save the image. Phones: the share sheet (iPhone Safari ignores download links). Computers: a normal
+ * download. Anything else: the picture opens in a new tab to long-press and save.
+ */
+function save(dataUrl: string, name: string): void {
+  const file = toFile(dataUrl, name);
+  if (isPhone() && canShareFiles()) {
+    navigator.share({ files: [file], title: "Garrab preview" }).catch(() => undefined); // cancelled: nothing to do
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  a.rel = "noopener";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  if (isPhone()) window.open(url, "_blank"); // old phone browsers: long-press the picture to save it
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
 
 export function Outreach() {
   const [mode, setMode] = useState<Mode>("person");
@@ -104,6 +139,7 @@ export function Outreach() {
   const [result, setResult] = useState<Result | null>(null);
   const [card, setCard] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [phoneShare] = useState(() => isPhone() && canShareFiles());
 
   useEffect(() => {
     void fetch("/admin-api/outreach/fixtures")
@@ -288,15 +324,16 @@ export function Outreach() {
             {card && <img className="outreach-card" src={card} alt={`Their product and the AI preview (${result.fixture})`} />}
             <div className="row">
               <button className="btn" type="button" disabled={!card} onClick={() => card && save(card, `garrab-preview-${slug}.jpg`)}>
-                Download image
+                {phoneShare ? "Save or send image" : "Download image"}
               </button>
               <button className="btn ghost" type="button" onClick={() => save(result.preview, `garrab-ai-preview-${slug}.jpg`)}>
-                Download the preview only
+                {phoneShare ? "Save or send the preview only" : "Download the preview only"}
               </button>
               <button className="btn ghost" type="button" onClick={() => void make()} disabled={busy}>
                 Make another version
               </button>
             </div>
+            {phoneShare && <p className="small muted">On your phone this opens the share menu: tap “Save Image” for your Photos, or send it straight to WhatsApp or Instagram.</p>}
             <p className="small muted">AI previews vary: if this one isn't great, make another version or try another {mode === "room" ? "room" : "model"}.</p>
           </div>
         )}
