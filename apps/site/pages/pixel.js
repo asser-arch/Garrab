@@ -7,6 +7,24 @@
  */
 (function () {
   var live = location.hostname === "garrabb.com" || location.hostname === "app.garrabb.com";
+  // On the landing page: pass this visitor's source (campaign tags, the site that sent them, a Meta ad click)
+  // on to the sign-up page links, so a sign-up records where the brand found Garrab. No personal data.
+  if (!/^app\./.test(location.hostname)) {
+    var q = new URLSearchParams(location.search);
+    var add = new URLSearchParams();
+    ["utm_source", "utm_medium", "utm_campaign"].forEach(function (k) { if (q.get(k)) add.set(k, q.get(k)); });
+    if (q.get("fbclid")) add.set("meta", "1");
+    try { var rh = document.referrer ? new URL(document.referrer).hostname : ""; if (rh && rh !== location.hostname) add.set("from", rh); } catch (x) { /* none */ }
+    add.set("landing", "1");
+    var decorate = function () {
+      document.querySelectorAll('a[href^="https://app.garrabb.com/start"], a[href^="/start"]').forEach(function (a) {
+        var u = new URL(a.getAttribute("href"), location.href);
+        add.forEach(function (v, k) { if (!u.searchParams.has(k)) u.searchParams.set(k, v); });
+        a.setAttribute("href", u.href);
+      });
+    };
+    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", decorate); else decorate();
+  }
   window.garrabLead = function () {};
   if (!live) return;
   /* eslint-disable */
@@ -23,7 +41,7 @@
     if (!a) return;
     var href = a.getAttribute("href") || "";
     if (href.indexOf("https://wa.me/") === 0) window.fbq("track", "Contact");
-    else if (href.indexOf("https://app.garrabb.com/start") === 0) window.fbq("trackCustom", "StartPilotClick");
+    else if (href.indexOf("https://app.garrabb.com/start") === 0 || href.indexOf("/start") !== -1) window.fbq("trackCustom", "StartPilotClick");
   });
   /** Sign-up saved: the browser half of the Lead (the server sends the other half with the same ID). */
   window.garrabLead = function (eventId) {

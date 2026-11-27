@@ -686,6 +686,35 @@ describe("/v1/start", () => {
     expect(leads?.c).toBe(2);
   });
 
+  it("records where the brand found Garrab and alerts Asser with how to reach them", async () => {
+    const email = `src-${uniq()}@brand.example`;
+    const body = {
+      brandName: "Source Co",
+      contactName: "Hana",
+      email,
+      whatsapp: "01001234567",
+      instagram: "@sourceco",
+      platform: "social_only",
+      niche: "clothing",
+      plan: "starter",
+      turnstileToken: "x",
+      heardFrom: "google",
+      tracking: { referrer: "www.google.com", viaLanding: true },
+    };
+    const r = await exports.default.fetch("https://api.test/v1/start", { method: "POST", headers: { origin: APP, "content-type": "application/json" }, body: JSON.stringify(body) });
+    expect(r.status).toBe(200);
+    const acc = (await env.DB.prepare("SELECT id, found_via FROM accounts WHERE email = ?").bind(email).first<{ id: string; found_via: string }>())!;
+    expect(acc.found_via).toBe('said "Google search"; browser: from www.google.com, through garrabb.com');
+    const lead = await env.DB.prepare("SELECT heard_from, tracking_json FROM leads WHERE email = ?").bind(email).first<{ heard_from: string; tracking_json: string }>();
+    expect(lead!.heard_from).toBe("google");
+    const al = await env.DB.prepare("SELECT message FROM alerts WHERE kind = 'new_signup' AND account_id = ?").bind(acc.id).first<{ message: string }>();
+    expect(al!.message).toContain("WhatsApp +201001234567");
+    expect(al!.message).toContain("Found us via: said \"Google search\"");
+    // The admin's sign-up list shows them with the source.
+    const list = (await (await exports.default.fetch("https://api.test/admin-api/leads", { headers: { authorization: "Bearer test-admin-token-123456" } })).json()) as { signups: { email: string; found_via: string }[] };
+    expect(list.signups.find((x) => x.email === email)!.found_via).toContain("Google search");
+  });
+
   it("a sign-up from a brand's try-on page records the referring brand and alerts", async () => {
     const ref = await createAccount(env, { brandName: "Noor Ref", email: `noor-${uniq()}@brand.example`, plan: "starter", instagram: "@noor" });
     const slug = (await env.DB.prepare("SELECT slug FROM accounts WHERE id = ?").bind(ref.accountId).first<{ slug: string }>())!.slug;

@@ -154,3 +154,5 @@ button.sort:focus-visible { outline: 3px solid var(--teal); outline-offset: 2px;
 .outreach .seg button.on { background: var(--forest); color: var(--paper); }
 .fixture-pick .own-tile { width: 96px; height: 128px; border-radius: 10px; border: 2px dashed var(--sage); display: grid; place-items: center; font-size: 36px; color: var(--forest); }
 .fixture-pick label.own:focus-within { outline: 3px solid var(--teal); outline-offset: 2px; }
+.signups li { align-items: flex-start; gap: 12px; }
+.signups li > span:first-child { line-height: 1.6; }

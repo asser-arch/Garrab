@@ -219,6 +219,33 @@ function Detail({ id, onClose, onChange }: { id: string; onClose: () => void; on
               </>
             )}
           </p>
+          <p className="small" style={{ margin: "8px 0 0" }}>
+            <strong>Contact:</strong> {String(d.account.contact_name ?? "not given")}
+            {d.account.whatsapp ? (
+              <>
+                {" · "}
+                <a href={`https://wa.me/${String(d.account.whatsapp).replace(/\D/g, "").replace(/^0/, "20")}`} target="_blank" rel="noopener">
+                  WhatsApp {String(d.account.whatsapp)}
+                </a>
+              </>
+            ) : null}
+            {d.account.email ? (
+              <>
+                {" · "}
+                <a href={`mailto:${String(d.account.email)}`}>{String(d.account.email)}</a>
+              </>
+            ) : null}
+            {d.account.instagram ? (
+              <>
+                {" · "}
+                <a href={`https://instagram.com/${String(d.account.instagram).replace(/^@/, "")}`} target="_blank" rel="noopener">
+                  {String(d.account.instagram)}
+                </a>
+              </>
+            ) : null}
+            <br />
+            <span className="muted">Found us: {d.account.found_via ? String(d.account.found_via) : "not recorded (invited by you, or signed up before source tracking)"}</span>
+          </p>
         </div>
         <div className="row">
           <button
@@ -480,16 +507,72 @@ const cairo = (ts: string | null | undefined): string => {
 };
 const statusClass = (st: string): string => (st === "suspended" || st === "killed" ? "bad" : st === "past_due" ? "peach" : st === "active" ? "mint" : st === "pilot" ? "lavender" : "");
 /** Selling through customers: call-back requests from /start and leads per referring brand. */
-function Leads() {
+function Leads({ openBrand }: { openBrand: (id: string) => void }) {
   const [d, setD] = useState<{
     requests: { id: string; name: string; whatsapp: string; brand: string | null; created_at: string; via: string | null }[];
     referrals: { via: string; leads: number }[];
+    signups: {
+      account_id: string | null;
+      brand_name: string;
+      contact_name: string;
+      email: string;
+      whatsapp: string;
+      website: string | null;
+      instagram: string | null;
+      niche: string;
+      created_at: string;
+      found_via: string;
+      status: string | null;
+    }[];
   } | null>(null);
   const load = useCallback(async () => setD(await api("/leads")), []);
   useEffect(() => void load(), [load]);
   if (!d) return null;
   const wa = (n: string) => `https://wa.me/${n.replace(/\D/g, "").replace(/^0/, "20")}`;
   return (
+    <>
+    <div className="card">
+      <h2>New sign-ups (30 days)</h2>
+      <p className="sub">Brands that signed up on their own on the sign-up page: how to reach them, and where they found Garrab.</p>
+      {d.signups.length === 0 ? (
+        <p className="small muted">No sign-ups in the last 30 days.</p>
+      ) : (
+        <ul className="list signups">
+          {d.signups.map((r) => (
+            <li key={`${r.account_id}-${r.created_at}`}>
+              <span>
+                {r.account_id ? (
+                  <a href={`#account=${r.account_id}`} onClick={(e) => (e.preventDefault(), openBrand(r.account_id!))}>
+                    <strong>{r.brand_name}</strong>
+                  </a>
+                ) : (
+                  <strong>{r.brand_name}</strong>
+                )}{" "}
+                · {r.contact_name} · <a href={wa(r.whatsapp)} target="_blank" rel="noopener">WhatsApp {r.whatsapp}</a> ·{" "}
+                <a href={`mailto:${r.email}`}>{r.email}</a>
+                {r.website && (
+                  <>
+                    {" "}
+                    · <a href={r.website} target="_blank" rel="noopener">{r.website.replace(/^https?:\/\//, "")}</a>
+                  </>
+                )}
+                {r.instagram && (
+                  <>
+                    {" "}
+                    · <a href={`https://instagram.com/${r.instagram.replace(/^@/, "")}`} target="_blank" rel="noopener">{r.instagram}</a>
+                  </>
+                )}
+                <br />
+                <span className="small muted">
+                  {cairo(r.created_at)} · Found us: {r.found_via}
+                </span>
+              </span>
+              {r.status && <StatusChip status={r.status} />}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
     <div className="card">
       <h2>Call-back requests</h2>
       <p className="sub">People who left their number on the sign-up page. Message them on WhatsApp, then mark them done.</p>
@@ -526,6 +609,7 @@ function Leads() {
         </ul>
       )}
     </div>
+    </>
   );
 }
 
@@ -1226,7 +1310,7 @@ function App() {
           <p className="small muted">Every brand moves through these steps on its own; you only step in when something is stuck.</p>
         </div>
       </div>
-      <Leads />
+      <Leads openBrand={(id) => (setOpen(id), scrollTo(0, 0))} />
       <div className="stats" aria-label="Funnel">
         {funnel.map((s) => (
           <div className="card" key={s.stage}>

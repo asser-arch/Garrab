@@ -59,6 +59,20 @@ export const httpUrl = (max = 1000) =>
   z.string().trim().max(max).refine(isHttpUrl, { message: "Use a web address starting with https://" });
 
 /** Public /start lead form. */
+/** "How did you hear about Garrab?" on the sign-up form. */
+export const HeardFrom = z.enum(["meta_ad", "instagram", "tiktok", "google", "ai_assistant", "friend", "tryon_page", "whatsapp", "other"]);
+export const HEARD_FROM_LABEL: Record<z.infer<typeof HeardFrom>, string> = {
+  meta_ad: "An Instagram or Facebook ad",
+  instagram: "Instagram (not an ad)",
+  tiktok: "TikTok",
+  google: "Google search",
+  ai_assistant: "ChatGPT or another AI assistant",
+  friend: "A friend or another brand",
+  tryon_page: "A shop's try-on page",
+  whatsapp: "WhatsApp",
+  other: "Somewhere else",
+};
+
 export const LeadForm = z
   .object({
     brandName: z.string().trim().min(2).max(80),
@@ -77,6 +91,22 @@ export const LeadForm = z
     turnstileToken: z.string().min(1),
     /** The brand whose try-on page sent this lead (its slug), from /start?ref=… */
     ref: z.string().trim().regex(/^[a-z0-9-]{1,60}$/).optional(),
+    /** "How did you hear about Garrab?" (self-reported). */
+    heardFrom: HeardFrom.optional(),
+    /** What the browser saw: campaign tags and the site that sent them (no personal data). */
+    tracking: z
+      .object({
+        utmSource: z.string().trim().max(80).optional(),
+        utmMedium: z.string().trim().max(80).optional(),
+        utmCampaign: z.string().trim().max(120).optional(),
+        /** The site that sent them to garrabb.com or /start (host only). */
+        referrer: z.string().trim().max(120).optional(),
+        /** Came from a Meta ad click (fbclid present). */
+        metaAd: z.boolean().optional(),
+        /** Came through the garrabb.com landing page. */
+        viaLanding: z.boolean().optional(),
+      })
+      .optional(),
   })
   .refine((v) => v.website !== undefined || v.instagram !== undefined, {
     message: "Add a website or an Instagram handle",

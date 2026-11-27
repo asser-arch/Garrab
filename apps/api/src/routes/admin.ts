@@ -96,7 +96,7 @@ admin.post("/invite", async (c) => {
 
 /** Selling through customers: call-back requests and new brands per referring brand. */
 admin.get("/leads", async (c) => {
-  const [requests, referrals] = await Promise.all([
+  const [requests, referrals, signups] = await Promise.all([
     c.env.DB.prepare(
       `SELECT r.id, r.name, r.whatsapp, r.brand, r.created_at, a.name AS via FROM contact_requests r LEFT JOIN accounts a ON a.slug = r.referred_by
         WHERE r.handled_at IS NULL ORDER BY r.created_at DESC LIMIT 100`,
@@ -105,8 +105,17 @@ admin.get("/leads", async (c) => {
       `SELECT a.name AS via, COUNT(*) AS leads FROM leads l JOIN accounts a ON a.slug = l.referred_by
         WHERE l.created_at >= datetime('now', '-90 days') GROUP BY l.referred_by ORDER BY leads DESC LIMIT 20`,
     ).all(),
+    // Self sign-ups from the /start form (30 days), with how to reach them and where they came from.
+    c.env.DB.prepare(
+      `SELECT l.account_id, l.brand_name, l.contact_name, l.email, l.whatsapp, l.website, l.instagram, l.niche, l.created_at,
+              COALESCE(a.found_via, 'not recorded (signed up before source tracking)') AS found_via, a.status
+         FROM leads l LEFT JOIN accounts a ON a.id = l.account_id
+        WHERE l.created_at >= ? ORDER BY l.created_at DESC LIMIT 50`,
+    )
+      .bind(new Date(Date.now() - 30 * 86_400_000).toISOString())
+      .all(),
   ]);
-  return c.json({ requests: requests.results, referrals: referrals.results });
+  return c.json({ requests: requests.results, referrals: referrals.results, signups: signups.results });
 });
 
 admin.post("/contact-requests/:id/done", async (c) => {

@@ -1,4 +1,4 @@
-import { ContactRequest, LeadForm } from "@garrab/shared";
+import { ContactRequest, HEARD_FROM_LABEL, LeadForm } from "@garrab/shared";
 import { Hono } from "hono";
 import type { Env } from "../env.js";
 import { createAccount } from "../lib/accounts.js";
@@ -41,11 +41,22 @@ start.post("/start", async (c) => {
     niche: f.niche,
   });
   const referrer = await referringBrand(c.env, f.ref);
+  const foundVia = describeSource(f, referrer?.name ?? null);
   await c.env.DB.prepare(
-    "INSERT INTO leads (id, brand_name, contact_name, email, whatsapp, website, instagram, platform, niche, plan, account_id, referred_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    "INSERT INTO leads (id, brand_name, contact_name, email, whatsapp, website, instagram, platform, niche, plan, account_id, referred_by, heard_from, tracking_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
   )
-    .bind(ulid(), f.brandName, f.contactName, f.email, f.whatsapp, f.website ?? null, f.instagram ?? null, f.platform, f.niche, f.plan, accountId, referrer?.slug ?? null)
+    .bind(ulid(), f.brandName, f.contactName, f.email, f.whatsapp, f.website ?? null, f.instagram ?? null, f.platform, f.niche, f.plan, accountId, referrer?.slug ?? null, f.heardFrom ?? null, f.tracking ? JSON.stringify(f.tracking) : null)
     .run();
+  if (created) {
+    await c.env.DB.prepare("UPDATE accounts SET found_via = ? WHERE id = ?").bind(foundVia, accountId).run();
+    // A brand signed up on its own: tell Asser at once, with how to reach them and where they came from.
+    await alert(
+      c.env,
+      "new_signup",
+      accountId,
+      `🎉 New sign-up: ${f.brandName} (${f.contactName}). WhatsApp ${f.whatsapp} · ${f.email}${f.website ? ` · ${f.website}` : ""}${f.instagram ? ` · Instagram ${f.instagram}` : ""}. Found us via: ${foundVia}.`,
+    );
+  }
   if (created && referrer) {
     await c.env.DB.prepare("UPDATE accounts SET referred_by = ? WHERE id = ?").bind(referrer.slug, accountId).run();
     await alert(c.env, "referral", accountId, `New lead via ${referrer.name}: ${f.brandName} signed up from ${referrer.name}'s try-on page.`);
@@ -73,6 +84,20 @@ start.post("/start", async (c) => {
   // Same answer whether or not the email already had an account (no account probing).
   return c.json({ ok: true });
 });
+
+/** One line for the admin: what they told us, then what the browser showed. */
+export function describeSource(f: Pick<LeadForm, "heardFrom" | "tracking">, referrerBrand: string | null): string {
+  const said = f.heardFrom ? `said "${HEARD_FROM_LABEL[f.heardFrom]}"` : "didn't say";
+  const t = f.tracking ?? {};
+  const seen = [
+    referrerBrand ? `${referrerBrand}'s try-on page` : null,
+    t.metaAd ? "a Meta ad click" : null,
+    t.utmSource ? `campaign ${[t.utmSource, t.utmMedium, t.utmCampaign].filter(Boolean).join(" / ")}` : null,
+    t.referrer ? `from ${t.referrer}` : null,
+    t.viaLanding ? "through garrabb.com" : null,
+  ].filter(Boolean);
+  return seen.length ? `${said}; browser: ${seen.join(", ")}` : `${said}; browser: came directly (typed the address or a link without a source)`;
+}
 
 /** The brand whose try-on page sent this visitor (only real brands count). */
 async function referringBrand(env: Env, ref: string | undefined): Promise<{ slug: string; name: string } | null> {

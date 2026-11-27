@@ -115,7 +115,8 @@ test("invite → import → tests → approve → install → pilot live, with n
 
 test("the public /start form creates a lead and an account", async ({ page }) => {
   const email = `start-${Date.now()}@brand.example`;
-  await page.goto(`${APP}/start`);
+  // Arrived from an Instagram ad via garrabb.com (the landing page passes the source on in the link).
+  await page.goto(`${APP}/start?utm_source=instagram&utm_medium=paid&utm_campaign=launch&meta=1&landing=1&from=l.instagram.com`);
   await expect(page.getByRole("heading", { name: /See it on you/ })).toBeVisible();
   await page.getByLabel("Brand name").fill("Start Form Brand");
   await page.getByLabel("Your name").fill("Mona");
@@ -124,9 +125,14 @@ test("the public /start form creates a lead and an account", async ({ page }) =>
   await page.getByLabel("Where do you sell?").selectOption("social_only");
   await page.getByLabel("Instagram handle").fill("startformbrand");
   await page.getByRole("button", { name: "Start my free pilot" }).click();
+  await expect(page.getByText("Please tell us how you heard about Garrab.")).toBeVisible();
+  await page.getByLabel("How did you hear about Garrab?").selectOption("meta_ad");
+  await page.getByRole("button", { name: "Start my free pilot" }).click();
   await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
   const rows = query<{ platform: string; instagram: string; whatsapp: string }>(`SELECT platform, instagram, whatsapp FROM accounts WHERE email = '${email}'`);
   expect(rows).toEqual([{ platform: "social_only", instagram: "@startformbrand", whatsapp: "+201001234567" }]);
+  const src = query<{ found_via: string }>(`SELECT found_via FROM accounts WHERE email = '${email}'`)[0]!.found_via;
+  expect(src).toBe('said "An Instagram or Facebook ad"; browser: a Meta ad click, campaign instagram / paid / launch, from l.instagram.com, through garrabb.com');
 });
 
 test("a sign-in link works once", async ({ page }) => {

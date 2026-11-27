@@ -16,7 +16,8 @@ test("landing page: content, structured data and languages", async ({ page }) =>
     Array.from(document.querySelectorAll('script[type="application/ld+json"]')).flatMap((s) => (JSON.parse(s.textContent!)["@graph"] as { "@type": string }[]).map((x) => x["@type"])),
   );
   expect(types).toEqual(expect.arrayContaining(["Organization", "SoftwareApplication", "FAQPage"]));
-  await expect(page.getByRole("link", { name: "Start your free 14-day pilot" })).toHaveAttribute("href", "https://app.garrabb.com/start");
+  // The sign-up link carries where the visitor came from (no personal data), so sign-ups record their source.
+  await expect(page.getByRole("link", { name: "Start your free 14-day pilot" })).toHaveAttribute("href", /^https:\/\/app\.garrabb\.com\/start\?.*landing=1/);
   // The FAQ answers are in the page itself (not hidden behind scripts) so crawlers can read them.
   await expect(page.locator("details", { hasText: "How much does it cost?" })).toContainText("5,000 EGP");
 

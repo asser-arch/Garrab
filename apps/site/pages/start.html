@@ -40,6 +40,19 @@
       <select id="niche" name="niche" required><option value="clothing">Clothing</option><option value="accessories">Accessories</option><option value="home_decor">Home decor</option></select>
       <label for="plan">Plan after the pilot</label>
       <select id="plan" name="plan" required><option value="starter">Starter</option><option value="growth">Growth (adds the size finder)</option></select>
+      <label for="heardFrom">How did you hear about Garrab?</label>
+      <select id="heardFrom" name="heardFrom" required>
+        <option value="" disabled selected>Choose one</option>
+        <option value="meta_ad">An Instagram or Facebook ad</option>
+        <option value="instagram">Instagram (not an ad)</option>
+        <option value="tiktok">TikTok</option>
+        <option value="google">Google search</option>
+        <option value="ai_assistant">ChatGPT or another AI assistant</option>
+        <option value="friend">A friend or another brand</option>
+        <option value="tryon_page">A shop's try-on page</option>
+        <option value="whatsapp">WhatsApp</option>
+        <option value="other">Somewhere else</option>
+      </select>
       <input type="hidden" name="ref" id="ref">
       <div id="ts" style="margin-top:16px"></div>
       <p id="msg" role="alert" class="small"></p>
