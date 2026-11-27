@@ -270,14 +270,17 @@ portal.post("/products/select", async (c) => {
   if (!body.success) return c.json({ error: "invalid" }, 400);
   const a = await c.env.DB.prepare("SELECT plan_id, max_products FROM accounts WHERE id = ?").bind(id).first<{ plan_id: PlanId; max_products: number | null }>();
   const max = productLimit(a?.plan_id ?? "pilot", a?.max_products);
-  const ids = [...new Set(body.data.ids)].slice(0, max ?? undefined);
-  // Tested products keep their place; untested ones not chosen are unselected.
+  const ids = [...new Set(body.data.ids)];
+  // Tested products keep their place; untested ones not chosen are unselected. Check the plan's limit on the
+  // result BEFORE saving anything, so an over-limit choice is refused and nothing changes.
+  const kept = await c.env.DB.prepare("SELECT id FROM products WHERE account_id = ? AND selected = 1 AND test_score IS NOT NULL").bind(id).all<{ id: string }>();
+  const after = new Set([...kept.results.map((r) => r.id), ...ids]);
+  if (max !== null && after.size > max) return c.json({ error: "too_many", max }, 400);
   await c.env.DB.batch([
     c.env.DB.prepare("UPDATE products SET selected = 0 WHERE account_id = ? AND test_score IS NULL").bind(id),
     ...ids.map((pid) => c.env.DB.prepare("UPDATE products SET selected = 1 WHERE account_id = ? AND id = ?").bind(id, pid)),
   ]);
   const total = await c.env.DB.prepare("SELECT COUNT(*) AS c FROM products WHERE account_id = ? AND selected = 1").bind(id).first<{ c: number }>();
-  if (max !== null && (total?.c ?? 0) > max) return c.json({ error: "too_many", max }, 400);
   await c.env.JOBS.send({ t: "advance", a: id });
   return c.json({ ok: true, selected: total?.c ?? 0 });
 });

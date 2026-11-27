@@ -264,7 +264,15 @@ export function Products({
             <button
               className="btn"
               onClick={async () => {
-                await api("/products/select", { body: { ids: [...chosen] } });
+                try {
+                  await api("/products/select", { body: { ids: [...chosen] } });
+                } catch (e) {
+                  if (e instanceof Error && e.message === "too_many") {
+                    setMsg(`Your plan includes up to ${max} products, including ones already tested. Untick some, then save again. Nothing was changed.`);
+                    return;
+                  }
+                  throw e;
+                }
                 setMsg(
                   live
                     ? "Saved. New products are being tested now; approve them under Approve in about a minute."

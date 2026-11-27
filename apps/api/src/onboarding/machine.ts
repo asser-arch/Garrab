@@ -293,6 +293,13 @@ async function alertOnce(env: Env, dedupe: string, kind: string, accountId: stri
 
 /** First approved product goes live: the 14-day pilot clock starts (brief §6.7). */
 async function goLive(env: Env, acc: Acc): Promise<void> {
+  // A brand Garrab paused (or killed) while it was setting up stays off, even if it approves a product:
+  // only Restore in the admin lets its pilot start.
+  const now = await env.DB.prepare("SELECT status, manual_hold FROM accounts WHERE id = ?").bind(acc.id).first<{ status: string; manual_hold: number }>();
+  if (!now || now.manual_hold === 1 || now.status !== "onboarding") {
+    await alertOnce(env, `held_go_live:${acc.id}`, "needs_review", acc.id, `${acc.name} approved a product, but you paused this brand, so its pilot hasn't started. Press Restore in the admin to start it.`);
+    return;
+  }
   const start = new Date();
   const ends = new Date(start.getTime() + PILOT.days * 86_400_000);
   const ok = await moveStep(env, acc, "pilot_live");
@@ -300,7 +307,7 @@ async function goLive(env: Env, acc: Acc): Promise<void> {
   await env.DB.batch([
     env.DB.prepare(
       `UPDATE accounts SET status = 'pilot', plan_id = 'pilot', status_version = status_version + 1,
-              pilot_started_at = ?, pilot_ends_at = ?, cycle_start = ? WHERE id = ?`,
+              pilot_started_at = ?, pilot_ends_at = ?, cycle_start = ? WHERE id = ? AND status = 'onboarding' AND manual_hold = 0`,
     ).bind(start.toISOString(), ends.toISOString(), cairoDay(start), acc.id),
     env.DB.prepare("INSERT INTO audit_log (id, account_id, actor, action, from_status, to_status, reason) VALUES (?, ?, 'system', 'status', ?, 'pilot', 'pilot started')").bind(
       ulid(),

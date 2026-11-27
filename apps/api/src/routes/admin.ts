@@ -375,9 +375,13 @@ admin.post("/accounts/:id/kill", async (c) => {
   if (!body.success) return c.json({ error: "reason_required" }, 400);
   const a = await accountFacts(c.env, c.req.param("id"));
   if (!a) return c.json({ error: "not_found" }, 404);
-  await c.env.DB.prepare("UPDATE accounts SET manual_hold = 1 WHERE id = ?").bind(a.id).run();
   const to = ["pilot", "active", "past_due"].includes(a.status) ? "suspended" : "paused";
-  await transitionStatus(c.env, a, to, `admin:${c.get("admin")}`, `Kill: ${body.data.reason}`);
+  // Switch off first; the "held by you" flag is set only if the switch-off happened, so a refused change
+  // can never leave a brand held (and then stuck off even after it pays).
+  const ok = await transitionStatus(c.env, a, to, `admin:${c.get("admin")}`, `Kill: ${body.data.reason}`);
+  if (!ok) return c.json({ error: "not_allowed", reason: `A brand that is ${a.status} can't be switched off.` }, 409);
+  await c.env.DB.prepare("UPDATE accounts SET manual_hold = 1 WHERE id = ?").bind(a.id).run();
+  invalidateStatus(a.id);
   return c.json({ ok: true, status: to });
 });
 
@@ -386,9 +390,11 @@ admin.post("/accounts/:id/pause", async (c) => {
   if (!body.success) return c.json({ error: "reason_required" }, 400);
   const a = await accountFacts(c.env, c.req.param("id"));
   if (!a) return c.json({ error: "not_found" }, 404);
-  await c.env.DB.prepare("UPDATE accounts SET manual_hold = 1 WHERE id = ?").bind(a.id).run();
   const ok = await transitionStatus(c.env, a, "paused", `admin:${c.get("admin")}`, `Pause: ${body.data.reason}`);
-  return ok ? c.json({ ok: true, status: "paused" }) : c.json({ error: "not_allowed" }, 409);
+  if (!ok) return c.json({ error: "not_allowed", reason: `A brand that is ${a.status} can't be paused.` }, 409);
+  await c.env.DB.prepare("UPDATE accounts SET manual_hold = 1 WHERE id = ?").bind(a.id).run();
+  invalidateStatus(a.id);
+  return c.json({ ok: true, status: "paused" });
 });
 
 /** Restore: lift the hold and put the account where the ledger says it should be. */
@@ -402,6 +408,8 @@ admin.post("/accounts/:id/restore", async (c) => {
   // A paused onboarding account goes back to onboarding; everything else follows the ledger.
   if (a?.status === "paused" && !a.paid_through && !a.pilot_started_at) await transitionStatus(c.env, a, "onboarding", `admin:${c.get("admin")}`, `Restore: ${body.data.reason}`);
   const status = await reconcileAccount(c.env, id, new Date(), `admin:${c.get("admin")}`);
+  // A brand paused while setting up may have approved products meanwhile: let onboarding carry on (pilot start).
+  await c.env.JOBS.send({ t: "advance", a: id });
   return c.json({ ok: true, status });
 });
 
